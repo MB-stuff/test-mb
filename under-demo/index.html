@@ -217,22 +217,13 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 .place p{margin:0;color:var(--steel);font-size:16px}
 @media (max-width:760px){.live-grid,.places{grid-template-columns:1fr}.live-grid .crt:last-child{margin-top:0}}
 
-/* футер + хранитель */
+/* футер */
 footer{border-top:1px dashed var(--line);padding-block:54px 36px;background:#070708}
-.ft{display:grid;grid-template-columns:auto 1fr minmax(240px,300px);gap:40px;align-items:end}
+.ft{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:end}
+@media (max-width:760px){.ft{grid-template-columns:1fr;gap:28px}}
 .ft img.logo{height:120px;width:auto}
 .ft ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;font:400 16px/1.2 var(--f-rough)}
 .fine{font:400 8px/2 var(--f-pix);color:var(--dim);margin-top:28px}
-.keeper{display:flex;flex-direction:column;align-items:center;gap:14px}
-.bubble{position:relative;width:100%;background:var(--paper);color:var(--ink);border:3px solid #000;box-shadow:4px 4px 0 #000;padding:12px 14px 10px;font:400 15px/1.35 var(--f-rough);min-height:70px;display:flex;flex-direction:column;justify-content:center}
-.bubble .who-says{font:400 7px/1 var(--f-pix);color:#6b6457;margin-bottom:6px}
-.bubble::after{content:"";position:absolute;left:50%;bottom:-19px;margin-left:-14px;border-style:solid;border-color:#000 transparent transparent;border-width:16px 14px 0}
-.bubble::before{content:"";position:absolute;left:50%;bottom:-12px;margin-left:-9px;border-style:solid;border-color:var(--paper) transparent transparent;border-width:11px 9px 0;z-index:1}
-.duck{background:none;border:0;padding:0;width:72px;height:72px}
-.duck.hop{animation:hop .35s ease-out}
-@keyframes hop{50%{transform:translateY(-12px) rotate(-8deg)}}
-.keeper .lbl{font:400 8px/1 var(--f-pix);color:var(--dim)}
-@media (max-width:760px){.ft{grid-template-columns:1fr;gap:28px}.keeper{max-width:300px}}
 
 /* модалки */
 .ov{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;
@@ -426,9 +417,9 @@ table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
         <div>
           <div class="eyebrow">Где потрогать вживую</div>
           <h2>Маркеты и точки</h2>
-          <span class="sub-rus">Ищи столик с жёлтой уткой</span>
+          <span class="sub-rus">Приходи потрогать сталь руками</span>
         </div>
-        <span class="note">утка на месте = лавка открыта</span>
+        <span class="note">анонсы — в сторис</span>
       </div>
       <div class="live-grid">
         <div class="crt"><div class="scr"><img src="img/market-duck.jpg" alt="Прилавок UNDER: браслеты, чокер с шипами и жёлтая резиновая утка"></div><span class="knobs"><i></i><i></i></span></div>
@@ -452,11 +443,6 @@ table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
         <li><span>whatsapp · [добавить]</span></li>
         <li><button type="button" data-open-author style="background:none;border:0;padding:0;font:inherit;color:var(--yellow);text-align:left">кто плетёт? →</button></li>
       </ul>
-      <div class="keeper">
-        <div class="bubble" aria-live="polite"><span class="who-says">ХРАНИТЕЛЬ:</span><span id="bubble-text">Э, братик, чё как?</span></div>
-        <button class="duck" id="duck" type="button" aria-label="Утка-хранитель: следующая фраза"><svg viewBox="0 0 16 16" width="72" height="72" shape-rendering="crispEdges" aria-hidden="true"><g fill="#ffd21f"><rect x="6" y="2" width="4" height="1"/><rect x="5" y="3" width="6" height="3"/><rect x="6" y="6" width="4" height="1"/><rect x="3" y="7" width="10" height="1"/><rect x="2" y="8" width="12" height="4"/><rect x="3" y="12" width="10" height="1"/><rect x="1" y="7" width="2" height="2"/></g><rect x="11" y="4" width="3" height="1" fill="#f26a1b"/><rect x="11" y="5" width="2" height="1" fill="#f26a1b"/><rect x="8" y="3" width="1" height="1" fill="#000"/></svg></button>
-        <span class="lbl">ХРАНИТЕЛЬ ПОДЗЕМЕЛЬЯ · ЖМИ</span>
-      </div>
     </div>
     <div class="fine">MADE IN KZ 🇰🇿 · STAND WITH UKRAINE 🇺🇦 · © UNDER, 2026 · ДЕМО-ВЕРСИЯ, ФОТО ИЗ INSTAGRAM</div>
   </div>
@@ -615,14 +601,6 @@ $("#au-say").addEventListener("click",()=>{clearInterval(typer);$("#au-say").tex
 
 let tt;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
 $("#kz-btn").onclick=()=>toast("Қазақша нұсқасы жақында — казахская версия в следующей итерации");
-
-/* хранитель: короткие районные фразы, без мата */
-const LINES=["Братик… а стены всегда так дышали?","Я не утка. Я состояние.","Кольцо в кольце в кольце… это ж бесконечность, понимаешь?","Меня накрыло. Красотой этих серёг.","Я видел будущее. Там все в кольчуге.","Чё за трек играет? А, это у меня в голове.","Сколько времени? А, неважно. Я утка.","Не трогай, я в астрале. Кря.","Третий день смотрю на браслеты. Они смотрят в ответ.","Слышь… а если моргнуть, клинки остаются?","Всё нормально. Просто всё блестит.","Пацаны, я на связи. Связь — с космосом."];
-let ln=0,lineTimer;
-function nextLine(){ln=(ln+1)%LINES.length;$("#bubble-text").textContent=LINES[ln]}
-function startLines(){clearInterval(lineTimer);lineTimer=setInterval(nextLine,5000)}
-$("#duck").onclick=function(){nextLine();startLines();this.classList.remove("hop");void this.offsetWidth;this.classList.add("hop")};
-startLines();
 
 
 /* тихий dungeon synth: медленные минорные аккорды, только по кнопке */
