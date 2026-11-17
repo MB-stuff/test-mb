@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kurale&family=Press+Start+2P&family=Rubik+Broken+Fax&family=Rubik+Dirt&family=Ruslan+Display&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kurale&family=Press+Start+2P&family=Dela+Gothic+One&family=Rubik+Dirt&family=Ruslan+Display&display=swap">
 <style>
 /* Layout: подвал с телевизорами — фото крутятся на маленьких ЭЛТ-мониторах, всё остальное в неровных стальных окнах; штамп в заголовках, вязь в названиях, «сломанный факс» в пометках */
 :root{
@@ -14,7 +14,7 @@
   --bezel:#2b2b2f; --bezel-hi:#46464c;
   --f-head:"Rubik Dirt","Impact","Arial Black",sans-serif;
   --f-rus:"Ruslan Display","Rubik Dirt",Georgia,serif;
-  --f-rough:"Rubik Broken Fax","Rubik Dirt","Arial Black",sans-serif;
+  --f-rough:"Dela Gothic One","Arial Black",Impact,sans-serif;
   --f-body:"Kurale",Georgia,"Times New Roman",serif;
   --f-pix:"Press Start 2P",ui-monospace,monospace;
   --j1:polygon(0 4px,17% 0,39% 5px,62% 1px,84% 6px,100% 0,calc(100% - 5px) 28%,100% 54%,calc(100% - 3px) 79%,100% 100%,76% calc(100% - 5px),51% 100%,27% calc(100% - 3px),0 100%,4px 72%,0 46%,5px 21%);
@@ -39,13 +39,15 @@ section{padding-block:76px}
 .eyebrow{font:400 9px/1.7 var(--f-pix);letter-spacing:.05em;color:var(--steel);text-transform:uppercase}
 h2{font:400 clamp(32px,8.4vw,78px)/.95 var(--f-head);text-transform:uppercase;margin:10px 0 0;text-wrap:balance;overflow-wrap:anywhere}
 .sub-rus{display:block;font:400 clamp(20px,2.6vw,28px)/1.2 var(--f-rus);color:var(--steel);margin-top:12px}
-.note{font:400 21px/1.1 var(--f-rough);color:var(--yellow);display:inline-block;transform:rotate(-2deg)}
+.note{font:400 19px/1.1 var(--f-rough);color:var(--yellow);display:inline-block;transform:rotate(-2deg)}
 .lead{max-width:58ch;color:var(--steel);margin:18px 0 0}
 .sec-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 32px}
 
 /* неровное окно: стальной контур с рваным краем */
-.win{position:relative;display:block;background:var(--steel);padding:3px;clip-path:var(--j,var(--j1))}
-.win>.in{display:block;position:relative;height:100%;background:var(--panel);clip-path:var(--j,var(--j1))}
+.win{position:relative;display:block;background:var(--panel);border:2px solid var(--steel);box-shadow:6px 6px 0 #000}
+.win::before{content:"";position:absolute;inset:5px;z-index:5;pointer-events:none;
+  background:radial-gradient(circle at 4px 4px,#7d8086 2.2px,transparent 2.8px),radial-gradient(circle at calc(100% - 4px) 4px,#7d8086 2.2px,transparent 2.8px),radial-gradient(circle at 4px calc(100% - 4px),#7d8086 2.2px,transparent 2.8px),radial-gradient(circle at calc(100% - 4px) calc(100% - 4px),#7d8086 2.2px,transparent 2.8px)}
+.win>.in{display:block;position:relative;height:100%}
 .j2{--j:var(--j2)} .j3{--j:var(--j3)}
 
 /* маленький ЭЛТ-монитор */
@@ -64,6 +66,9 @@ h2{font:400 clamp(32px,8.4vw,78px)/.95 var(--f-head);text-transform:uppercase;ma
 .crt.sm::after{bottom:8px;right:11px;width:6px;height:6px}
 .crt.sm .knobs{display:none}
 .crt .scr.on{animation:poweron .9s ease-out 1}
+.crt .scr.zap{animation:zap .45s steps(4) 1}
+@keyframes zap{0%{filter:brightness(3) contrast(.4)}50%{filter:brightness(.4) contrast(3);transform:translateX(-4px)}100%{filter:none;transform:none}}
+#hero-scr{cursor:pointer}
 @keyframes poweron{0%{transform:scaleY(.02);filter:brightness(4)}40%{transform:scaleY(1);filter:brightness(2)}100%{filter:none}}
 .rec{position:absolute;z-index:3;top:12px;left:14px;font:400 10px/1.6 var(--f-pix);color:var(--vhs);text-shadow:0 0 6px rgba(124,255,79,.6)}
 .rec b{color:var(--red);font-weight:400;animation:blink 1.2s steps(2) infinite}
@@ -109,24 +114,17 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 .stack .big .scr{aspect-ratio:760/700}
 .stack .mini{position:absolute;left:0;bottom:0;width:40%;z-index:4}
 .stack .mini .scr{aspect-ratio:1}
-.stack .scrawl{position:absolute;z-index:5;right:2%;bottom:6px;font:400 22px/1.15 var(--f-rough);color:var(--yellow);text-align:right}
-@media (max-width:880px){.hero-grid{grid-template-columns:1fr;gap:28px}.stack{order:-1;padding:0 0 66px 28px}.stack .scrawl{font-size:17px;bottom:2px}}
+.stack .scrawl{position:absolute;z-index:5;right:2%;bottom:6px;font:400 18px/1.2 var(--f-rough);color:var(--yellow);text-align:right}
+@media (max-width:880px){.hero-grid{grid-template-columns:1fr;gap:28px}.stack{order:-1;padding:0 0 66px 28px}.stack .scrawl{font-size:14px;bottom:2px}}
 
-/* цепь с бирками */
-.hang{position:relative;padding-bottom:30px}
-.hang-chain{height:18px;background:var(--chain) repeat-x left center}
-.tags{list-style:none;margin:0;padding:0 max(16px,env(safe-area-inset-left,0px));display:flex;justify-content:space-around;flex-wrap:wrap;gap:6px 18px}
-.tags li{position:relative;margin-top:26px;transform-origin:50% -26px;animation:sway 3.6s ease-in-out infinite alternate}
-.tags li::before{content:"";position:absolute;left:50%;top:-26px;width:2px;height:26px;background:var(--steel)}
-.tags .in{padding:12px 18px 10px;font:400 19px/1 var(--f-rough);color:var(--paper)}
-.tags li:nth-child(2){animation-delay:-1.2s}
-.tags li:nth-child(2) .in{color:var(--yellow)}
-.tags li:nth-child(3){animation-delay:-2.1s}
-.tags li:nth-child(4){animation-delay:-.6s}
-.tags li:nth-child(4) .in{color:var(--vhs)}
-.tags li:nth-child(5){animation-delay:-2.8s}
-@keyframes sway{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
-@media (max-width:600px){.tags .in{font-size:15px}.tags li{margin-top:22px}.tags li:nth-child(n+4){display:none}}
+/* факты вместо бирок */
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;padding-block:10px 20px}
+.fact>.in{display:flex;flex-direction:column;gap:8px;padding:20px 20px 18px}
+.fact b{font:400 clamp(38px,5vw,56px)/.9 var(--f-head);color:var(--paper);font-weight:400}
+.fact span{font:400 15px/1.25 var(--f-rough);color:var(--steel)}
+.fact:nth-child(2) b{color:var(--yellow)}
+.fact:nth-child(4) b{color:var(--red)}
+@media (max-width:760px){.facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.fact>.in{padding:16px 14px}}
 
 /* карта подземелья */
 .map{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:34px;border:4px solid var(--steel);background:var(--panel)}
@@ -143,14 +141,16 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 /* каталог */
 .filters{display:flex;flex-wrap:wrap;gap:8px 10px;margin:30px 0 34px;align-items:center}
 .filters .lbl{font:400 17px/1 var(--f-rough);color:var(--dim);margin-right:4px}
-.chip{border:1px dashed var(--line);background:none;padding:8px 12px 6px;font:400 16px/1 var(--f-rough)}
+.chip{border:2px solid var(--line);background:none;padding:8px 12px 7px;font:400 14px/1 var(--f-rough)}
 .chip:hover{border-color:var(--paper)}
 .chip[aria-pressed="true"]{background:var(--paper);color:var(--ink);border:1px solid var(--paper)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:30px 26px}
 .card{border:0;text-align:left;transition:background .15s,transform .15s}
 .grid .card:nth-child(3n+2){--j:var(--j2)}
 .grid .card:nth-child(3n+3){--j:var(--j3)}
-.card:hover,.card:focus-visible{background:var(--yellow);transform:translateY(-4px);outline:none}
+.card:hover,.card:focus-visible{border-color:var(--yellow);box-shadow:6px 6px 0 var(--red);transform:translate(-2px,-4px);outline:none}
+.card:hover .crt .scr img{animation:jitter .35s steps(3) 1}
+@keyframes jitter{0%{transform:translate(0);filter:brightness(1.6) contrast(1.4)}33%{transform:translate(-3px,1px)}66%{transform:translate(2px,-1px);filter:brightness(1.2)}100%{transform:none}}
 .card>.in{display:flex;flex-direction:column;gap:10px;padding:14px 14px 16px}
 .card .scr{aspect-ratio:4/5}
 .card .scr img{position:absolute;inset:0;transition:opacity .35s}
@@ -224,7 +224,7 @@ footer{border-top:1px dashed var(--line);padding-block:54px 36px;background:#070
 .ft ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;font:400 16px/1.2 var(--f-rough)}
 .fine{font:400 8px/2 var(--f-pix);color:var(--dim);margin-top:28px}
 .keeper{display:flex;flex-direction:column;align-items:center;gap:14px}
-.bubble{position:relative;width:100%;background:var(--paper);color:var(--ink);border:3px solid #000;box-shadow:4px 4px 0 #000;padding:12px 14px 10px;font:400 18px/1.3 var(--f-rough);min-height:62px;display:flex;flex-direction:column;justify-content:center}
+.bubble{position:relative;width:100%;background:var(--paper);color:var(--ink);border:3px solid #000;box-shadow:4px 4px 0 #000;padding:12px 14px 10px;font:400 15px/1.35 var(--f-rough);min-height:70px;display:flex;flex-direction:column;justify-content:center}
 .bubble .who-says{font:400 7px/1 var(--f-pix);color:#6b6457;margin-bottom:6px}
 .bubble::after{content:"";position:absolute;left:50%;bottom:-19px;margin-left:-14px;border-style:solid;border-color:#000 transparent transparent;border-width:16px 14px 0}
 .bubble::before{content:"";position:absolute;left:50%;bottom:-12px;margin-left:-9px;border-style:solid;border-color:var(--paper) transparent transparent;border-width:11px 9px 0;z-index:1}
@@ -324,29 +324,22 @@ table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
         </div>
       </div>
       <div class="stack">
-        <div class="crt big">
-          <div class="scr on" role="img" aria-label="Модель в серьгах «Крылья Серафимы» прикуривает от зажигалки на цепи">
-            <img src="img/hero.jpg" alt="">
-            <div class="rec"><b>●</b> REC<br><span id="rec-date">17.11.2026</span></div>
-            <div class="tc" id="tc">SP 00:00:00</div>
-          </div>
-          <span class="brand-tv">UNDER·TV</span><span class="knobs"><i></i><i></i></span>
+        <div class="crt big" id="hero-tv">
+          <button class="scr on" id="hero-scr" type="button" aria-label="Открыть изделие" style="display:block;width:100%;padding:0;border:0"><img id="hero-img" src="img/hero.jpg" alt="Модель в серьгах «Крылья Серафимы»">
+          </button>
+          <span class="knobs"><i></i><i></i></span>
         </div>
-        <div class="crt sm mini"><div class="scr on"><img src="img/seraphim.jpg" alt="Серьги «Крылья Серафимы» крупно"></div><span class="brand-tv">CH 02</span></div>
-        <div class="scrawl">↖ крылья серафимы<br>12 000 ₸</div>
+        <div class="crt sm mini"><div class="scr on"><img id="hero-mini" src="img/seraphim.jpg" alt="Серьги «Крылья Серафимы» крупно"></div></div>
+        <div class="scrawl" id="hero-cap">↖ крылья серафимы<br>12 000 ₸</div>
       </div>
     </div>
   </section>
 
-  <div class="hang" aria-label="Коротко о лавке">
-    <div class="hang-chain" aria-hidden="true"></div>
-    <ul class="tags">
-      <li><span class="win"><span class="in">сделано руками</span></span></li>
-      <li><span class="win j2"><span class="in">нержавейка не ржавеет</span></span></li>
-      <li><span class="win j3"><span class="in">доставка по KZ</span></span></li>
-      <li><span class="win"><span class="in">корзины нет — пиши</span></span></li>
-      <li><span class="win j2"><span class="in">сплету под тебя</span></span></li>
-    </ul>
+  <div class="wrap facts" aria-label="Коротко о лавке">
+    <div class="fact win"><div class="in"><b>2+</b><span>года плету руками</span></div></div>
+    <div class="fact win"><div class="in"><b>100%</b><span>нержавеющая сталь</span></div></div>
+    <div class="fact win"><div class="in"><b>KZ</b><span>доставка по всему Казахстану</span></div></div>
+    <div class="fact win"><div class="in"><b>0</b><span>корзин — пишешь в директ</span></div></div>
   </div>
 
   <section id="treasury">
@@ -373,21 +366,21 @@ table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
       <p class="lead">Каждая вещь собрана из сотен стальных колец. От плетения зависит, как она лежит, звенит и ловит свет. Нержавейка переживёт сырость, тусовку и отсутствие ухода.</p>
       <div class="weaves">
         <article class="weave">
-          <div class="crt sm"><div class="scr"><img src="img/seraphim-flat.jpg" alt="Европейское плетение крупным планом"></div><span class="brand-tv">CH 4В1</span></div>
+          <div class="crt sm"><div class="scr"><img src="img/seraphim-flat.jpg" alt="Европейское плетение крупным планом"></div></div>
           <span class="tag">КЛАССИКА · 4 В 1</span>
           <h3>Европейское</h3>
           <p>Каждое кольцо продето через четыре соседних. Та самая кольчуга с картинок про рыцарей: плотная и гибкая.</p>
           <a href="#treasury" data-weave="Европейское">показать вещи →</a>
         </article>
         <article class="weave">
-          <div class="crt sm"><div class="scr"><img src="img/vodovoroty-2.jpg" alt="Спиральное плетение крупным планом"></div><span class="brand-tv">CH СПИРАЛЬ</span></div>
+          <div class="crt sm"><div class="scr"><img src="img/vodovoroty-2.jpg" alt="Спиральное плетение крупным планом"></div></div>
           <span class="tag">ОБЪЁМ · ЖГУТ</span>
           <h3>Спиральное</h3>
           <p>Кольца ложатся друг на друга по спирали, получается объёмный жгут. Смотрится сложно, весит мало.</p>
           <a href="#treasury" data-weave="Спиральное">показать вещи →</a>
         </article>
         <article class="weave">
-          <div class="crt sm"><div class="scr"><img src="img/bracelets.jpg" alt="Разные плетения в браслетах"></div><span class="brand-tv">CH МИКС</span></div>
+          <div class="crt sm"><div class="scr"><img src="img/bracelets.jpg" alt="Разные плетения в браслетах"></div></div>
           <span class="tag">МИКС · ФРАНКЕНШТЕЙН</span>
           <h3>Сборное</h3>
           <p>Римское, европейское и спиральное в одной вещи. Так собрана цепь-подвеска «Франкенштейн».</p>
@@ -399,7 +392,7 @@ table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
 
   <section id="kz">
     <div class="wrap kz-grid">
-      <div class="crt"><div class="scr"><img src="img/ush-tuyin.jpg" alt="Серьги «Үш Түйін» с казахским орнаментом"></div><span class="brand-tv">QAZAQ·TV</span><span class="knobs"><i></i><i></i></span></div>
+      <div class="crt"><div class="scr"><img src="img/ush-tuyin.jpg" alt="Серьги «Үш Түйін» с казахским орнаментом"></div><span class="knobs"><i></i><i></i></span></div>
       <div>
         <div class="eyebrow">Казахская линия</div>
         <div class="kz-title">Үш Түйін</div>
@@ -438,8 +431,8 @@ table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
         <span class="note">утка на месте = лавка открыта</span>
       </div>
       <div class="live-grid">
-        <div class="crt"><div class="scr"><img src="img/market-duck.jpg" alt="Прилавок UNDER: браслеты, чокер с шипами и жёлтая резиновая утка"><div class="rec"><b>●</b> REC</div></div><span class="brand-tv">CAM 1 · МАРКЕТ</span><span class="knobs"><i></i><i></i></span></div>
-        <div class="crt"><div class="scr"><img src="img/market-table.jpg" alt="Стенд с серьгами и цепями на чёрной ткани"></div><span class="brand-tv">CAM 2</span><span class="knobs"><i></i><i></i></span></div>
+        <div class="crt"><div class="scr"><img src="img/market-duck.jpg" alt="Прилавок UNDER: браслеты, чокер с шипами и жёлтая резиновая утка"></div><span class="knobs"><i></i><i></i></span></div>
+        <div class="crt"><div class="scr"><img src="img/market-table.jpg" alt="Стенд с серьгами и цепями на чёрной ткани"></div><span class="knobs"><i></i><i></i></span></div>
       </div>
       <div class="places">
         <div class="place win"><div class="in"><div class="eyebrow">МАРКЕТЫ</div><h3>Алматы, вечеринки и маркеты</h3><p>Где стою в следующий раз — смотри в сторис <a href="https://www.instagram.com/under.lavka/" target="_blank" rel="noopener">@under.lavka</a>.</p></div></div>
@@ -473,7 +466,7 @@ table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="item-name">
     <button class="x" type="button" data-close>[X]</button>
     <div class="item">
-      <div class="gal"><div class="crt"><div class="scr"><img id="item-img" src="" alt=""></div><span class="brand-tv">UNDER·TV</span><span class="knobs"><i></i><i></i></span></div><div class="thumbs" id="item-thumbs"></div></div>
+      <div class="gal"><div class="crt"><div class="scr"><img id="item-img" src="" alt=""></div><span class="knobs"><i></i><i></i></span></div><div class="thumbs" id="item-thumbs"></div></div>
       <div class="info">
         <div class="eyebrow" id="item-type"></div>
         <h3 id="item-name"></h3>
@@ -558,7 +551,7 @@ function renderGrid(){
   $("#grid").innerHTML=list.length?list.map((i,n)=>`
     <button class="card win" type="button" data-item="${i.id}"><span class="in">
       <span class="stamp ${i.status}">${STAMP[i.status]}</span>
-      <span class="crt sm"><span class="scr" style="display:block"><img src="img/${i.imgs[0]}.jpg" alt="${i.name}" loading="lazy">${i.imgs[1]?`<img class="alt" src="img/${i.imgs[1]}.jpg" alt="" loading="lazy">`:""}</span><span class="brand-tv">CH ${String(n+1).padStart(2,"0")}</span></span>
+      <span class="crt sm"><span class="scr" style="display:block"><img src="img/${i.imgs[0]}.jpg" alt="${i.name}" loading="lazy">${i.imgs[1]?`<img class="alt" src="img/${i.imgs[1]}.jpg" alt="" loading="lazy">`:""}</span></span>
       <h3 class="${i.kz?"kz":""}">${i.name}</h3>
       <dl class="stats">
         <div><dt>⛓ ПЛЕТЕНИЕ</dt><span class="dots"></span><dd>${i.weave.toUpperCase()}</dd></div>
@@ -610,7 +603,7 @@ $("#want-btn").onclick=()=>{$("#want").classList.add("on");$("#want").scrollInto
 $("#copy-msg").onclick=()=>{const t=$("#want-msg").textContent;
   navigator.clipboard?.writeText(t).then(()=>toast("скопировано, вставь в директ")).catch(()=>{const r=document.createRange();r.selectNodeContents($("#want-msg"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("выдели и скопируй руками")})};
 
-const SAY="Йо. Я Полоний, родом из Павлодара.\nПлету сталь руками больше двух лет: кольцо к кольцу, пока не выйдет крыло, клинок или доспех на запястье.\nКаждая вещь штучная, у каждой свой трек. Лови меня на маркетах или пиши — сплету под тебя.";
+const SAY="Салам. Я Полоний, родом из Павлодара.\nПлету сталь руками больше двух лет: кольцо к кольцу, пока не выйдет крыло, клинок или доспех на запястье.\nКаждая вещь штучная, у каждой свой трек. Лови меня на маркетах или пиши — сплету под тебя.";
 let typer;
 function openAuthor(){
   openOv("#author-ov");const el=$("#au-say");
@@ -624,18 +617,13 @@ let tt;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clea
 $("#kz-btn").onclick=()=>toast("Қазақша нұсқасы жақында — казахская версия в следующей итерации");
 
 /* хранитель: короткие районные фразы, без мата */
-const LINES=["Э, братик, чё как?","Сиди ровно, смотри серьги.","Всё по кайфу, всё по красоте.","Не кипишуй, сплетут.","Я тут за районом слежу. Кря.","Клинки бери. Чисто по-братски.","Это база, пацаны.","Слышь, корзины нет. В директ пиши.","Жёстко сплёл, уважаю.","Ну всё, я пошёл. Шучу, я утка."];
+const LINES=["Братик… а стены всегда так дышали?","Я не утка. Я состояние.","Кольцо в кольце в кольце… это ж бесконечность, понимаешь?","Меня накрыло. Красотой этих серёг.","Я видел будущее. Там все в кольчуге.","Чё за трек играет? А, это у меня в голове.","Сколько времени? А, неважно. Я утка.","Не трогай, я в астрале. Кря.","Третий день смотрю на браслеты. Они смотрят в ответ.","Слышь… а если моргнуть, клинки остаются?","Всё нормально. Просто всё блестит.","Пацаны, я на связи. Связь — с космосом."];
 let ln=0,lineTimer;
 function nextLine(){ln=(ln+1)%LINES.length;$("#bubble-text").textContent=LINES[ln]}
 function startLines(){clearInterval(lineTimer);lineTimer=setInterval(nextLine,5000)}
 $("#duck").onclick=function(){nextLine();startLines();this.classList.remove("hop");void this.offsetWidth;this.classList.add("hop")};
 startLines();
 
-const start=Date.now();
-const pad=n=>String(n).padStart(2,"0");
-function clock(){const d=new Date();$("#rec-date").textContent=`${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;
-  const s=Math.floor((Date.now()-start)/1000);$("#tc").textContent=`SP ${pad(Math.floor(s/3600))}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}`}
-clock();setInterval(clock,1000);
 
 /* тихий dungeon synth: медленные минорные аккорды, только по кнопке */
 let ac,master,loop;
@@ -650,6 +638,21 @@ $("#sound").onclick=function(){
       let i=0;const step=()=>{chord(CH[i++%4],ac.currentTime+.05)};step();loop=setInterval(step,4000)}catch(e){toast("звук не завёлся в этом браузере")}}
   else{clearInterval(loop);master&&master.disconnect()}
 };
+
+/* первый экран: монитор переключает каналы */
+const SLIDES=[
+ {big:"hero",mini:"seraphim",cap:"↖ крылья серафимы<br>12 000 ₸",item:"seraphim"},
+ {big:"mercy",mini:"mercy-1",cap:"↖ клинки милосердия<br>10 000 ₸",item:"mercy"},
+ {big:"bracelets-2",mini:"bracelets",cap:"↖ браслеты-доспехи<br>под заказ",item:"bracelets"},
+ {big:"klinki",mini:"vodovoroty",cap:"↖ клинки<br>в наличии",item:"klinki"}
+];
+let sl=0;
+function zap(el){el.classList.remove("on","zap");void el.offsetWidth;el.classList.add("zap")}
+function nextSlide(){sl=(sl+1)%SLIDES.length;const x=SLIDES[sl];
+  $("#hero-img").src="img/"+x.big+".jpg";$("#hero-mini").src="img/"+x.mini+".jpg";$("#hero-cap").innerHTML=x.cap;
+  zap($("#hero-scr"));zap($("#hero-mini").parentElement)}
+if(!matchMedia("(prefers-reduced-motion: reduce)").matches)setInterval(nextSlide,4500);
+$("#hero-scr").onclick=()=>openItem(SLIDES[sl].item);
 
 render();
 </script>
