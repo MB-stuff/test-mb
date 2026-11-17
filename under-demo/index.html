@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kurale&family=Press+Start+2P&family=Dela+Gothic+One&family=Rubik+Dirt&family=Ruslan+Display&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kurale&family=Press+Start+2P&family=Dela+Gothic+One&family=Tektur:wght@700;900&family=Ruslan+Display&display=swap">
 <style>
 /* Layout: подвал с телевизорами — фото крутятся на маленьких ЭЛТ-мониторах, всё остальное в неровных стальных окнах; штамп в заголовках, вязь в названиях, «сломанный факс» в пометках */
 :root{
@@ -12,8 +12,8 @@
   --steel:#a8abb0; --dim:#76787e;
   --red:#d7261e; --yellow:#ffd21f; --vhs:#7cff4f;
   --bezel:#2b2b2f; --bezel-hi:#46464c;
-  --f-head:"Rubik Dirt","Impact","Arial Black",sans-serif;
-  --f-rus:"Ruslan Display","Rubik Dirt",Georgia,serif;
+  --f-head:"Tektur","Arial Narrow","Arial Black",sans-serif;
+  --f-rus:"Ruslan Display","Tektur",Georgia,serif;
   --f-rough:"Dela Gothic One","Arial Black",Impact,sans-serif;
   --f-body:"Kurale",Georgia,"Times New Roman",serif;
   --f-pix:"Press Start 2P",ui-monospace,monospace;
@@ -37,7 +37,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .wrap{max-width:1160px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 section{padding-block:76px}
 .eyebrow{font:400 9px/1.7 var(--f-pix);letter-spacing:.05em;color:var(--steel);text-transform:uppercase}
-h2{font:400 clamp(32px,8.4vw,78px)/.95 var(--f-head);text-transform:uppercase;margin:10px 0 0;text-wrap:balance;overflow-wrap:anywhere}
+h2{font:900 clamp(32px,8.4vw,78px)/.95 var(--f-head);text-transform:uppercase;margin:10px 0 0;text-wrap:balance;overflow-wrap:anywhere}
 .sub-rus{display:block;font:400 clamp(20px,2.6vw,28px)/1.2 var(--f-rus);color:var(--steel);margin-top:12px}
 .note{font:400 19px/1.1 var(--f-rough);color:var(--yellow);display:inline-block;transform:rotate(-2deg)}
 .lead{max-width:58ch;color:var(--steel);margin:18px 0 0}
@@ -80,7 +80,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:rg
 .hdr{display:flex;align-items:center;gap:20px;padding-block:10px}
 .brand img{height:40px;width:auto}
 nav.main{display:flex;gap:20px;margin-left:auto;align-items:center}
-nav.main a,nav.main button{background:none;border:0;padding:4px 0;text-decoration:none;font:400 15px/1 var(--f-head);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid transparent}
+nav.main a,nav.main button{background:none;border:0;padding:4px 0;text-decoration:none;font:900 15px/1 var(--f-head);text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid transparent}
 nav.main a:hover,nav.main button:hover{border-color:var(--red)}
 nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:0;color:var(--yellow)}
 .hdr-tools{display:flex;gap:8px;align-items:center}
@@ -101,11 +101,11 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 /* hero */
 .hero{padding-block:44px 40px}
 .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
-.hero h1{margin:6px 0 0;font:400 clamp(90px,15vw,184px)/.82 var(--f-head);letter-spacing:-.01em}
+.hero h1{margin:6px 0 0;font:900 clamp(96px,16vw,196px)/.82 var(--f-head);letter-spacing:.01em}
 .hero .rus{font:400 clamp(28px,3.8vw,42px)/1.1 var(--f-rus);margin:16px 0 14px}
 .hero p{color:var(--steel);max-width:42ch;margin:0 0 28px}
 .btns{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 20px 12px;font:400 17px/1 var(--f-head);text-transform:uppercase;letter-spacing:.04em;text-decoration:none;border:2px solid var(--paper);background:none;transition:transform .15s,background .15s,color .15s}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:13px 20px 12px;font:900 17px/1 var(--f-head);text-transform:uppercase;letter-spacing:.04em;text-decoration:none;border:2px solid var(--paper);background:none;transition:transform .15s,background .15s,color .15s}
 .btn.solid{background:var(--paper);color:var(--ink);box-shadow:4px 4px 0 var(--red)}
 .btn:hover{transform:translate(-2px,-2px)}
 .btn.solid:hover{box-shadow:6px 6px 0 var(--red)}
@@ -120,7 +120,7 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 /* факты вместо бирок */
 .facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;padding-block:10px 20px}
 .fact>.in{display:flex;flex-direction:column;gap:8px;padding:20px 20px 18px}
-.fact b{font:400 clamp(38px,5vw,56px)/.9 var(--f-head);color:var(--paper);font-weight:400}
+.fact b{font:900 clamp(38px,5vw,56px)/.9 var(--f-head);color:var(--paper);font-weight:400}
 .fact span{font:400 15px/1.25 var(--f-rough);color:var(--steel)}
 .fact:nth-child(2) b{color:var(--yellow)}
 .fact:nth-child(4) b{color:var(--red)}
@@ -156,16 +156,16 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 .card .scr img{position:absolute;inset:0;transition:opacity .35s}
 .card .scr img.alt{opacity:0}
 .card:hover .scr img.alt{opacity:1}
-.card h3{margin:4px 2px 0;font:400 22px/1.15 var(--f-rus)}
+.card h3{margin:4px 2px 0;font:900 22px/1.15 var(--f-rus)}
 .card h3.kz{font-family:var(--f-head);font-size:25px}
 .stats{margin:0 2px;display:grid;gap:5px;font:400 8px/1.5 var(--f-pix);color:var(--dim)}
 .stats div{display:flex;gap:6px;min-width:0}
 .stats dt{flex:none}
 .stats .dots{flex:1;border-bottom:2px dotted var(--line);transform:translateY(-4px)}
 .stats dd{margin:0;color:var(--paper);text-align:right}
-.card .price{margin:auto 2px 0;padding-top:6px;display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;align-items:baseline;font:400 23px/1 var(--f-head)}
+.card .price{margin:auto 2px 0;padding-top:6px;display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;align-items:baseline;font:900 23px/1 var(--f-head)}
 .card .price small{font:400 14px/1 var(--f-rough);color:var(--yellow)}
-.stamp{position:absolute;z-index:4;top:22px;right:20px;font:400 12px/1 var(--f-head);text-transform:uppercase;padding:7px 9px 6px;transform:rotate(4deg);border:2px solid currentColor;letter-spacing:.03em}
+.stamp{position:absolute;z-index:4;top:22px;right:20px;font:900 12px/1 var(--f-head);text-transform:uppercase;padding:7px 9px 6px;transform:rotate(4deg);border:2px solid currentColor;letter-spacing:.03em}
 .stamp.sold{background:var(--yellow);color:#000;border-color:#000}
 .stamp.stock{background:var(--ink);color:var(--vhs)}
 .stamp.partner{background:var(--ink);color:var(--paper)}
@@ -188,7 +188,7 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 .kz-grid{display:grid;grid-template-columns:.75fr 1.25fr;gap:56px;align-items:center}
 .kz-grid .crt{max-width:380px;justify-self:center;width:100%}
 .kz-grid .scr{aspect-ratio:520/745}
-.kz-title{font:400 clamp(60px,10vw,120px)/.9 var(--f-head);text-transform:uppercase;margin:10px 0 8px}
+.kz-title{font:900 clamp(60px,10vw,120px)/.9 var(--f-head);text-transform:uppercase;margin:10px 0 8px}
 .kz-title + .note{margin-bottom:22px}
 .bi{display:grid;grid-template-columns:1fr 1fr;gap:24px;border-top:1px dashed var(--line);padding-top:18px}
 .bi p{margin:0;color:var(--steel);font-size:16px}
@@ -198,8 +198,8 @@ nav.main .who{font:400 17px/1 var(--f-rough);text-transform:none;letter-spacing:
 /* как заказать */
 .steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:40px}
 .step>.in{display:flex;flex-direction:column;gap:10px;padding:24px 22px 22px;background:var(--bg)}
-.step .n{font:400 40px/1 var(--f-head);color:var(--red)}
-.step h3{margin:0;font:400 28px/1 var(--f-head);text-transform:uppercase}
+.step .n{font:900 40px/1 var(--f-head);color:var(--red)}
+.step h3{margin:0;font:900 28px/1 var(--f-head);text-transform:uppercase}
 .step p{margin:0;font-size:16px;color:var(--steel)}
 .terms{display:flex;flex-wrap:wrap;gap:12px 26px;margin-top:40px;font:400 19px/1 var(--f-rough);color:var(--paper)}
 .terms span::before{content:"✗ ";color:var(--red)}
@@ -255,7 +255,7 @@ table.spec{width:100%;border-collapse:collapse;font-size:15px}
 table.spec td{border-bottom:1px dashed var(--line);padding:7px 0;vertical-align:top}
 table.spec td:first-child{color:var(--dim);width:40%;padding-right:12px}
 .track{font:400 16px/1.3 var(--f-rough);color:var(--vhs)}
-.item .price{font:400 36px/1 var(--f-head)}
+.item .price{font:900 36px/1 var(--f-head)}
 .want{display:none;flex-direction:column;gap:8px;border:1px dashed var(--line);padding:12px;background:var(--panel)}
 .want.on{display:flex}
 .want a,.want .ph-link{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--line);text-decoration:none;font-size:16px}
