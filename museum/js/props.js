@@ -129,6 +129,21 @@
   face('ena_block', 32, 32, g => { R(g, '#f2c230', 0, 0, 16, 32); R(g, '#2f5bd7', 16, 0, 16, 32); R(g, '#111', 15, 0, 2, 32); });
   face('ena_top', 32, 32, g => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) R(g, (x + y) % 2 ? '#111' : '#f4f4f4', x * 8, y * 8, 8, 8); });
 
+  face('books', 64, 76, g => {
+    R(g, '#3a2212', 0, 0, 64, 76);
+    for (const y of [2, 26, 50]) { let x = 3; while (x < 60) { const w = ri(2, 5), h = ri(14, 21); R(g, ['#7a1c1c', '#1c3a7a', '#2a5a2a', '#c9a24a', '#5a2a6a', '#d8d0b8', '#8a4a1a'][ri(0, 6)], x, y + 22 - h, w, h); R(g, 'rgba(255,230,160,0.4)', x, y + 26 - h, w, 1); x += w; } R(g, '#5a361e', 0, y + 22, 64, 3); }
+    R(g, '#2a160a', 0, 0, 3, 76); R(g, '#2a160a', 61, 0, 3, 76);
+  });
+  face('filecab', 32, 48, g => { R(g, '#8a9096', 0, 0, 32, 48); for (let y = 2; y < 46; y += 15) { R(g, '#9aa0a6', 2, y, 28, 13); R(g, '#5a6066', 12, y + 5, 8, 2); R(g, '#f4f1e8', 13, y + 2, 6, 2); } grain(g, 32, 48, 6); });
+  face('rack', 32, 64, g => {
+    R(g, '#16181c', 0, 0, 32, 64); R(g, '#3a3e44', 0, 0, 32, 2); R(g, '#3a3e44', 0, 0, 2, 64); R(g, '#3a3e44', 30, 0, 2, 64);
+    for (let y = 4; y < 62; y += 5) { R(g, '#24282e', 3, y, 26, 4); for (let x = 5; x < 26; x += 3) R(g, ['#3fff7a', '#3fff7a', '#ffb02a', '#3a7aff'][(x + y) % 4], x, y + 1, 1, 1); }
+    return [[3, 4, 26, 58]];
+  });
+  face('tank_top', 32, 32, g => { R(g, '#2a8ac8', 0, 0, 32, 32); grain(g, 32, 32, 18); R(g, '#3a4048', 0, 0, 32, 2); R(g, '#3a4048', 0, 30, 32, 2); });
+  face('lounger', 64, 24, g => { R(g, '#f4f4f0', 0, 0, 64, 24); for (let x = 0; x < 64; x += 8) R(g, '#58b8d8', x, 0, 4, 24); });
+  face('white', 16, 16, g => { R(g, '#eef0f2', 0, 0, 16, 16); grain(g, 16, 16, 4); });
+
   // ------------------------------------------------------------ декали на стенах
   // Рисуются поверх текстуры стены (64×96), результат ×2.
   const DEC = {
@@ -181,6 +196,31 @@
     },
     exitsign(g) { R(g, '#1d7a3a', 18, 4, 28, 10); R(g, '#9ff0b0', 20, 6, 24, 6); R(g, '#1d7a3a', 23, 7, 3, 4); R(g, '#1d7a3a', 29, 7, 3, 4); R(g, '#1d7a3a', 35, 7, 3, 4); return [[18, 4, 28, 10]]; },
     vent(g) { R(g, '#b8b4aa', 20, 6, 24, 12); for (let y = 8; y < 17; y += 2) R(g, '#6a6660', 21, y, 22, 1); },
+    elevpanel(g) {
+      R(g, '#8a9096', 22, 30, 20, 40); R(g, '#c8ced4', 23, 31, 18, 38);
+      R(g, '#111', 26, 34, 12, 6); R(g, '#ff7a2a', 28, 35, 2, 4); R(g, '#ff7a2a', 33, 35, 3, 1); R(g, '#ff7a2a', 35, 35, 1, 4);
+      for (const [y, n] of [[46, 2], [56, 1]]) { E(g, '#e8e4d8', 32, y, 4, 4); E(g, '#ffd34a', 32, y, 2.5, 2.5); R(g, '#333', 31, y - 1, 2, 2); }
+      return [[26, 34, 12, 6], [29, 43, 6, 6], [29, 53, 6, 6]];
+    },
+    fakedoor(g) {
+      R(g, '#8e949a', 14, 18, 36, 70); R(g, '#b8a888', 17, 21, 30, 67); R(g, '#a89878', 20, 26, 24, 26); R(g, '#a89878', 20, 58, 24, 26);
+      R(g, '#c9a24a', 41, 56, 4, 3); R(g, '#2a2a2a', 17, 86, 30, 2);
+    },
+    construction(g) {
+      for (let x = 10; x < 54; x += 6) { g.fillStyle = (x / 6) % 2 ? '#111' : '#f2c81e'; g.beginPath(); g.moveTo(x, 20); g.lineTo(x + 6, 20); g.lineTo(x + 2, 26); g.lineTo(x - 4, 26); g.fill(); }
+      R(g, '#f2c81e', 10, 26, 44, 16); R(g, '#111', 12, 28, 40, 1); R(g, '#111', 12, 33, 30, 2); R(g, '#111', 12, 37, 36, 2);
+      R(g, '#ff7a2a', 46, 30, 5, 5); R(g, '#3a7ad0', 46, 35, 5, 6);
+    },
+    hitcounter(g) {
+      R(g, '#9aa0a6', 12, 30, 40, 14); R(g, '#000', 14, 32, 36, 10);
+      for (let i = 0; i < 6; i++) { R(g, '#3fff7a', 16 + i * 6, 34, 4, 1); R(g, '#3fff7a', 16 + i * 6, 34, 1, 6); R(g, '#3fff7a', 19 + i * 6, 34, 1, 6); R(g, '#3fff7a', 16 + i * 6, 39, 4, 1); }
+      return [[14, 32, 36, 10]];
+    },
+    webbanner(g) {
+      R(g, '#000080', 4, 14, 56, 14); R(g, '#ffff00', 6, 16, 52, 1); R(g, '#ffff00', 6, 25, 52, 1);
+      for (let x = 8; x < 56; x += 5) R(g, ['#ff5ab4', '#3fffb0', '#ffffff', '#ffd34a'][(x / 5 | 0) % 4], x, 19, 3, 4);
+      return [[4, 14, 56, 14]];
+    },
     urinal(g) { R(g, '#f2f6f8', 24, 44, 16, 26); R(g, '#d4dde2', 26, 48, 12, 18); R(g, '#a8b2b8', 30, 38, 4, 6); },
   };
   function decalFace(baseWall, kind) {
@@ -211,6 +251,20 @@
     g.fillStyle = '#e04aa8';
     for (let x = 0; x < SKY_W; x += 64) { g.beginPath(); g.moveTo(x, SKY_H); g.lineTo(x + 32, SKY_H - ri(10, 22)); g.lineTo(x + 64, SKY_H); g.fill(); }
     sky = toTex(c);
+  }
+
+  let skyNight;
+  {
+    const [c, g] = cv(SKY_W, SKY_H);
+    const gr = g.createLinearGradient(0, 0, 0, SKY_H);
+    gr.addColorStop(0, '#05061a'); gr.addColorStop(0.6, '#1a1450'); gr.addColorStop(1, '#5a2a7a');
+    g.fillStyle = gr; g.fillRect(0, 0, SKY_W, SKY_H);
+    for (let k = 0; k < 400; k++) R(g, rnd() < 0.15 ? '#ffe98a' : rnd() < 0.3 ? '#9fd0ff' : '#ffffff', ri(0, SKY_W - 1), ri(0, SKY_H - 20), 1, 1);
+    for (let k = 0; k < 12; k++) { const x = ri(0, SKY_W), y = ri(5, 100); R(g, '#fff', x, y - 2, 1, 5); R(g, '#fff', x - 2, y, 5, 1); }
+    E(g, '#fff6d8', 120, 40, 14, 14); E(g, '#05061a', 126, 36, 12, 12);
+    E(g, '#fff6d8', 120 + SKY_W / 2, 40, 14, 14); E(g, '#05061a', 126 + SKY_W / 2, 36, 12, 12);
+    g.fillStyle = '#0a0a24'; for (let x = 0; x < SKY_W; x += 48) { g.beginPath(); g.moveTo(x, SKY_H); g.lineTo(x + 24, SKY_H - ri(8, 18)); g.lineTo(x + 48, SKY_H); g.fill(); }
+    skyNight = toTex(c);
   }
 
   // ------------------------------------------------------------ парящие фигуры (вращение по кадрам)
@@ -354,8 +408,14 @@
     tvstand: { boxes: [B(-0.25, 0.25, -0.13, 0.13, 0, 0.24, 'wood_side', 'wood_side', 'desk_top'), B(-0.2, 0.2, -0.1, 0.1, 0.24, 0.56, 'tv_front', 'crt_side', 'crt_side', 'crt_back')] },
     fountain: { boxes: [B(-1.1, 1.1, -1.1, 1.1, 0, 0.16, 'marble_side', 'marble_side', 'water')], sprites: [{ t: 'spout', u: 0, v: 0, z: 0.1, h: 1.35 }] },
     smallfountain: { boxes: [B(-0.45, 0.45, -0.45, 0.45, 0, 0.13, 'marble_side', 'marble_side', 'water')], sprites: [{ t: 'spoutsmall', u: 0, v: 0, z: 0.08, h: 0.5 }] },
+    bookshelf: { boxes: [B(-0.45, 0.45, -0.11, 0.11, 0, 1.0, 'books', 'wood_side', 'wood_side', 'wood_side')] },
+    filecab: { boxes: [B(-0.15, 0.15, -0.17, 0.17, 0, 0.62, 'filecab', 'metal', 'metal', 'metal')] },
+    rack: { boxes: [B(-0.2, 0.2, -0.25, 0.25, 0, 1.0, 'rack', 'darkmetal', 'darkmetal', 'rack')] },
+    tank: { boxes: [B(-0.8, 0.8, -0.3, 0.3, 0.0, 0.9, 'tank', 'tank', 'tank_top', 'tank')] },
+    lounger: { boxes: [B(-0.12, 0.12, -0.38, 0.38, 0.08, 0.14, 'white', 'white', 'lounger'), B(-0.12, 0.12, -0.38, -0.3, 0.14, 0.34, 'lounger', 'white', 'white', 'white')] },
     enablock: { boxes: [B(-0.2, 0.2, -0.2, 0.2, 0, 0.4, 'ena_block', 'ena_block', 'ena_top')] },
   };
 
-  window.MuseumProps = { F, PROPS, decalFace, sky, SKY_W, SKY_H, shapes, extra };
+  F.tank = window.MuseumTex.walls.aquarium;
+  window.MuseumProps = { F, PROPS, decalFace, sky, skyNight, SKY_W, SKY_H, shapes, extra };
 })();

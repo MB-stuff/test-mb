@@ -436,5 +436,159 @@
     return toTex(c);
   }
 
+  // ================================================================ ЭТАЖ 2: новые стили
+  function emitRect(t, x, y, w, h) {
+    t.emit = t.emit || new Uint8Array(t.w * t.h);
+    for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) t.emit[j * t.w + i] = 1;
+  }
+  // webcore: тёмно-синие обои со звёздами, облачками и бегущей строкой
+  wall('webdream', g => {
+    const gr = g.createLinearGradient(0, 0, 0, 96); gr.addColorStop(0, '#0b0f3a'); gr.addColorStop(1, '#241a5e');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 96);
+    for (let k = 0; k < 40; k++) R(g, rnd() < 0.3 ? '#ffe98a' : '#ffffff', ri(0, 63), ri(0, 64), 1, 1);
+    for (const [x, y] of [[12, 14], [44, 40]]) { R(g, '#fff6c0', x, y - 2, 1, 5); R(g, '#fff6c0', x - 2, y, 5, 1); }
+    E(g, '#e8e4ff', 50, 12, 5, 5); E(g, '#0b0f3a', 52, 11, 4, 4);
+    for (const [x, y] of [[8, 46], [36, 24]]) { E(g, 'rgba(255,255,255,0.18)', x, y, 8, 3); E(g, 'rgba(255,255,255,0.14)', x + 6, y - 2, 6, 3); }
+    R(g, '#000', 0, 68, 64, 10); for (let x = 2; x < 64; x += 6) R(g, x % 12 ? '#3fffb0' : '#ff5ab4', x, 71, 3, 4);
+    R(g, '#6a5aff', 0, 67, 64, 1); R(g, '#6a5aff', 0, 78, 64, 1);
+    R(g, '#14123a', 0, 86, 64, 10); R(g, '#3a2a8a', 0, 86, 64, 1);
+  });
+  floor('starcarpet', g => {
+    R(g, '#1a1650', 0, 0, 64, 64); grain(g, 64, 64, 14);
+    for (let k = 0; k < 18; k++) { const x = ri(2, 61), y = ri(2, 61), c = ['#ffd34a', '#3fffb0', '#ff5ab4', '#7fb0ff'][k % 4]; R(g, c, x, y - 1, 1, 3); R(g, c, x - 1, y, 3, 1); }
+  });
+  // лиминальный бежевый офис
+  wall('liminal', g => {
+    R(g, '#d9cf9e', 0, 0, 64, 96); grain(g, 64, 96, 6);
+    for (let x = 0; x < 64; x += 16) R(g, '#cfc493', x, 0, 1, 88);
+    R(g, '#e8e0b4', 0, 0, 64, 3); R(g, '#9a8f62', 0, 88, 64, 8); R(g, '#b8ad7c', 0, 88, 64, 1);
+  });
+  floor('beigecarpet', g => { R(g, '#a8a07a', 0, 0, 64, 64); grain(g, 64, 64, 18); for (let k = 0; k < 2; k++) { g.fillStyle = 'rgba(80,70,40,0.12)'; g.beginPath(); g.ellipse(ri(0, 64), ri(0, 64), ri(6, 14), ri(4, 9), 0, 0, 7); g.fill(); } });
+  // кабинет диковин: бархат, дерево, золото
+  wall('velvet', g => {
+    R(g, '#1f4a3a', 0, 0, 64, 96);
+    for (let y = 4; y < 60; y += 12) for (let x = (y / 12 % 2) * 8; x < 64; x += 16) { g.fillStyle = '#2a5a48'; g.beginPath(); g.moveTo(x + 4, y); g.lineTo(x + 8, y + 5); g.lineTo(x + 4, y + 10); g.lineTo(x, y + 5); g.fill(); }
+    grain(g, 64, 62, 8);
+    R(g, '#3a2212', 0, 62, 64, 34); grain(g, 64, 34, 12, 0, 62);
+    for (let px = 0; px < 64; px += 32) { R(g, '#4a2c18', px + 4, 66, 24, 20); R(g, '#2a160a', px + 4, 66, 24, 1); R(g, '#5a3a20', px + 4, 85, 24, 1); }
+    R(g, '#c9a24a', 0, 60, 64, 2); R(g, '#e2bb55', 0, 60, 64, 1); R(g, '#c9a24a', 0, 2, 64, 1); R(g, '#1a0e06', 0, 90, 64, 6);
+  });
+  floor('darkparquet', g => {
+    for (let by = 0; by < 2; by++) for (let bx = 0; bx < 2; bx++) {
+      const hor = (bx + by) % 2 === 0;
+      for (let k = 0; k < 4; k++) {
+        g.fillStyle = ['#4a2a16', '#5a341c', '#3e2412', '#53301a'][ri(0, 3)];
+        if (hor) g.fillRect(bx * 32, by * 32 + k * 8, 32, 8); else g.fillRect(bx * 32 + k * 8, by * 32, 8, 32);
+        g.fillStyle = '#24140a'; if (hor) g.fillRect(bx * 32, by * 32 + k * 8, 32, 1); else g.fillRect(bx * 32 + k * 8, by * 32, 1, 32);
+      }
+    }
+    grain(g, 64, 64, 10);
+  });
+  // стерильный офис и лифт
+  wall('office', g => {
+    R(g, '#eef0f2', 0, 0, 64, 96); grain(g, 64, 96, 4);
+    R(g, '#d8dce0', 31, 0, 2, 88); R(g, '#d8dce0', 0, 46, 64, 1);
+    R(g, '#c8ccd2', 0, 88, 64, 8); R(g, '#e0e4e8', 0, 88, 64, 1);
+  });
+  floor('greycarpet', g => { R(g, '#7c8288', 0, 0, 64, 64); grain(g, 64, 64, 14); R(g, '#6c7278', 0, 0, 64, 1); R(g, '#6c7278', 0, 0, 1, 64); R(g, '#6c7278', 0, 32, 64, 1); R(g, '#6c7278', 32, 0, 1, 64); });
+  wall('steel', g => {
+    R(g, '#b8bec4', 0, 0, 64, 96);
+    for (let y = 0; y < 96; y++) R(g, `rgba(255,255,255,${(Math.sin(y * 1.7) + 1) * 0.04})`, 0, y, 64, 1);
+    grain(g, 64, 96, 8);
+    R(g, '#8a9096', 0, 0, 1, 96); R(g, '#8a9096', 32, 0, 1, 96);
+    R(g, '#d8dde2', 0, 50, 64, 3); R(g, '#7a8086', 0, 53, 64, 1);
+    R(g, '#4a5056', 0, 90, 64, 6);
+  });
+  floor('rubber', g => { R(g, '#3a3e44', 0, 0, 64, 64); for (let y = 4; y < 64; y += 8) for (let x = 4; x < 64; x += 8) E(g, '#4a4e54', x, y, 2, 2); grain(g, 64, 64, 6); });
+  {
+    const [c, g] = cv(64, 96);
+    R(g, '#9aa2aa', 0, 0, 64, 96);
+    R(g, '#c8ced4', 2, 2, 29, 92); R(g, '#c8ced4', 33, 2, 29, 92);
+    for (let y = 0; y < 96; y += 3) R(g, 'rgba(255,255,255,0.07)', 2, y, 60, 1);
+    R(g, '#6a7078', 31, 0, 2, 96); R(g, '#2a2e34', 26, 10, 12, 6); R(g, '#ff7a2a', 28, 12, 3, 2); R(g, '#ff7a2a', 33, 12, 3, 2);
+    walls.door_elev = toTex(c);
+  }
+  // бассейновый атриум: белая плитка
+  wall('poolwhite', g => {
+    R(g, '#c8d2d6', 0, 0, 64, 96);
+    for (let y = 0; y < 96; y += 8) for (let x = 0; x < 64; x += 8) R(g, rnd() < 0.06 ? '#e2eaee' : '#f2f6f8', x, y, 7, 7);
+    for (let x = 0; x < 64; x += 8) R(g, '#58b8d8', x, 80, 7, 7);
+    grain(g, 64, 96, 4);
+  });
+  floor('pooltile', g => { R(g, '#a8c4cc', 0, 0, 64, 64); for (let y = 0; y < 64; y += 8) for (let x = 0; x < 64; x += 8) R(g, rnd() < 0.08 ? '#d8eef4' : '#e6f4f8', x, y, 7, 7); grain(g, 64, 64, 4); });
+  // террариум: стекло с зеленью
+  wall('glasshouse', g => {
+    const gr = g.createLinearGradient(0, 0, 0, 96); gr.addColorStop(0, '#bfe8d8'); gr.addColorStop(1, '#3e7a4a');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 96);
+    for (let k = 0; k < 60; k++) E(g, ['#2f6b2f', '#3c8a3a', '#4fa24a', '#62b85a'][ri(0, 3)], ri(0, 64), ri(40, 96), ri(2, 6), ri(2, 5));
+    g.fillStyle = 'rgba(255,255,255,0.2)'; g.beginPath(); g.moveTo(6, 0); g.lineTo(14, 0); g.lineTo(2, 40); g.lineTo(0, 40); g.fill();
+    R(g, '#f4f4f0', 0, 0, 64, 2); R(g, '#f4f4f0', 0, 0, 2, 96); R(g, '#f4f4f0', 31, 0, 2, 96); R(g, '#f4f4f0', 0, 46, 64, 2); R(g, '#d8d8d0', 0, 88, 64, 8);
+  });
+  floor('moss', g => { R(g, '#3a5a2a', 0, 0, 64, 64); grain(g, 64, 64, 30); for (let k = 0; k < 20; k++) E(g, rnd() < 0.5 ? '#4a7a32' : '#2f4a22', ri(0, 64), ri(0, 64), ri(2, 5), ri(2, 4)); for (let k = 0; k < 6; k++) R(g, '#8a8478', ri(0, 60), ri(0, 60), 4, 3); });
+  // аквариум: стена-витрина с рыбами (4 кадра)
+  {
+    const fish = []; for (let k = 0; k < 9; k++) fish.push({ x: ri(0, 64), y: ri(8, 70), s: 0.6 + rnd() * 0.9, c: ['#ff8a3d', '#f7d046', '#ff5ab4', '#7fd8ff', '#ffffff'][k % 5], d: rnd() < 0.5 ? 1 : -1 });
+    const bub = []; for (let k = 0; k < 12; k++) bub.push({ x: ri(2, 62), y: ri(0, 80) });
+    const frames = [];
+    for (let f = 0; f < 6; f++) {
+      const [c, g] = cv(64, 96);
+      const gr = g.createLinearGradient(0, 0, 0, 96); gr.addColorStop(0, '#2a8ac8'); gr.addColorStop(1, '#0a2a5a');
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 96);
+      for (let k = 0; k < 4; k++) R(g, 'rgba(180,230,255,0.12)', ((k * 17 + f * 3) % 64), 0, 3, 80);
+      for (const fi of fish) {
+        const x = ((fi.x + fi.d * f * 3 * fi.s) % 64 + 64) % 64, y = fi.y + Math.sin(f + fi.x) * 1.5, s = 4 * fi.s;
+        E(g, fi.c, x, y, s, s * 0.55);
+        g.fillStyle = fi.c; g.beginPath(); g.moveTo(x - fi.d * s, y); g.lineTo(x - fi.d * s * 1.8, y - s * 0.6); g.lineTo(x - fi.d * s * 1.8, y + s * 0.6); g.fill();
+        R(g, '#111', x + fi.d * s * 0.5, y - 1, 1, 1);
+      }
+      for (const b of bub) R(g, 'rgba(220,245,255,0.8)', b.x + (f % 2), ((b.y - f * 6) % 80 + 80) % 80, 1, 1);
+      for (let x = 0; x < 64; x += 3) { const h = 6 + ((x * 7) % 9); R(g, x % 2 ? '#2f8a4a' : '#3cae5a', x, 80 - h + Math.round(Math.sin(f + x) * 1), 2, h); }
+      R(g, '#c8b080', 0, 80, 64, 8); grain(g, 64, 8, 20, 0, 80);
+      R(g, '#1a1e24', 0, 88, 64, 8); R(g, '#3a4048', 0, 0, 64, 2);
+      const t = toTex(c); emitRect(t, 0, 2, 64, 86); frames.push(t);
+    }
+    walls.aquarium = frames[0]; walls.aquarium.frames = frames;
+  }
+  floor('bluetile', g => { R(g, '#0e2a4a', 0, 0, 64, 64); for (let y = 0; y < 64; y += 16) for (let x = 0; x < 64; x += 16) R(g, '#163a62', x + 1, y + 1, 14, 14); grain(g, 64, 64, 6); });
+  // деревянные панели (кабинет хранителя)
+  wall('woodpanel', g => {
+    R(g, '#6a4226', 0, 0, 64, 96); for (let x = 0; x < 64; x += 4) R(g, 'rgba(40,20,8,0.25)', x, 0, 1, 96); grain(g, 64, 96, 12);
+    for (const y of [6, 52]) for (const x of [4, 36]) { R(g, '#5a361e', x, y, 24, 36); R(g, '#7a5232', x, y, 24, 1); R(g, '#3a2210', x, y + 35, 24, 1); }
+    R(g, '#2a160a', 0, 90, 64, 6);
+  });
+  // потолки: кессоны (дерево), офисный (все панели светятся), бассейновый
+  function ceilPair(name, base, lamp) {
+    { const [c, g] = cv(FT, FT); base(g); ceilings[name] = toTex(c); }
+    { const [c, g] = cv(FT, FT); base(g); lamp(g); const t = toTex(c); emitRect(t, 16, 16, 32, 32); ceilings[name + '_lamp'] = t; }
+  }
+  ceilPair('coffer', g => {
+    R(g, '#2a160a', 0, 0, 64, 64); R(g, '#4a2c18', 4, 4, 56, 56); R(g, '#3a2212', 10, 10, 44, 44); grain(g, 64, 64, 8);
+  }, g => { E(g, '#c9a24a', 32, 32, 18, 18); E(g, '#fff1c0', 32, 32, 15, 15); for (let a = 0; a < 8; a++) R(g, '#fffbe8', 32 + Math.cos(a) * 9 - 1, 32 + Math.sin(a) * 9 - 1, 3, 3); });
+  ceilPair('office', g => {
+    R(g, '#f4f5f6', 0, 0, 64, 64); for (let k = 0; k < 120; k++) R(g, '#e2e4e6', ri(0, 63), ri(0, 63), 1, 1);
+    for (let i = 0; i < 64; i += 32) { R(g, '#cfd2d6', i, 0, 1, 64); R(g, '#cfd2d6', 0, i, 64, 1); }
+  }, g => { R(g, '#d8dadc', 15, 15, 34, 34); R(g, '#ffffff', 16, 16, 32, 32); R(g, '#eef2f6', 16, 31, 32, 2); });
+  ceilPair('pool', g => {
+    R(g, '#c8d2d6', 0, 0, 64, 64); for (let y = 0; y < 64; y += 8) for (let x = 0; x < 64; x += 8) R(g, '#eef4f6', x, y, 7, 7);
+  }, g => { R(g, '#ffffff', 16, 16, 32, 32); R(g, '#e8f4ff', 18, 18, 28, 28); });
+  emitRect(ceilings.lamp, 16, 16, 32, 32);
+
+  // спрайты: папоротник, пальма, лягушка, кувшинки
+  spr('fern', 40, 40, g => {
+    for (let k = 0; k < 9; k++) {
+      const a = -Math.PI / 2 + (k - 4) * 0.33; g.strokeStyle = ['#2f6b2f', '#3c8a3a', '#4fa24a'][k % 3]; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(20, 40); g.quadraticCurveTo(20 + Math.cos(a) * 14, 40 + Math.sin(a) * 24, 20 + Math.cos(a) * 20, 40 + Math.sin(a) * 14 + 10); g.stroke();
+    }
+  });
+  spr('palm', 64, 128, g => {
+    for (let y = 40; y < 128; y += 6) { R(g, '#8a6a3a', 29 + Math.sin(y / 20) * 3, y, 7, 5); R(g, '#6a4a22', 29 + Math.sin(y / 20) * 3, y + 4, 7, 1); }
+    for (let k = 0; k < 7; k++) {
+      const a = Math.PI + k * Math.PI / 6; g.strokeStyle = k % 2 ? '#2f8a3a' : '#3cae4a'; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(32, 42); g.quadraticCurveTo(32 + Math.cos(a) * 20, 30 + Math.sin(a) * 18, 32 + Math.cos(a) * 30, 46 + Math.abs(Math.cos(a)) * 14); g.stroke();
+    }
+  });
+  spr('frog', 20, 14, g => { E(g, '#3cae4a', 10, 9, 8, 5); E(g, '#3cae4a', 6, 4, 3, 3); E(g, '#3cae4a', 14, 4, 3, 3); R(g, '#111', 5, 3, 2, 2); R(g, '#111', 13, 3, 2, 2); R(g, '#c03a3a', 7, 9, 6, 1); });
+  spr('mushroom', 20, 20, g => { R(g, '#f2ead8', 8, 10, 4, 10); E(g, '#d03a3a', 10, 9, 9, 6); E(g, '#fff', 6, 7, 1.5, 1.5); E(g, '#fff', 13, 6, 1.5, 1.5); E(g, '#fff', 11, 10, 1.2, 1.2); });
+
   window.MuseumTex = { walls, floors, ceilings, sprites, paintingFace, WT_W, WT_H, FT };
 })();

@@ -80,6 +80,9 @@
   .p-title { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
   .p-who { font-size: 11px; color: #6a5a30; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
   .p-text { line-height: 1.45; }
+  .p-orig { margin-top: 10px; font-size: 11px; color: #6a5a30; font-style: italic; }
+  #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .6s; z-index: 6; }
+  #fade.on { opacity: 1; }
   .p-hint { margin-top: 12px; font-size: 11px; color: #6a5a30; }
   @media (max-width: 720px) {
     #viewer .vbody { flex-direction: column; } #viewer .plaque { flex: none; width: 100%; }
@@ -103,6 +106,7 @@
 <body class="crt">
 <canvas id="view"></canvas>
 <div id="crt"></div>
+<div id="fade"></div>
 
 <div class="hud" id="zone"></div>
 <div class="hud" id="counter"></div>
@@ -130,7 +134,7 @@
     <div class="titlebar"><span class="title-text">Музей.exe</span><button class="tb-btn" tabindex="-1">?</button></div>
     <div class="body">
       <h1>МУЗЕЙ</h1>
-      <p>Добро пожаловать в галерею двух героинь: <b>Саяки Канамори</b> и <b>Кары Экланд</b>. Два крыла, ротонда с фонтаном, по десять работ на каждую.</p>
+      <p>Добро пожаловать в галерею двух героинь: <b>Саяки Канамори</b> и <b>Кары Экланд</b>. Два этажа, лифт, ротонда под открытым небом и больше сотни работ: фан-арты на первом этаже и «Кабинет грёз» из старых музейных коллекций на втором.</p>
       <p>Поговаривают, что в служебных помещениях тоже кое-что висит, а одна из стен звучит не так, как остальные.</p>
       <div class="keys desk-only">
         <kbd>W A S D</kbd><span>ходить, мышь — оглядываться</span>
@@ -167,6 +171,7 @@
         <div class="p-title"></div>
         <div class="p-who"></div>
         <div class="p-text"></div>
+        <div class="p-orig" hidden></div>
         <div class="p-hint desk-only">E или Esc — вернуться в зал</div>
       </div>
     </div>
@@ -195,6 +200,7 @@
 </script>
 <script src="map.js"></script>
 <script src="js/data.js"></script>
+<script src="js/data2.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/props.js"></script>
 <script src="js/audio.js"></script>

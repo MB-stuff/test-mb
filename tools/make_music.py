@@ -503,9 +503,114 @@ def track_dream():
     export('dream', master(out, lowpass=10000))
 
 
+# =============== ТРЕК 6: Лифт (классическая лифтовая музыка) ===============
+
+def track_elevator():
+    bpm = 96
+    beat = 60 / bpm
+    bar = beat * 4
+    bars = 24
+    lo = Loop(bar * bars)
+    prog = [([57, 60, 64, 67], 45), ([55, 59, 62, 65], 43), ([53, 57, 60, 64], 41), ([52, 55, 59, 62], 40),
+            ([57, 60, 64, 67], 45), ([50, 53, 57, 60], 38), ([55, 59, 62, 65], 43), ([60, 64, 67, 71], 48)]
+    mel = [[(0, 79), (1, 76), (1.5, 74), (2, 76), (3, 72)], [(0, 74), (1, 71), (2, 74), (3, 77)],
+           [(0, 76), (1, 72), (1.5, 69), (2, 72), (3, 76)], [(0, 74), (2, 71), (3, 72)],
+           [(0, 79), (0.5, 81), (1, 79), (2, 76), (3, 79)], [(0, 77), (1, 74), (2, 72), (3, 69)],
+           [(0, 71), (1, 74), (2, 77), (3, 76)], [(0, 72), (2, 76), (3, 79)]]
+    for b in range(bars):
+        ch, root = prog[b % 8]
+        t0 = b * bar
+        for x in (0, 1.5, 2.5):
+            for m in ch:
+                lo.add('ep', t0 + x * beat, epiano(m, beat * (1.4 if x == 0 else 0.8), 0.5), pan=(m - 60) / 20, gain=0.35)
+        lo.add('pad', t0, pad(ch[0] + 12, bar, bright=900), gain=0.08)
+        for x, m in ((0, root), (1, root + 7), (2, root + 12), (3, root + 7)):
+            lo.add('bass', t0 + x * beat, bass(m, beat * 0.9, 0.8), gain=0.5)
+        for k in range(8):
+            lo.add('perc', t0 + k * beat / 2 + (0.05 if k % 2 else 0), shaker(0.5), pan=0.3, gain=0.8)
+        lo.add('perc', t0 + 1 * beat, snare(0.25), gain=0.35); lo.add('perc', t0 + 3 * beat, snare(0.25), gain=0.35)
+        if b >= 4:
+            for x, m in mel[b % 8]:
+                lo.add('vib', t0 + x * beat, vibes(m, 0.8), pan=-0.2, gain=0.8)
+    dry, send = mix(lo, {'ep': 1, 'pad': 1, 'bass': 1, 'perc': 1, 'vib': 1}, {'ep': 0.35, 'pad': 0.5, 'vib': 0.5, 'perc': 0.1})
+    out = dry + reverb(send, 1.6, damp=4500) * 0.6
+    out = lp(out, 6500)   # как из маленького динамика в потолке
+    out = hp(out, 180)
+    out = tape(out, wow=0.0012) + vinyl(lo.L, level=0.003, crackle=0.004, seed=31)
+    export('elevator', master(out, target=0.8, lowpass=6500))
+
+
+# =============== ТРЕК 7: Ночные окна (webcore-эмбиент со звёздным арпеджио) ===============
+
+def track_night():
+    bpm = 80
+    beat = 60 / bpm
+    bar = beat * 4
+    bars = 24
+    lo = Loop(bar * bars)
+    prog = [([49, 56, 61, 64, 68], 37), ([47, 54, 59, 63, 66], 35), ([45, 52, 57, 61, 64], 33), ([47, 54, 59, 62, 66], 35)]
+    for b in range(bars):
+        ch, root = prog[(b // 2) % 4]
+        t0 = b * bar
+        if b % 2 == 0:
+            for i, m in enumerate(ch):
+                lo.add('pad', t0, pad(m, bar * 2, bright=1300, detune=0.2), pan=(i - 2) * 0.3, gain=0.17)
+            lo.add('bass', t0, bass(root, bar * 1.8, 0.7), gain=0.45)
+        tones = sorted(ch)[1:] + [ch[1] + 12, ch[2] + 12]
+        pat = [0, 2, 4, 5, 3, 1, 4, 2]
+        for k in range(8):
+            m = tones[pat[(k + b) % 8] % len(tones)] + 12
+            lo.add('arp', t0 + k * beat / 2, musicbox(m, 0.55 + 0.25 * (k % 2 == 0), detune_cents=-10), pan=0.5 * np.sin(k + b), gain=0.55)
+        if b >= 8:
+            for k in range(16):
+                lo.add('perc', t0 + k * beat / 4, hat(0.35 if k % 2 else 0.6, 0.02), pan=0.2, gain=0.8)
+            lo.add('perc', t0, kick(0.6), gain=0.6); lo.add('perc', t0 + 2.5 * beat, kick(0.5), gain=0.5)
+            lo.add('perc', t0 + 1 * beat, snare(0.5), gain=0.5); lo.add('perc', t0 + 3 * beat, snare(0.5), gain=0.5)
+        if 12 <= b < 20 and b % 2 == 0:
+            lead = [(0, ch[-1] + 12, 1.5), (1.5, ch[-2] + 12, 0.5), (2, ch[-1] + 14, 2), (4, ch[-3] + 12, 3)]
+            for x, m, d in lead:
+                lo.add('lead', t0 + x * beat, pulse(m, d * beat, width=0.5, vel=0.7, cutoff=1800), gain=0.6)
+    dry, send = mix(lo, {'pad': 1, 'bass': 1, 'arp': 1, 'perc': 1, 'lead': 1}, {'pad': 0.6, 'arp': 0.9, 'lead': 0.7, 'perc': 0.2})
+    out = dry + reverb(send, 4.0, damp=5000) * 0.9
+    out = tape(out, wow=0.002) + vinyl(lo.L, level=0.004, crackle=0.008, seed=41)
+    export('night', master(out, lowpass=11000))
+
+
+# =============== ТРЕК 8: Кабинет диковин (вальс на шкатулке) ===============
+
+def track_cabinet():
+    bpm = 132
+    beat = 60 / bpm
+    bar = beat * 3
+    bars = 32
+    lo = Loop(bar * bars)
+    prog = [(50, [62, 65, 69]), (45, [61, 64, 67]), (50, [62, 65, 69]), (43, [62, 67, 70]),
+            (46, [62, 65, 70]), (45, [61, 64, 69]), (43, [58, 62, 67]), (45, [61, 64, 67])]
+    mel = [[(0, 74), (1, 77), (2, 76)], [(0, 73), (2, 76)], [(0, 74), (1, 72), (2, 69)], [(0, 70), (2, 74)],
+           [(0, 77), (1, 74), (2, 70)], [(0, 73), (1, 76), (2, 81)], [(0, 79), (1, 77), (2, 74)], [(0, 73)]]
+    for b in range(bars):
+        root, ch = prog[b % 8]
+        t0 = b * bar
+        lo.add('bass', t0, bass(root, beat * 0.9, 0.7), gain=0.45)
+        for x in (1, 2):
+            for m in ch:
+                lo.add('chd', t0 + x * beat, musicbox(m, 0.35), pan=(m - 66) / 10, gain=0.5)
+        if b >= 8:
+            for x, m in mel[b % 8]:
+                lo.add('box', t0 + x * beat, musicbox(m + 12, 0.9, detune_cents=-15), pan=0.1, gain=0.8)
+                lo.add('box', t0 + x * beat, vibes(m, 0.4), gain=0.4)
+        if b % 8 == 0:
+            for m in ch:
+                lo.add('pad', t0, pad(m - 12, bar * 8, bright=800), gain=0.08)
+    dry, send = mix(lo, {'bass': 1, 'chd': 1, 'box': 1, 'pad': 1}, {'chd': 0.6, 'box': 0.8, 'pad': 0.6})
+    out = dry + reverb(send, 3.0, damp=4000) * 0.9
+    out = tape(out, wow=0.003, flutter=0.0005) + vinyl(lo.L, level=0.007, crackle=0.03, seed=51)
+    export('cabinet', master(out, target=0.8, lowpass=9000))
+
+
 if __name__ == '__main__':
     import sys
     only = sys.argv[1:]
-    for name, fn in [('lobby', track_lobby), ('sayaka', track_sayaka), ('kara', track_kara), ('service', track_service), ('dream', track_dream)]:
+    for name, fn in [('lobby', track_lobby), ('sayaka', track_sayaka), ('kara', track_kara), ('service', track_service), ('dream', track_dream), ('elevator', track_elevator), ('night', track_night), ('cabinet', track_cabinet)]:
         if not only or name in only:
             fn()

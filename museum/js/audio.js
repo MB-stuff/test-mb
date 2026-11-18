@@ -22,7 +22,9 @@
     const C = window.AudioContext || window.webkitAudioContext;
     A.ctx = new C();
     const ctx = A.ctx;
-    A.musicGain = ctx.createGain(); A.musicGain.gain.value = A.musicVol; A.musicGain.connect(ctx.destination);
+    A.musicGain = ctx.createGain(); A.musicGain.gain.value = A.musicVol;
+    A.lpf = ctx.createBiquadFilter(); A.lpf.type = 'lowpass'; A.lpf.frequency.value = 20000;
+    A.musicGain.connect(A.lpf); A.lpf.connect(ctx.destination);
     A.sfxGain = ctx.createGain(); A.sfxGain.gain.value = A.sfxVol; A.sfxGain.connect(ctx.destination);
     A.ambGain = ctx.createGain(); A.ambGain.gain.value = 1; A.ambGain.connect(A.sfxGain);
 
@@ -160,6 +162,16 @@
     if (!A.ctx) return; const t = A.ctx.currentTime, len = short ? 1.4 : 2.6;
     const f = noiseBurst(t, len, 'bandpass', 600, short ? 0.25 : 0.45, 0.7);
     f.frequency.setValueAtTime(400, t); f.frequency.linearRampToValueAtTime(1600, t + 0.5); f.frequency.linearRampToValueAtTime(500, t + len);
+  };
+
+  A.setLowpass = function (f) { if (A.ctx) A.lpf.frequency.setTargetAtTime(f, A.ctx.currentTime, 0.4); };
+  A.ding = function () { if (!A.ctx) return; const t = A.ctx.currentTime; tone(t, 1318, 1.2, 0.12); tone(t + 0.35, 1046, 1.6, 0.12); };
+  A.hum = function (len) {
+    if (!A.ctx) return; const t = A.ctx.currentTime;
+    const o = A.ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 55;
+    const f = A.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 160;
+    const g = A.ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.4); g.gain.linearRampToValueAtTime(0, t + len);
+    o.connect(f); f.connect(g); g.connect(A.sfxGain); o.start(t); o.stop(t + len + 0.1);
   };
 
   A.ambience = function (fountainDist, service) {
