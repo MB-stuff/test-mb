@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Музей.exe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --desk: #008080; --face: #c0c0c0; --hi: #ffffff; --lo: #808080; --dk: #0a0a0a;
+    --title1: #000080; --title2: #1084d0; --text: #000;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: var(--text);
+    font: 13px Tahoma, Verdana, "Segoe UI", sans-serif; -webkit-user-select: none; user-select: none; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; display: block; touch-action: none; }
+  /* CRT */
+  #crt { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 2;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.13) 3px),
+                radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.45) 100%); }
+  body.crt #crt { display: block; }
+  /* HUD */
+  .hud { position: fixed; z-index: 3; pointer-events: none; font-family: "Press Start 2P", monospace; color: #fff;
+    text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; }
+  #zone { top: 18px; left: 18px; font-size: 12px; max-width: 80vw; line-height: 1.6; opacity: 0; transition: opacity .6s; }
+  #zone.show { animation: zone 4.5s forwards; }
+  @keyframes zone { 0% { opacity: 0 } 10% { opacity: 1 } 75% { opacity: 1 } 100% { opacity: 0 } }
+  #counter { top: 18px; right: 18px; font-size: 9px; opacity: .85; text-align: right; }
+  #cross { left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: #fff; box-shadow: 0 0 0 1px #000; opacity: .7; }
+  #prompt { left: 50%; bottom: 13%; transform: translateX(-50%); font-size: 11px; background: rgba(0,0,0,.55); padding: 10px 14px;
+    opacity: 0; transition: opacity .15s; white-space: nowrap; max-width: 94vw; overflow: hidden; text-overflow: ellipsis; }
+  #prompt.show { opacity: 1; }
+  #prompt b { color: #ffd34a; font-weight: normal; }
+  #prompt .new { color: #7dff9a; font-size: 8px; vertical-align: middle; }
+  #toast { left: 50%; top: 22%; transform: translateX(-50%); font-size: 11px; background: rgba(0,0,0,.6); padding: 10px 14px; opacity: 0; transition: opacity .3s; text-align: center; max-width: 90vw; }
+  #toast.show { opacity: 1; }
+  /* Окна в стиле Win98 */
+  .overlay { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .overlay.open { display: flex; }
+  #title { background: var(--desk); }
+  #title::before { content: ""; position: absolute; inset: 0; opacity: .25;
+    background: radial-gradient(circle at 20% 30%, #3fe0d0 0, transparent 40%), radial-gradient(circle at 80% 70%, #ff9ad5 0, transparent 35%); }
+  #pause { background: rgba(0, 32, 32, .55); }
+  .win { position: relative; background: var(--face); width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto;
+    box-shadow: inset -1px -1px var(--dk), inset 1px 1px #dfdfdf, inset -2px -2px var(--lo), inset 2px 2px var(--hi), 6px 6px 0 rgba(0,0,0,.35); padding: 3px; }
+  .titlebar { background: linear-gradient(90deg, var(--title1), var(--title2)); color: #fff; font-weight: bold; padding: 3px 4px 3px 6px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .titlebar .title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tb-btn { width: 18px; height: 16px; background: var(--face); color: #000; border: 0; font: bold 11px/1 Tahoma, sans-serif; padding: 0; cursor: pointer;
+    box-shadow: inset -1px -1px var(--dk), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px #dfdfdf; flex: none; }
+  .body { padding: 14px; }
+  .body h1 { font: 16px "Press Start 2P", monospace; margin: 4px 0 12px; color: #000080; letter-spacing: .5px; }
+  .body p { margin: 0 0 10px; line-height: 1.45; }
+  .row { display: flex; gap: 10px; align-items: center; margin: 6px 0; }
+  .row label { flex: 0 0 150px; }
+  .row input[type=range] { flex: 1; }
+  fieldset { border: 1px solid var(--lo); box-shadow: 1px 1px var(--hi); margin: 10px 0; padding: 6px 10px 8px; }
+  details.settings { margin: 10px 0; } summary { cursor: pointer; padding: 2px 0; }
+  input[type=range], input[type=checkbox] { accent-color: #000080; }
+  .btn { min-width: 96px; padding: 6px 14px; background: var(--face); border: 0; font: 13px Tahoma, sans-serif; cursor: pointer; color: #000;
+    box-shadow: inset -1px -1px var(--dk), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px #dfdfdf; }
+  .btn:active { box-shadow: inset 1px 1px var(--dk), inset -1px -1px var(--hi), inset 2px 2px var(--lo), inset -2px -2px #dfdfdf; }
+  .btn:disabled { color: var(--lo); text-shadow: 1px 1px var(--hi); cursor: default; }
+  .btn:focus-visible { outline: 1px dotted #000; outline-offset: -5px; }
+  .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
+  .progress { height: 20px; background: #fff; box-shadow: inset -1px -1px var(--hi), inset 1px 1px var(--lo), inset -2px -2px #dfdfdf, inset 2px 2px var(--dk); padding: 3px; }
+  #loadbar { height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--title1) 0 10px, transparent 10px 12px); transition: width .2s; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px; }
+  .keys kbd { font: 11px Tahoma, sans-serif; background: #e0e0e0; padding: 1px 5px; box-shadow: inset -1px -1px var(--lo), inset 1px 1px var(--hi); }
+  .touch-only { display: none; } body.touch .touch-only { display: block; } body.touch .desk-only { display: none; }
+  /* Просмотрщик */
+  #viewer { background: rgba(0,0,0,.7); }
+  #viewer .win { width: min(1000px, 100%); display: flex; flex-direction: column; }
+  #viewer .vbody { display: flex; gap: 12px; padding: 10px; align-items: flex-start; min-height: 0; }
+  #viewer .imgbox { flex: 1 1 auto; background: #000; display: flex; align-items: center; justify-content: center; min-width: 0;
+    box-shadow: inset -1px -1px var(--hi), inset 1px 1px var(--lo), inset -2px -2px #dfdfdf, inset 2px 2px var(--dk); padding: 2px; }
+  #viewer img { max-width: 100%; max-height: calc(100vh - 140px); display: block; }
+  #viewer .plaque { flex: 0 0 230px; background: #f4ecd2; border: 1px solid #8a6a20; padding: 12px; box-shadow: 2px 2px 0 rgba(0,0,0,.25); }
+  .p-title { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+  .p-who { font-size: 11px; color: #6a5a30; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  .p-text { line-height: 1.45; }
+  .p-hint { margin-top: 12px; font-size: 11px; color: #6a5a30; }
+  @media (max-width: 720px) {
+    #viewer .vbody { flex-direction: column; } #viewer .plaque { flex: none; width: 100%; }
+    #viewer img { max-height: 55vh; }
+    .row label { flex-basis: 110px; }
+    #zone { font-size: 10px; } #prompt { font-size: 9px; }
+  }
+  /* Карта */
+  #mapwrap { position: fixed; z-index: 5; left: 50%; top: 50%; transform: translate(-50%, -50%); display: none; width: min(560px, 94vw); }
+  #mapwrap.open { display: block; }
+  #mapwrap canvas { width: 100%; display: block; image-rendering: pixelated; }
+  #mapwrap .win { width: 100%; }
+  /* Кнопки для телефона */
+  #touchbtns { position: fixed; z-index: 4; right: 12px; top: 44px; display: none; gap: 8px; }
+  body.touch #touchbtns { display: flex; }
+  #touchbtns .btn { min-width: 0; padding: 8px 12px; }
+  #stick-hint { position: fixed; z-index: 3; left: 18px; bottom: 18px; font: 9px "Press Start 2P", monospace; color: rgba(255,255,255,.6); display: none; text-shadow: 1px 1px #000; }
+  body.touch #stick-hint { display: block; }
+</style>
+</head>
+<body class="crt">
+<canvas id="view"></canvas>
+<div id="crt"></div>
+
+<div class="hud" id="zone"></div>
+<div class="hud" id="counter"></div>
+<div class="hud" id="cross"></div>
+<div class="hud" id="prompt"></div>
+<div class="hud" id="toast"></div>
+<div id="stick-hint">← ходить · смотреть →<br>тап — рассмотреть</div>
+<div id="touchbtns"><button class="btn" id="btn-map">Карта</button><button class="btn" id="btn-pause">Меню</button></div>
+
+<div id="mapwrap"><div class="win"><div class="titlebar"><span class="title-text">План_музея.bmp</span><button class="tb-btn" onclick="document.getElementById('mapwrap').classList.remove('open')">×</button></div><canvas id="map"></canvas></div></div>
+
+<template id="settings-tpl">
+  <details class="settings"><summary>Настройки</summary><fieldset>
+    <div class="row"><label>Музыка</label><input class="opt-music" type="range" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>Звуки</label><input class="opt-sfx" type="range" min="0" max="1" step="0.05"></div>
+    <div class="row"><label>Чувствительность</label><input class="opt-sens" type="range" min="0.3" max="2.5" step="0.1"></div>
+    <div class="row"><label>Разрешение</label>
+      <select class="opt-res"><option value="180">180p — как в 1993-м</option><option value="270">270p — золотая середина</option><option value="360">360p — почти HD</option></select></div>
+    <div class="row"><label>Эффект ЭЛТ</label><input class="opt-crt" type="checkbox"></div>
+  </fieldset></details>
+</template>
+
+<div class="overlay open" id="title">
+  <div class="win">
+    <div class="titlebar"><span class="title-text">Музей.exe</span><button class="tb-btn" tabindex="-1">?</button></div>
+    <div class="body">
+      <h1>МУЗЕЙ</h1>
+      <p>Добро пожаловать в галерею двух героинь: <b>Саяки Канамори</b> и <b>Кары Экланд</b>. Два крыла, ротонда с фонтаном, по десять работ на каждую.</p>
+      <p>Поговаривают, что в служебных помещениях тоже кое-что висит, а одна из стен звучит не так, как остальные.</p>
+      <div class="keys desk-only">
+        <kbd>W A S D</kbd><span>ходить, мышь — оглядываться</span>
+        <kbd>Shift</kbd><span>идти быстрее</span>
+        <kbd>E</kbd><span>рассмотреть картину, открыть дверь, простучать стену</span>
+        <kbd>M</kbd><span>план музея</span>
+        <kbd>Esc</kbd><span>пауза</span>
+      </div>
+      <p class="touch-only">Левая половина экрана — ходить, правая — смотреть. Тап — рассмотреть картину или открыть дверь.</p>
+      <div class="settings-slot"></div>
+      <div class="progress"><div id="loadbar"></div></div>
+      <p id="loadtext" style="margin-top:6px;font-size:12px">Развешиваем картины…</p>
+      <div class="btns"><button class="btn" id="enter" disabled>Войти</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="pause">
+  <div class="win">
+    <div class="titlebar"><span class="title-text">Пауза</span></div>
+    <div class="body">
+      <div class="settings-slot open-settings"></div>
+      <div class="btns"><button class="btn" id="restart">В вестибюль</button><button class="btn" id="resume">Продолжить</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="viewer">
+  <div class="win">
+    <div class="titlebar"><span class="title-text"></span><button class="tb-btn close">×</button></div>
+    <div class="vbody">
+      <div class="imgbox"><img alt=""></div>
+      <div class="plaque">
+        <div class="p-title"></div>
+        <div class="p-who"></div>
+        <div class="p-text"></div>
+        <div class="p-hint desk-only">E или Esc — вернуться в зал</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  for (const slot of document.querySelectorAll('.settings-slot')) {
+    const frag = document.getElementById('settings-tpl').content.cloneNode(true);
+    if (slot.classList.contains('open-settings')) frag.querySelector('details').open = true;
+    slot.replaceWith(frag);
+  }
+</script>
+<script src="map.js"></script>
+<script src="js/data.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/engine.js"></script>
+</body>
+</html>
