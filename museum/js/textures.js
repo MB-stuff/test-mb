@@ -112,6 +112,16 @@
     }
     R(g, '#8a7440', 0, 90, 64, 6);
   });
+  wall('ena', g => {
+    R(g, '#2f5bd7', 0, 0, 32, 96); R(g, '#f2c230', 32, 0, 32, 96);
+    R(g, '#111', 31, 0, 2, 96);
+    for (let y = 70; y < 84; y += 7) for (let x = 0; x < 64; x += 7) R(g, ((x + y) / 7) % 2 ? '#111' : '#f4f4f4', x, y, 7, 7);
+    R(g, '#111', 0, 69, 64, 1); R(g, '#111', 0, 84, 64, 1);
+    R(g, '#ff5ab4', 0, 0, 64, 4); R(g, '#111', 0, 4, 64, 1);
+    R(g, '#111', 0, 88, 64, 8);
+    g.fillStyle = 'rgba(255,255,255,0.18)'; g.beginPath(); g.ellipse(14, 34, 6, 6, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.15)'; g.beginPath(); g.moveTo(42, 24); g.lineTo(54, 46); g.lineTo(42, 46); g.fill();
+  });
   function doorTex(kind) {
     const [c, g] = cv(WT_W, WT_H);
     R(g, '#8e949a', 0, 0, 64, 96);
@@ -190,6 +200,11 @@
     for (let k = 0; k < 5; k++) { g.fillStyle = 'rgba(40,40,36,0.15)'; g.beginPath(); g.ellipse(ri(0, 64), ri(0, 64), ri(3, 9), ri(2, 7), 0, 0, 7); g.fill(); }
     g.strokeStyle = 'rgba(40,40,36,0.5)'; g.beginPath(); let x = 0, y = ri(10, 50); g.moveTo(x, y);
     while (x < 64) { x += ri(3, 8); y += ri(-3, 3); g.lineTo(x, y); } g.stroke();
+  });
+  floor('enafloor', g => {
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) R(g, (x + y) % 2 ? '#ff5ab4' : '#3fd0c0', x * 16, y * 16, 16, 16);
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) R(g, '#ff7ac4', x * 16 + 2, y * 16 + 2, 4, 1);
+    grain(g, 64, 64, 6);
   });
   floor('oldcarpet', g => {
     R(g, '#b19a55', 0, 0, 64, 64); grain(g, 64, 64, 22);

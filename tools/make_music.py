@@ -432,8 +432,80 @@ def track_service():
     export('service', master(out, target=0.75, lowpass=8000))
 
 
+# =============== ТРЕК 5: Зал ожидания (сюрреалистичная лифтовая босанова) ===============
+
+def whistle(m0, m1, dur, vel=1.0):
+    """Свистящий лид с глиссандо — немного не от мира сего."""
+    n = int(dur * SR)
+    e = env(n, 0.03, 0.1, 0.8, 0.12)
+    t = np.arange(len(e)) / SR
+    glide = np.clip(t / 0.12, 0, 1)
+    f = mtof(m0) * (1 - glide) + mtof(m1) * glide
+    f = f * (1 + 0.006 * np.sin(2 * np.pi * 6 * t))
+    ph = np.cumsum(f) / SR
+    s = np.sin(2 * np.pi * ph) + 0.08 * np.sin(4 * np.pi * ph)
+    s += lp(rng.standard_normal(len(e)), 3000) * 0.015
+    return s * e * 0.22 * vel
+
+
+def woodblock(vel=1.0, f=900):
+    n = int(0.08 * SR); t = np.arange(n) / SR
+    return np.sin(2 * np.pi * f * t) * np.exp(-t / 0.015) * 0.25 * vel
+
+
+def track_dream():
+    bpm = 112
+    beat = 60 / bpm
+    bar = beat * 4
+    bars = 32
+    lo = Loop(bar * bars)
+    prog = [([53, 57, 60, 64], 41), ([52, 55, 59, 62], 40), ([51, 55, 58, 62], 39), ([50, 53, 57, 60], 38),
+            ([55, 58, 62, 65], 43), ([54, 57, 61, 64], 42), ([53, 56, 60, 63], 37), ([55, 59, 62, 65], 43)]
+    mel = [
+        [(0, 76, 76, 1.5), (1.5, 74, 72, 0.5), (2, 72, 72, 1), (3, 69, 71, 1)],
+        [(0, 71, 71, 1), (1, 74, 74, 0.5), (1.5, 76, 79, 1.5), (3, 74, 74, 1)],
+        [(0, 70, 70, 1.5), (1.5, 74, 74, 0.5), (2, 77, 75, 2)],
+        [(0, 72, 72, 1), (1, 69, 69, 1), (2, 65, 67, 2)],
+        [(0, 74, 74, 1), (1, 77, 77, 0.5), (1.5, 81, 81, 1.5), (3, 79, 79, 1)],
+        [(0, 76, 76, 1.5), (1.5, 73, 73, 0.5), (2, 69, 69, 2)],
+        [(0, 75, 72, 1), (1, 72, 72, 1), (2, 68, 68, 1), (3, 72, 72, 1)],
+        [(0, 74, 74, 2), (2, 71, 71, 1), (3, 67, 69, 1)],
+    ]
+    # босанова: «клаве» для аккордов
+    comp = [0, 1.5, 3.0, 5.0, 6.5]
+    for b in range(bars):
+        ch, root = prog[b % 8]
+        t0 = b * bar
+        for x in [c for c in comp if (c < 4) == (b % 2 == 0)]:
+            xx = x if b % 2 == 0 else x - 4
+            for m in ch:
+                lo.add('ep', t0 + xx * beat, epiano(m + 12 * (m < 55), beat * 0.9, 0.6), pan=(m - 58) / 18, gain=0.45)
+        lo.add('bass', t0, bass(root, beat * 1.4), gain=0.7)
+        lo.add('bass', t0 + 1.5 * beat, bass(root + 7, beat * 0.5), gain=0.5)
+        lo.add('bass', t0 + 2 * beat, bass(root + 7, beat * 1.4), gain=0.65)
+        lo.add('bass', t0 + 3.5 * beat, bass(root, beat * 0.5), gain=0.5)
+        if b >= 2:
+            for k in range(16):
+                lo.add('perc', t0 + k * beat / 4, shaker(0.9 if k % 4 == 2 else 0.5), pan=0.4, gain=0.9)
+            for x in (0, 1.5, 3, 6.5 / 2 + 0.25):
+                lo.add('perc', t0 + x * beat, woodblock(0.8, 850 if x else 1100), pan=-0.3, gain=0.8)
+            for x in (0, 2):
+                lo.add('perc', t0 + x * beat, kick(0.5), gain=0.5)
+        if 8 <= b < 24:
+            for x, m0, m1, d in mel[b % 8]:
+                lo.add('lead', t0 + x * beat, whistle(m0 - 1, m1, d * beat * 0.95), pan=0.15, gain=0.9)
+        if b >= 24:
+            for x, m0, m1, d in mel[b % 8]:
+                lo.add('box', t0 + x * beat, musicbox(m1 + 12, 0.6, detune_cents=-20), pan=-0.3, gain=0.6)
+    dry, send = mix(lo, {'ep': 1, 'bass': 1, 'perc': 1, 'lead': 1, 'box': 1}, {'ep': 0.4, 'lead': 0.5, 'perc': 0.15, 'box': 0.9})
+    out = dry + reverb(send, 2.4, damp=5000) * 0.8
+    out = tape(out, wow=0.0035, flutter=0.0005) + vinyl(lo.L, level=0.005, crackle=0.015, seed=21)
+    export('dream', master(out, lowpass=10000))
+
+
 if __name__ == '__main__':
-    track_lobby()
-    track_sayaka()
-    track_kara()
-    track_service()
+    import sys
+    only = sys.argv[1:]
+    for name, fn in [('lobby', track_lobby), ('sayaka', track_sayaka), ('kara', track_kara), ('service', track_service), ('dream', track_dream)]:
+        if not only or name in only:
+            fn()

@@ -129,6 +129,40 @@
     o.connect(g); g.connect(A.sfxGain); o.start(t); o.stop(t + 0.1);
   };
 
+  function noiseBurst(t, len, type, freq, gain, q) {
+    const ctx = A.ctx;
+    const src = ctx.createBufferSource(); src.buffer = A.noise;
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q) f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    src.connect(f); f.connect(g); g.connect(A.sfxGain); src.start(t, Math.random(), len + 0.05);
+    return f;
+  }
+  function tone(t, freq, len, gain, type = 'sine') {
+    const o = A.ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+    const g = A.ctx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    o.connect(g); g.connect(A.sfxGain); o.start(t); o.stop(t + len + 0.02);
+  }
+  A.clunk = function () {
+    if (!A.ctx) return; const t = A.ctx.currentTime;
+    noiseBurst(t, 0.15, 'bandpass', 2400, 0.2, 3); tone(t, 1300, 0.08, 0.05, 'square');
+    noiseBurst(t + 0.55, 0.25, 'lowpass', 400, 0.6); tone(t + 0.55, 70, 0.2, 0.35);
+  };
+  A.bell = function () {
+    if (!A.ctx) return; const t = A.ctx.currentTime;
+    for (const [f, g] of [[1760, 0.12], [4400, 0.04], [2640, 0.05]]) tone(t, f, 1.4, g);
+  };
+  A.coin = function () {
+    if (!A.ctx) return; const t = A.ctx.currentTime;
+    tone(t, 2600, 0.12, 0.06, 'triangle'); tone(t + 0.09, 3200, 0.1, 0.04, 'triangle');
+    noiseBurst(t + 0.45, 0.3, 'bandpass', 900, 0.25, 1);
+  };
+  A.flush = function (short) {
+    if (!A.ctx) return; const t = A.ctx.currentTime, len = short ? 1.4 : 2.6;
+    const f = noiseBurst(t, len, 'bandpass', 600, short ? 0.25 : 0.45, 0.7);
+    f.frequency.setValueAtTime(400, t); f.frequency.linearRampToValueAtTime(1600, t + 0.5); f.frequency.linearRampToValueAtTime(500, t + len);
+  };
+
   A.ambience = function (fountainDist, service) {
     if (!A.ctx) return;
     const t = A.ctx.currentTime;
