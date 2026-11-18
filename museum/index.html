@@ -180,6 +180,19 @@
     slot.replaceWith(frag);
   }
 </script>
+<script>
+  // Ресурсы: в офлайн-сборке картинки и музыка лежат прямо в файле (MUSEUM_ASSETS), иначе грузятся из папок.
+  window.__asset = p => (window.MUSEUM_ASSETS && window.MUSEUM_ASSETS[p]) || p;
+  window.__assetBuffer = async p => {
+    const a = window.__asset(p);
+    if (a.startsWith('data:')) {
+      const bin = atob(a.slice(a.indexOf(',') + 1)), u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      return u.buffer;
+    }
+    return (await fetch(a)).arrayBuffer();
+  };
+</script>
 <script src="map.js"></script>
 <script src="js/data.js"></script>
 <script src="js/textures.js"></script>

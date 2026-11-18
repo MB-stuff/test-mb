@@ -583,7 +583,7 @@
     G.state = 'view';
     document.exitPointerLock && document.exitPointerLock();
     viewer.querySelector('.title-text').textContent = `C:\\МУЗЕЙ\\${a.meme ? 'СЕКРЕТИКИ' : a.who.split(' ')[1].toUpperCase()}\\${id}.jpg`;
-    viewer.querySelector('img').src = 'art/' + id + '.jpg';
+    viewer.querySelector('img').src = window.__asset('art/' + id + '.jpg');
     viewer.querySelector('.p-title').textContent = a.title;
     viewer.querySelector('.p-who').textContent = a.who + (a.meme ? ' · секретик' : ' · фан-арт');
     viewer.querySelector('.p-text').textContent = a.text;
@@ -814,7 +814,7 @@
     const im = new Image();
     im.onload = () => { images[id] = im; pImg += 1 / ids.length; showProg(); res(); };
     im.onerror = () => { const c = document.createElement('canvas'); c.width = c.height = 8; images[id] = c; pImg += 1 / ids.length; showProg(); res(); };
-    im.src = 'art/' + id + '.jpg';
+    im.src = window.__asset('art/' + id + '.jpg');
   })));
   const musP = AU.preload(['lobby', 'sayaka', 'kara', 'service', 'dream'], v => { pMus = v; showProg(); });
   Promise.all([imgP, musP]).then(() => {

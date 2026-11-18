@@ -11,8 +11,7 @@
     let done = 0;
     await Promise.all(names.map(async n => {
       try {
-        const r = await fetch('music/' + n + '.mp3');
-        A.raw[n] = await r.arrayBuffer();
+        A.raw[n] = await window.__assetBuffer('music/' + n + '.mp3');
       } catch (e) { console.warn('музыка не загрузилась', n, e); }
       done++; onProgress && onProgress(done / names.length);
     }));
