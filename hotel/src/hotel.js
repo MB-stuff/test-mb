@@ -295,7 +295,7 @@ function furnishRoom(r, L) {
       bedEast(2.5, { color: [0x7a2030, 0x204a7a, 0x5a5a20][r.idx % 3], msg: r.kind === 'fur' ? 'На подушке — длинный светлый волос и клочок чёрного меха.' : null });
       nsEast(1.1, { phone, lamp: false }); nsEast(3.9, { lamp: true });
       const dr = PR.dresser(...at(0.37, 2.9), RY('east'), { w: 1.3 });
-      PR.tv(...onTop(dr), RY('east'));
+      PR.tv(...onTop(dr, 0, 0.06), RY('east'));
       PR.armchair(...at(2.2, 3.95), RY('east') - 0.5);
       PR.rug(...at(2.6, 2.4), 2.2, 1.6, TX.carpetOrnament('#5a1a22', '#a07a3a', 'rug'));
       P_(groups, 'east', 2.5, 1.95, 0.9); P_(groups, 'west', 1.2, 1.7, 0.6); P_(groups, 'door', 4.1, 1.7, 0.6);
@@ -335,7 +335,7 @@ function furnishRoom(r, L) {
       PR.bunk(...at(F.W - 1.14, 1.6), RY('west'));
       const t = PR.table(...at(2.4, 3.0), { w: 0.7, h: 0.5, round: true, color: '#6a4a2a' });
       PR.chair(...at(2.4, 3.75), RY('door'), { color: 0x2a4a6a, seatColor: 0x7a2a2a });
-      PR.tv(...at(0.45, 1.6).slice(0, 1), y, at(0.45, 1.6)[1], RY('east'), { on: true });
+      PR.tv(...at(0.5, 1.6).slice(0, 1), y, at(0.5, 1.6)[1], RY('east'), { on: true });
       PR.note(...onTop(t, 0.1, 0), 0.3, ...noteArgs('sonyaDrawing'));
       teddy(...at(4.6, 3.6), y);
       const kg = ['06_vintage_photos', '05_retro_games_arcade', ...groups];
@@ -345,7 +345,7 @@ function furnishRoom(r, L) {
     case 'gamer': {
       bedEast(3.3, { color: 0x4a1a6a }); nsEast(1.9, { lamp: true });
       const d = PR.desk(...at(0.42, 2.6), RY('east')); PR.chair(...at(1.1, 2.6), RY('west'));
-      PR.tv(...onTop(d, 0.1, 0), RY('east'), { on: true });
+      PR.tv(...onTop(d, 0.1, 0.06), RY('east'), { on: true });
       const cg = ['04_retro_consoles', '05_retro_games_arcade', ...groups];
       P_(cg, 'west', 1.0, 1.8, 0.5); P_(cg, 'west', 4.0, 1.8, 0.5); P_(cg, 'east', 3.3, 2.0, 0.8);
       PR.rug(...at(2.5, 2.4), 2, 2, TX.carpetPlain('#4a2a5a', 9));
@@ -357,7 +357,7 @@ function furnishRoom(r, L) {
       for (let i = 0; i < 6; i++) PR.glass(...onTop(t, -0.45 + i * 0.18, (i % 2 ? 0.2 : -0.15)), { wine: i % 2 === 0 });
       PR.bottle(...onTop(t, 0.35, 0.05), 0x4a0a1a);
       PR.bottle(at(5.5, 4.5)[0], y, at(5.5, 4.5)[1], 0x1a4a1a);
-      PR.sofa(...at(0.55, 3.4), RY('east'), 0x5a1a40, 1.8);
+      PR.sofa(...at(0.62, 3.4), RY('east'), 0x5a1a40, 1.8);
       PR.ceilingFan(...at(3, 1.4), y + CEIL);
       P_(groups, 'east', 2.5, 2.0, 0.9); P_(groups, 'west', 3.4, 2.05, 0.8); P_(groups, 'door', 4.1, 1.7, 0.6);
       break;
@@ -380,16 +380,16 @@ function furnishRoom(r, L) {
       const t = PR.table(...at(3, 3.0), { w: 1.0, d: 0.6, h: 0.45, color: '#2a1810' });
       PR.glass(...onTop(t, -0.2, 0)); PR.glass(...onTop(t, 0.15, 0.1), { wine: true });
       PR.floorLamp(...at(5.5, 4.4));
-      const dr = PR.dresser(...at(F.W - 0.37, 2.2), RY('west'), { w: 1.3 }); PR.tv(...onTop(dr), RY('west'));
+      const dr = PR.dresser(...at(F.W - 0.37, 2.2), RY('west'), { w: 1.3 }); PR.tv(...onTop(dr, 0, 0.06), RY('west'));
       PR.ceilingFan(...at(3, 2.0), y + CEIL);
       P_(groups, 'west', 3.6, 1.8, 0.8); P_(groups, 'east', 3.7, 2.1, 0.5); P_(groups, 'door', 4.1, 1.8, 0.7);
       break;
     }
     case 'tvroom': {
       bedEast(2.5, { color: 0x1a1a4a });
-      const [cx_, cz_] = at(0.35, 2.5);
+      const [cx_, cz_] = at(0.4, 2.5);
       box(0.5, 0.5, 2.0, col(0x2a1c14), cx_, y, cz_); addCollider(cx_ - 0.25, y, cz_ - 1, cx_ + 0.25, y + 0.5, cz_ + 1);
-      for (let i = 0; i < 4; i++) { const [tx, tz] = at(0.4, 1.95 + (i % 2) * 1.1); PR.tv(tx, y + 0.5 + (i > 1 ? 0.48 : 0), tz, RY('east'), { on: true }); }
+      for (let i = 0; i < 4; i++) { const [tx, tz] = at(0.48, 1.95 + (i % 2) * 1.1); PR.tv(tx, y + 0.5 + (i > 1 ? 0.48 : 0), tz, RY('east'), { on: true }); }
       P_(['03_y2k', ...groups], 'east', 2.5, 2.0, 0.9); P_(['03_y2k', ...groups], 'door', 4.1, 1.8, 0.6);
       break;
     }
@@ -476,7 +476,7 @@ function iceRoom(y) {
 function tvSecretRoom(y) {
   for (let i = 0; i < 6; i++) PR.tv(SX0 + 0.55 + (i % 2) * 0.95, y + Math.floor(i / 2) * 0.5, TZ0 + T / 2 + 0.45, 0, { on: true });
   for (let k = 1; k < 3; k++) box(1.95, 0.02, 0.6, col(0x2a2018), SX0 + 1.03, y + k * 0.5 - 0.02, TZ0 + T / 2 + 0.42);
-  PR.tv(SX0 + 0.45, y, SZ1 - 0.6, P / 2 + 0.3, { on: true, screen: TX.screenTex(['NO SIGNAL', '', 'КАНАЛ 0', '', 'ВЫ УЖЕ', 'СМОТРИТЕ ЭТО']) });
+  PR.tv(SX0 + 0.65, y, SZ1 - 0.62, P / 2 + 0.3, { on: true, screen: TX.screenTex(['NO SIGNAL', '', 'КАНАЛ 0', '', 'ВЫ УЖЕ', 'СМОТРИТЕ ЭТО']) });
   pic(['03_y2k', '02_weirdcore_liminal'], 'z', SX1, -1, SZC + 1.4, y + 1.9, 0.6);
   PR.candle(SX1 - 0.4, y, SZ1 - 0.45);
   PR.wardrobe(SX1 - T / 2 - 0.32, SZC - 0.6, -P / 2, { label: 'Вылезти через шкаф', action: () => { S.sfxDoorOpen(); G.teleport(7.6, y, -3.9, -P / 2, 'Ты выбираешься обратно в номер 402.'); } });
@@ -741,9 +741,9 @@ function buildPodium() {
   for (const x of [10.8, 24.6]) PR.chandelier(x, 10.4, y + PCEIL);
   for (const x of [8.5, 12.5, 16.5, 20.5, 24.5]) PR.curtains('x', LZ1 - T / 2, x - 1, x + 1, y, -1, 0x7a1a24);
   const rg = ['portrait', 'art', '06_vintage_photos', '01_japan_underground'];
-  for (const x of [10.5, 14.5, 18.5, 22.5]) pic(rg, 'x', TZ1, 1, x, y + 2.0, 0.8, { frame: 'gold' });
+  for (const x of [10.5, 17.2, 22.5]) pic(rg, 'x', TZ1, 1, x, y + 2.0, 0.8, { frame: 'gold' });
   pic(rg, 'z', 6, 1, 7.6, y + 2.0, 0.7, { frame: 'gold' }); pic(rg, 'z', 6, 1, 12.8, y + 2.0, 0.7, { frame: 'gold' });
-  for (const x of [8.4, 12.6, 20.4, 29.0]) sconceAt('x', TZ1, 1, x, y + 2.6);
+  for (const x of [8.4, 12.6, 20.0, 29.0]) sconceAt('x', TZ1, 1, x, y + 2.6);
   zone(6, TZ1, TX1, LZ1, 'РЕСТОРАН «МИРАЖ»', { reverb: 0.35, amb: 1.4 });
   // Фойе казино
   const cg = PR.grp(1.6, LZ0 + T / 2 + 2.2, 0);
@@ -811,11 +811,11 @@ function buildLobby() {
   const colMat = texMat('colm', TX.marble('#203028', '#2a3a30'), 0xffffff, {}, 0);
   for (const x of [-20, -14, -8]) for (const z of [-6, 6]) PR.column(x, z, LH, { r: 0.45, mat: colMat });
   // вращающаяся дверь
-  const rd = PR.grp(LX0 + 1.4, 0, 0);
+  const rd = PR.grp(LX0 + 1.55, 0, 0);
   box(0.05, 3, 2.6, basic('rdglass', { color: 0xffd9a0, transparent: true, opacity: 0.12, depthWrite: false }), 0, 0, 0, { parent: rd });
   for (let i = 0; i < 4; i++) { const pnl = box(1.3, 2.9, 0.05, basic('rdg2', { color: 0xffd9a0, transparent: true, opacity: 0.18, depthWrite: false }), 0, 0, 0, { parent: rd }); pnl.rotation.y = i * P / 2; pnl.position.set(Math.sin(i * P / 2) * 0.65, 1.45, Math.cos(i * P / 2) * 0.65); }
   box(0.08, 3, 0.08, col(0x8a6a2a), 0, 0, 0, { parent: rd });
-  box(2.9, 0.15, 2.9, col(0x3a2414), 0, 3.0, 0, { parent: rd });
+  box(2.7, 0.15, 2.7, col(0x3a2414), 0, 3.0, 0, { parent: rd });
   addCollider(LX0, y, -1.6, LX0 + 2.9, y + 3, 1.6);
   let spin = 0;
   interact(rd, 'Выйти наружу', () => {
@@ -875,9 +875,8 @@ function buildLobby() {
   PR.armchair(-16.9, 11.4, 0.6, 0x3a1a1a); PR.armchair(-12.1, 11.4, -0.6, 0x3a1a1a);
   pic(['art', 'portrait'], 'x', LZ1, -1, -14.5, y + 3.0, 1.1, { frame: 'gold' });
   for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) PR.chair(-24.5 + c * 1.0, -12.6 + r * 1.4, 0, { color: 0x3a3a3a, seatColor: 0x2a4a5a });
-  PR.piano(-22.3, 9.0, P * 0.8, { onPlay: n => { if (n % 5 === 0) { [64, 67, 71, 74, 72, 71, 67, 64, 62, 64].forEach((k, i) => S.sfxPiano(k, 0.09, 0.6 + i * 0.42)); setTimeout(() => G.subtitle('Рояль доигрывает мелодию сам. «Полдень навсегда».'), 800); } } });
-  PR.note(-22.1, y + 1.02, 8.7, P * 0.8, ...noteArgs('pianistSheet'));
-  for (const [x, z] of [[-24.6, 12.8], [-1.4, 12.6], [-9.5, -12.6], [-24.6, -2.2], [-24.6, 2.2]]) PR.palm(x, z, { s: 1.3 });
+  PR.piano(-22.3, 9.0, P * 0.8, { sheet: noteArgs('pianistSheet'), onPlay: n => { if (n % 5 === 0) { [64, 67, 71, 74, 72, 71, 67, 64, 62, 64].forEach((k, i) => S.sfxPiano(k, 0.09, 0.6 + i * 0.42)); setTimeout(() => G.subtitle('Рояль доигрывает мелодию сам. «Полдень навсегда».'), 800); } } });
+  for (const [x, z] of [[-24.1, 12.1], [-1.6, 12.4], [-10.75, -12.1], [-24.1, -2.4], [-24.1, 2.4]]) PR.palm(x, z, { s: 1.2 });
   PR.payphone(-1.6, y + 1.7, LZ1 - T / 2, P, () => G.flags.phoneRinging ? 'Занято.' : ['«Вы позвонили в отель „Полдень“. Вы уже в отеле „Полдень“».', 'Гудки. Потом твой собственный голос: «алло?»', '«Номер не существует. Номер не существует. Номер…»'][Math.floor(Math.random() * 3)]);
   PR.vending(-3.2, LZ1 - T / 2 - 0.4, P);
   PR.luggageCart(-18, -3.6, 0.4);
@@ -1002,7 +1001,7 @@ function buildBasement() {
     { name: 'камера/карта.txt', story: 'manager', title: TXT.managerCard[0], text: TXT.managerCard[1] },
   ]);
   const feeds = [['CAM 01 ВЕСТИБЮЛЬ', '', '  [пусто]'], ['CAM 07 ЭТАЖ 3', '', '  [пусто]', '', ' 313 ?'], ['CAM 13 КРЫША', '', '  [стул]', '', ' [солнце]'], ['CAM 00', '', '  [ты]']];
-  const zr = TZ1 - T / 2 - 0.3;
+  const zr = TZ1 - T / 2 - 0.38;
   box(5.2, 0.5, 0.55, col(0x2a2a2a), 27, y, zr); addCollider(24.4, y, zr - 0.28, 29.6, y + 0.5, zr + 0.28);
   feeds.forEach((f, i) => PR.tv(25.0 + i * 1.3, y + 0.5, zr, P, { on: true, screen: TX.screenTex(f) }));
   pic(['02_weirdcore_liminal', '03_y2k'], 'z', TX1, -1, 3.0, y + 1.9, 0.6);
@@ -1013,7 +1012,7 @@ function buildBasement() {
   trigger(24, CZ1, TX1, TZ1, () => G.secret('monitor', 'Комната наблюдения'));
   zone(24, CZ1, TX1, TZ1, 'КОМНАТА НАБЛЮДЕНИЯ', { reverb: 0.05, muffle: 700, buzz: 0.04, wind: 0 });
   // Склад мебели
-  for (let i = 0; i < 4; i++) PR.stackedChairs(8.6 + i * 0.6, TZ0 + T / 2 + 0.3, (i % 3) * 0.2, 4 + i % 3);
+  for (let i = 0; i < 4; i++) PR.stackedChairs(8.6 + i * 0.62, TZ0 + T / 2 + 0.38, (i % 3) * 0.2, 4 + i % 3);
   PR.sheetCovered(9.5, -3.6, 0.3, 2.0, 0.9, 1.0); PR.sheetCovered(11.0, -4.9, -0.4, 1.4, 1.2, 0.8);
   zone(6, TZ0, 12, CZ0, 'СКЛАД МЕБЕЛИ', { reverb: 0.3, muffle: 900, wind: 0 });
   // Электрощитовая
@@ -1127,7 +1126,7 @@ function buildElevator() {
     const pp = onWall('z', EX1, -1, EZ0 + 0.8);
     const panel = PR.grp(pp.x, pp.z, pp.ry, y + 1.5);
     box(0.25, 0.6, 0.025, col(0x9a8a6a, { emissive: 0x100c06 }), 0, -0.3, 0.012, { parent: panel });
-    for (let i = 0; i < 6; i++) box(0.05, 0.05, 0.015, emis(0xffb060, 0.6), (i % 2 - 0.5) * 0.09, -0.45 + Math.floor(i / 2) * 0.12, 0.03, { parent: panel });
+    for (let i = 0; i < 6; i++) box(0.05, 0.05, 0.015, emis(0xffb060, 0.6), (i % 2 - 0.5) * 0.09, -0.24 + Math.floor(i / 2) * 0.15, 0.03, { parent: panel });
     interact(panel, 'Панель лифта', () => G.elevatorPanel(L));
     mount(panel, 'wall', { w: 0.25, h: 0.6, dy: -0.3 });
     zone(EX0, EZ0, EX1, TZ1, 'ЛИФТ', { reverb: 0.03, muffle: 1800 });

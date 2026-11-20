@@ -662,7 +662,10 @@ if (params.has('autostart')) { state.started = true; state.paused = false; state
 window.__qa = () => {
   const out = [];
   const statics = [];
-  for (const g of Object.values(W.levels)) g.traverse(o => { if (o.isMesh && !o.userData.noRay && !o.userData.hit && !(o.material && o.material.transparent)) statics.push(o); });
+  const underDoor = o => { while (o) { if (o.userData.isDoor) return true; o = o.parent; } return false; };
+  for (const g of Object.values(W.levels)) g.traverse(o => { if (o.isMesh && !o.userData.noRay && !o.userData.hit && !(o.material && o.material.transparent) && !underDoor(o)) statics.push(o); });
+  // «каркас»: только слитая геометрия уровней (стены, полы, потолки, отделка)
+  const shell = []; for (const g of Object.values(W.levels)) for (const o of g.children) if (o.isMesh && !o.userData.noRay && !(o.material && o.material.transparent) && !o.userData.dynamic) shell.push(o);
   const rc = new THREE.Raycaster();
   const hitDist = (from, dir, self, far = 0.5) => {
     rc.set(from, dir); rc.far = far;
@@ -706,6 +709,28 @@ window.__qa = () => {
         const hl = rc.intersectObjects(statics, false)[0];
         if (!hl || he.distance < hl.distance + 0.005) { out.push(`фасад внутри помещения: ${z.name} @${[x, y, zz].map(v => +v.toFixed(1))} (на ${he.distance.toFixed(2)} м выше глаз)`); break; }
       }
+    }
+  }
+  // предметы, торчащие в стену или сквозь неё: лучи из центра к углам корпуса
+  {
+    const rc2 = new THREE.Raycaster(); const box3 = new THREE.Box3(); const inv = new THREE.Matrix4(); const tmpB = new THREE.Box3();
+    for (const it of W.qa) {
+      if (!['floor', 'table', 'support'].includes(it.kind)) continue;
+      const o = it.obj; o.updateMatrixWorld(true); inv.copy(o.matrixWorld).invert();
+      box3.makeEmpty();
+      o.traverse(m => { if (!m.isMesh || m.userData.hit || m.userData.noRay) return; m.geometry.computeBoundingBox(); tmpB.copy(m.geometry.boundingBox).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld)); box3.union(tmpB); });
+      if (box3.isEmpty()) continue;
+      const cl = box3.getCenter(new THREE.Vector3()), c = cl.clone().applyMatrix4(o.matrixWorld);
+      let worst = 0;
+      for (let k = 0; k < 8; k++) {
+        const pl = new THREE.Vector3(k & 1 ? box3.max.x : box3.min.x, k & 2 ? box3.max.y : box3.min.y, k & 4 ? box3.max.z : box3.min.z);
+        pl.lerp(cl, 0.02); const pw = pl.applyMatrix4(o.matrixWorld);
+        const dir = pw.clone().sub(c); const dist = dir.length(); dir.normalize();
+        rc2.set(c, dir); rc2.far = dist;
+        const h = rc2.intersectObjects(shell, false)[0];
+        if (h && dist - h.distance > worst) worst = dist - h.distance;
+      }
+      if (worst > 0.035) { const l = o.userData.interact; out.push(`в стене на ${(worst * 100).toFixed(0)} см: ${l ? (typeof l.label === 'function' ? l.label() : l.label) : 'предмет'} @${c.toArray().map(v => +v.toFixed(2))}`); }
     }
   }
   // мебель, врезанная в стены

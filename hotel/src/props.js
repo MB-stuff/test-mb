@@ -239,8 +239,8 @@ export function chips(x, y, z, n = 3) {
 }
 export function tv(x, y, z, ry, { on = false, big = false, screen = null } = {}) {
   const g = grp(x, z, ry, y); const s = big ? 1.3 : 1;
-  B(g, 0.6 * s, 0.48 * s, 0.5 * s, col(0x24201c), 0, 0, -0.05);
-  B(g, 0.4 * s, 0.32 * s, 0.16 * s, col(0x1a1612), 0, 0.08 * s, -0.33 * s);
+  B(g, 0.6 * s, 0.48 * s, 0.36 * s, col(0x24201c), 0, 0, 0.02 * s);
+  B(g, 0.4 * s, 0.32 * s, 0.14 * s, col(0x1a1612), 0, 0.08 * s, -0.23 * s);
   const offMat = col(0x0a120e, { emissive: 0x020604 });
   const onMat = screen ? basic('scr' + screen.uuid, { map: screen }) : basic('static', { map: TX.staticTex() });
   const sc = plane(0.48 * s, 0.36 * s, on ? onMat : offMat, 0, 0.24 * s, 0.2 * s + 0.015, 0, 0, { parent: g }); sc.userData.noMerge = true;
@@ -419,23 +419,30 @@ export function column(x, z, h, { r = 0.35, mat = null, y = Y() } = {}) {
   cyl(r + 0.12, r + 0.05, 0.3, 14, col(0x6a5020, { emissive: 0x100800 }), x, y + h - 0.3, z);
   addCollider(x - r, y, z - r, x + r, y + h, z + r);
 }
-export function piano(x, z, ry, { onPlay = null } = {}) {
-  const g = grp(x, z, ry); const k = col(0x0e0a0a, { emissive: 0x050404 });
+export function piano(x, z, ry, { onPlay = null, sheet = null } = {}) {
+  // корпус уходит от клавиатуры назад (по -Z), крышка откинута на петлях правого борта
+  const g = grp(x, z, ry); const k = col(0x120c0c, { emissive: 0x060404 });
   const body = new THREE.Shape(); body.moveTo(-0.75, 0); body.lineTo(0.75, 0); body.lineTo(0.75, -1.2); body.quadraticCurveTo(0.6, -2.0, 0, -2.0); body.quadraticCurveTo(-0.75, -1.9, -0.75, -1.2); body.closePath();
-  const geo = new THREE.ExtrudeGeometry(body, { depth: 0.3, bevelEnabled: false, curveSegments: 6 });
-  const m = new THREE.Mesh(geo, k); m.rotation.x = -P / 2; m.position.y = 0.68; g.add(m);
-  const lid = new THREE.Mesh(new THREE.ShapeGeometry(body, 6), col(0x0e0a0a, { side: THREE.DoubleSide })); lid.rotation.x = -P / 2 + 0.6; lid.position.set(0, 1.0, 0); g.add(lid);
-  B(g, 1.5, 0.05, 0.22, col(0xe0d8c8), 0, 0.92, 0.1);
-  for (let i = 0; i < 20; i++) if (i % 7 !== 2 && i % 7 !== 6) B(g, 0.03, 0.03, 0.12, k, -0.68 + i * 0.075, 0.96, 0.06);
-  for (const [a, b] of [[-0.65, 0.05], [0.65, 0.05], [0.1, -1.8]]) B(g, 0.08, 0.68, 0.08, k, a, 0, b);
+  const m = new THREE.Mesh(new THREE.ExtrudeGeometry(body, { depth: 0.3, bevelEnabled: false, curveSegments: 8 }), k);
+  m.rotation.x = P / 2; m.position.y = 0.98; g.add(m);
+  const hinge = new THREE.Group(); hinge.position.set(0.75, 0.985, 0); hinge.rotation.z = -0.5; g.add(hinge);
+  const lid = new THREE.Mesh(new THREE.ShapeGeometry(body, 8), col(0x120c0c, { side: THREE.DoubleSide })); lid.rotation.x = P / 2; lid.position.x = -0.75; hinge.add(lid);
+  B(g, 0.025, 0.7, 0.025, col(0x2a2018), -0.42, 0.98, -1.0); // подпорка крышки
+  B(g, 1.56, 0.14, 0.32, k, 0, 0.78, 0.16); // клавишный блок
+  B(g, 1.42, 0.03, 0.2, col(0xe8e0d0), 0, 0.92, 0.19);
+  for (let i = 0; i < 20; i++) if (i % 7 !== 2 && i % 7 !== 6) B(g, 0.03, 0.03, 0.1, k, -0.68 + i * 0.072, 0.95, 0.14);
+  const stand = new THREE.Mesh(boxGeo(0.8, 0.28, 0.02, 1), k); stand.position.set(0, 1.12, -0.06); stand.rotation.x = -0.25; g.add(stand);
+  for (const [a, b] of [[-0.62, -0.15], [0.62, -0.15], [0.0, -1.8]]) B(g, 0.09, 0.68, 0.09, k, a, 0, b);
+  B(g, 0.22, 0.55, 0.05, k, 0, 0.12, -0.12); B(g, 0.2, 0.03, 0.12, col(0xb09040), 0, 0.06, -0.06);
   const chords = [[60, 64, 67, 71], [57, 60, 64, 67], [62, 65, 69, 72], [55, 59, 62, 65], [53, 57, 60, 64]];
   let ci = 0;
   interact(g, 'Сыграть на рояле', () => { const ch = chords[ci++ % chords.length]; ch.forEach((n, i) => S.sfxPiano(n, 0.1, i * 0.09)); if (onPlay) onPlay(ci); });
-  solid(g, 1.6, 2.1, 1.0, 0, -1.0); floor(g);
-  const bp = wp(g, 0, 0, 0.6);
-  const b = grp(bp.x, bp.z, ry); B(b, 0.8, 0.08, 0.35, k, 0, 0.45, 0);
-  for (const a of [-0.35, 0.35]) B(b, 0.05, 0.45, 0.3, k, a, 0, 0);
-  seat(b, 'Сесть за рояль', { eye: 1.2, yawOff: P }); floor(b);
+  solid(g, 1.6, 2.35, 1.0, 0, -0.85); floor(g);
+  if (sheet) { const sp = wp(g, 0, 1.0, -0.035); const n = note(sp.x, sp.y + 0.12, sp.z, ry, sheet[0], sheet[1], { ...sheet[2], flat: false, mountKind: 'hang' }); n.rotation.x = -0.25; n.rotation.order = 'YXZ'; }
+  const bp = wp(g, 0, 0, 0.62);
+  const bn = grp(bp.x, bp.z, ry); B(bn, 0.8, 0.08, 0.35, k, 0, 0.45, 0);
+  for (const a of [-0.35, 0.35]) B(bn, 0.05, 0.45, 0.3, k, a, 0, 0);
+  seat(bn, 'Сесть за рояль', { eye: 1.2, yawOff: P }); floor(bn);
   return g;
 }
 export function vending(x, z, ry) {

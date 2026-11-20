@@ -291,7 +291,7 @@ export class Door {
     }
     this.collider = axis === 'x' ? addCollider(at - w / 2, y0, c - 0.1, at + w / 2, y0 + h, c + 0.1)
       : addCollider(c - 0.1, y0, at - w / 2, c + 0.1, y0 + h, at + w / 2);
-    this.hingeSign = hinge; this.pivot.userData.owner = panel;
+    this.hingeSign = hinge; this.pivot.userData.owner = panel; this.pivot.userData.isDoor = true;
     interact(panel, () => this.locked ? `${cap(this.name)}: заперто` : (this.open ? 'Закрыть: ' : 'Открыть: ') + this.name, () => this.toggle());
     W.animated.push(dt => this.update(dt));
   }
