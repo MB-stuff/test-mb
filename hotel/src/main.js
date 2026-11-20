@@ -11,6 +11,7 @@ const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const TOUCH = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 const SECRETS_TOTAL = 8;
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
 
 // ---------- рендер ----------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('shot') });
@@ -18,7 +19,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 $('game').appendChild(renderer.domElement);
-let retro = localStorage.getItem('hotel.retro') !== '0';
+let retro = store.get('hotel.retro') !== '0';
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   renderer.setPixelRatio(retro ? Math.max(0.35, dpr * 0.42) : dpr);
@@ -80,7 +81,7 @@ if (params.has('x')) { player.pos.set(+params.get('x'), +(params.get('y') || 0),
 if (params.has('yaw')) player.yaw = +params.get('yaw');
 if (params.has('pitch')) player.pitch = +params.get('pitch');
 
-const state = { started: false, paused: true, modal: null, secrets: new Set(), items: new Map(), zone: null, flags: W.flags, fade: 0, busy: false, sens: +(localStorage.getItem('hotel.sens') || 1) };
+const state = { started: false, paused: true, modal: null, secrets: new Set(), items: new Map(), zone: null, flags: W.flags, fade: 0, busy: false, sens: +(store.get('hotel.sens') || 1) };
 G.flags = W.flags;
 
 // ---------- ввод ----------
@@ -95,7 +96,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space' && player.sitting) standUp();
   if (e.code === 'KeyF') toggleFlash();
   if (e.code === 'KeyM') { const v = S.audio.musicVolume > 0 ? 0 : 0.55; S.setMusicVolume(v); $('vol').value = v; toast(v ? 'Музыка включена' : 'Музыка выключена'); }
-  if (e.code === 'KeyP') { retro = !retro; localStorage.setItem('hotel.retro', retro ? '1' : '0'); $('retro').checked = retro; resize(); }
+  if (e.code === 'KeyP') { retro = !retro; store.set('hotel.retro', retro ? '1' : '0'); $('retro').checked = retro; resize(); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 function toggleFlash() { flash.intensity = flash.intensity > 0 ? 0 : 12; S.sfxClick(); }
@@ -184,8 +185,8 @@ function showPause() {
 }
 $('startBtn').addEventListener('click', start);
 $('vol').addEventListener('input', e => S.setMusicVolume(+e.target.value));
-$('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; localStorage.setItem('hotel.sens', state.sens); });
-$('retro').checked = retro; $('retro').addEventListener('change', e => { retro = e.target.checked; localStorage.setItem('hotel.retro', retro ? '1' : '0'); resize(); });
+$('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
+$('retro').checked = retro; $('retro').addEventListener('change', e => { retro = e.target.checked; store.set('hotel.retro', retro ? '1' : '0'); resize(); });
 function start() {
   S.initAudio(); S.setMusicVolume(+$('vol').value);
   if (!state.started) { state.started = true; setTimeout(() => toast('Отель «Полдень». Добро пожаловать. Снова.'), 800); setTimeout(() => { if (!state.zone) return; }, 0); $('help').classList.add('show'); setTimeout(() => $('help').classList.remove('show'), 12000); }
