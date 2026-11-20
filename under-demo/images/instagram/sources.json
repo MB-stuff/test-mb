@@ -1,0 +1,201 @@
+{
+  "account": "https://www.instagram.com/under.lavka/",
+  "note": "post_url заполнить при скачивании оригиналов",
+  "images": [
+    {
+      "slug": "krylya-serafimy-model",
+      "alt": "Модель в серьгах «Крылья Серафимы» прикуривает от зажигалки на цепи",
+      "post": "Серьги «Крылья Серафимы»",
+      "post_date": "12 сентября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "krylya-serafimy-model-480.webp",
+        "960": "krylya-serafimy-model-960.webp"
+      },
+      "width": 900,
+      "height": 921
+    },
+    {
+      "slug": "krylya-serafimy-black",
+      "alt": "Серьги «Крылья Серафимы»: европейское плетение и стальные шипы на чёрном",
+      "post": "Серьги «Крылья Серафимы»",
+      "post_date": "12 сентября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "krylya-serafimy-black-480.webp",
+        "960": "krylya-serafimy-black-960.webp"
+      },
+      "width": 792,
+      "height": 1032
+    },
+    {
+      "slug": "krylya-serafimy-flatlay",
+      "alt": "«Крылья Серафимы» на тёмной ткани",
+      "post": "Серьги «Крылья Серафимы»",
+      "post_date": "12 сентября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "krylya-serafimy-flatlay-480.webp",
+        "960": "krylya-serafimy-flatlay-960.webp"
+      },
+      "width": 900,
+      "height": 900
+    },
+    {
+      "slug": "klinki-miloserdiya-model",
+      "alt": "Модель в серьгах «Клинки милосердия» и кольчужном чокере",
+      "post": "Серьги «Клинки милосердия»",
+      "post_date": null,
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "klinki-miloserdiya-model-480.webp",
+        "960": "klinki-miloserdiya-model-960.webp"
+      },
+      "width": 756,
+      "height": 894
+    },
+    {
+      "slug": "klinki-miloserdiya-model-2",
+      "alt": "Модель с эльфийскими ушами в серьгах «Клинки милосердия»",
+      "post": "Серьги «Клинки милосердия»",
+      "post_date": null,
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "klinki-miloserdiya-model-2-480.webp",
+        "960": "klinki-miloserdiya-model-2-960.webp"
+      },
+      "width": 756,
+      "height": 972
+    },
+    {
+      "slug": "ush-tuyin-earrings",
+      "alt": "Серьги «Үш Түйін» с казахским орнаментом в три уровня",
+      "post": "Серьги «Үш Түйін»",
+      "post_date": null,
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "ush-tuyin-earrings-480.webp",
+        "960": "ush-tuyin-earrings-960.webp"
+      },
+      "width": 624,
+      "height": 894
+    },
+    {
+      "slug": "braslety-plateniya-1",
+      "alt": "Четыре браслета разных кольчужных плетений на гравюре",
+      "post": "Браслеты: типы кольчужного плетения",
+      "post_date": null,
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "braslety-plateniya-1-480.webp",
+        "960": "braslety-plateniya-1-960.webp"
+      },
+      "width": 900,
+      "height": 935
+    },
+    {
+      "slug": "braslety-plateniya-2",
+      "alt": "Браслеты европейского и спирального плетения крупно",
+      "post": "Браслеты: типы кольчужного плетения",
+      "post_date": null,
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "braslety-plateniya-2-480.webp",
+        "960": "braslety-plateniya-2-960.webp"
+      },
+      "width": 900,
+      "height": 935
+    },
+    {
+      "slug": "vodovoroty-earrings",
+      "alt": "Серьги «Водовороты» со спиральными узлами и утяжелителем",
+      "post": "Серьги «Водовороты»",
+      "post_date": "5 октября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "vodovoroty-earrings-480.webp",
+        "960": "vodovoroty-earrings-960.webp"
+      },
+      "width": 786,
+      "height": 942
+    },
+    {
+      "slug": "vodovoroty-detail",
+      "alt": "Серьги «Водовороты» крупным планом",
+      "post": "Серьги «Водовороты»",
+      "post_date": "5 октября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "vodovoroty-detail-480.webp",
+        "960": "vodovoroty-detail-960.webp"
+      },
+      "width": 786,
+      "height": 942
+    },
+    {
+      "slug": "klinki-earrings",
+      "alt": "Серьги «Клинки» — мечи на кольчужном узле",
+      "post": "Серьги «Клинки»",
+      "post_date": "22 сентября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "klinki-earrings-480.webp",
+        "960": "klinki-earrings-960.webp"
+      },
+      "width": 732,
+      "height": 936
+    },
+    {
+      "slug": "market-stand-bracelets",
+      "alt": "Прилавок UNDER на маркете: браслеты и чокер с шипами",
+      "post": "Фотоотчёт с маркета",
+      "post_date": "28 октября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "market-stand-bracelets-480.webp",
+        "960": "market-stand-bracelets-960.webp"
+      },
+      "width": 900,
+      "height": 1028
+    },
+    {
+      "slug": "market-stand-earrings",
+      "alt": "Стенд с серьгами и цепями на маркете",
+      "post": "Фотоотчёт с маркета",
+      "post_date": "28 октября",
+      "post_url": null,
+      "source": "кроп со скриншота телефона (временно)",
+      "todo": "заменить оригиналом из поста",
+      "files": {
+        "480": "market-stand-earrings-480.webp",
+        "960": "market-stand-earrings-960.webp"
+      },
+      "width": 900,
+      "height": 960
+    }
+  ]
+}
