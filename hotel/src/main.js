@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import { W, G, FH, boxGeo, optimizeLevels } from './engine.js';
-import { buildHotel, ELEV, elevatorDoors } from './hotel.js';
-import { buildExterior, SUN_DIR } from './sky.js';
+import { buildHotel, ELEV, elevatorDoors, LAYOUT } from './hotel.js';
+import { buildExterior as buildSky, SUN_DIR } from './sky.js';
+import { buildExterior as buildFacade } from './exterior.js';
 import * as S from './audio.js';
-import { updateStatic, concrete } from './textures.js';
+import { updateStatic, stucco } from './textures.js';
+import { STORIES, T as STORY_TEXTS } from './stories.js';
+import { caption } from './engine.js';
 import IMAGES from './images.json';
 
 const P = Math.PI;
@@ -13,33 +16,78 @@ const TOUCH = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in windo
 const SECRETS_TOTAL = 8;
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
 
-// ---------- рендер ----------
+// ---------- рендер: сцена рисуется в буфер, потом VHS-постобработка ----------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('shot') });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.setPixelRatio(1);
 $('game').appendChild(renderer.domElement);
-let retro = store.get('hotel.retro') !== '0';
+let vhs = store.get('hotel.vhs') !== '0';
+const rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: +(params.get('msaa') ?? 2) });
+const postU = { tDiffuse: { value: rt.texture }, uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uVhs: { value: 1 }, uExposure: { value: 1.35 }, uGlitch: { value: 0 } };
+const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  uniforms: postU, depthTest: false, depthWrite: false,
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `
+  uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uTime, uVhs, uExposure, uGlitch;
+  varying vec2 vUv;
+  float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+  vec3 tone(vec3 c){ c *= uExposure; vec3 k = vec3(0.8); vec3 o = max(c - k, 0.0); return min(c, k) + (1.0 - k) * (1.0 - exp(-o / (1.0 - k))); }
+  vec3 srgb(vec3 c){ c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+  vec3 samp(vec2 uv){ return srgb(tone(texture2D(tDiffuse, uv).rgb)); }
+  void main(){
+    vec2 uv = vUv;
+    if (uVhs < 0.5) { gl_FragColor = vec4(samp(uv), 1.0); return; }
+    float line = floor(uv.y * uRes.y / 2.0);
+    float t = uTime;
+    // плёночное дрожание строк и «полоса трекинга», медленно ползущая вверх
+    float jit = (hash(vec2(line, floor(t * 30.0))) - 0.5) * 0.0009;
+    float bandPos = fract(t * 0.045);
+    float band = smoothstep(0.018, 0.0, abs(uv.y - bandPos)) * smoothstep(0.55, 0.95, sin(t * 0.21));
+    uv.x += jit + band * 0.006 * sin(t * 50.0 + uv.y * 300.0) + uGlitch * 0.03 * (hash(vec2(line, floor(t * 20.0))) - 0.5);
+    uv.y += uGlitch * 0.01 * sin(t * 80.0);
+    float px = 1.0 / uRes.x;
+    float ca = 0.0018 + uGlitch * 0.008 + band * 0.002;
+    vec3 c0 = samp(uv), cl = samp(uv - vec2(1.6 * px, 0.0)), cr = samp(uv + vec2(1.6 * px, 0.0));
+    vec3 c = c0 * 0.5 + (cl + cr) * 0.25;
+    float r = samp(uv + vec2(ca, 0.0)).r, b = samp(uv - vec2(ca * 1.2, 0.0)).b;
+    vec3 col = vec3(mix(c.r, r, 0.65), c.g, mix(c.b, b, 0.65));
+    float l = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(l), col, 0.92) * vec3(1.05, 1.0, 0.93);
+    col *= 0.94 + 0.06 * sin(gl_FragCoord.y * 3.14159);
+    col += (hash(uv * uRes + t * 61.0) - 0.5) * 0.055;
+    col += band * (hash(vec2(uv.x * 400.0, t * 40.0)) - 0.5) * 0.12;
+    float bb = smoothstep(0.03, 0.0, vUv.y);
+    col = mix(col, vec3(hash(vec2(floor(vUv.x * 200.0), floor(t * 25.0)))), bb * 0.6);
+    vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.85;
+    gl_FragColor = vec4(col, 1.0);
+  }`,
+}));
+const postScene = new THREE.Scene(); postScene.add(post);
+const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  renderer.setPixelRatio(retro ? Math.max(0.35, dpr * 0.42) : dpr);
   renderer.setSize(window.innerWidth, window.innerHeight);
+  const scale = vhs ? Math.min(1, 720 / window.innerHeight) : dpr;
+  const w = Math.round(window.innerWidth * scale), h = Math.round(window.innerHeight * scale);
+  rt.setSize(w, h); postU.uRes.value.set(w, h); postU.uVhs.value = vhs ? 1 : 0;
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-  renderer.domElement.style.imageRendering = retro ? 'pixelated' : 'auto';
+  $('osd').classList.toggle('hidden', !vhs);
 }
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x120a08);
-scene.fog = new THREE.Fog(0x0e0808, 7, 42);
-const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 2500);
+scene.background = new THREE.Color(0x1a0e08);
+scene.fog = new THREE.Fog(0x1e120a, 8, 46);
+const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 2000);
 scene.add(camera);
 W.scene = scene;
 window.addEventListener('resize', resize);
 
-const hemi = new THREE.HemisphereLight(0x8a6048, 0x2a0a14, 1.1); scene.add(hemi);
-const amb = new THREE.AmbientLight(0x3a2a2a, 0.5); scene.add(amb);
+const hemi = new THREE.HemisphereLight(0xc08a5a, 0x3a1a10, 1.2); scene.add(hemi);
+const amb = new THREE.AmbientLight(0x5a3a28, 0.55); scene.add(amb);
 const sun = new THREE.DirectionalLight(0xffc080, 0); sun.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sun);
 const POOL = [];
-for (let i = 0; i < 8; i++) { const l = new THREE.PointLight(0xffaa66, 0, 8, 1.6); scene.add(l); POOL.push(l); }
+for (let i = 0; i < 10; i++) { const l = new THREE.PointLight(0xffaa66, 0, 8, 1.6); l.userData = { a: null, fade: 0 }; scene.add(l); POOL.push(l); }
 const flash = new THREE.SpotLight(0xfff0d0, 0, 18, 0.45, 0.5, 1.4); camera.add(flash); flash.position.set(0.15, -0.1, 0); flash.target.position.set(0, 0, -1); camera.add(flash.target);
 
 // ---------- картинки ----------
@@ -47,29 +95,43 @@ W.images = IMAGES;
 for (const im of IMAGES) W.imageUrls[im.id] = (window.__IMG && window.__IMG[im.id]) || `../assets/img/${im.id}.jpg`;
 
 // ---------- мир ----------
-const proxies = {};
-const ext = buildExterior(scene);
+const sky = buildSky(scene);
 buildHotel();
+buildFacade();
 const [mb, ma] = optimizeLevels(); console.log('merged', mb, '->', ma);
+const proxies = {};
 buildProxies();
-ext.onGlitch = () => { if (Math.random() < 0.5) S.sfxGlitch(); };
+// мелкие предметы дальше ~25 м не рисуются (туман их всё равно почти скрывает)
+const cullables = [];
+for (const lv of Object.values(W.levels)) for (const o of lv.children) if (o.isGroup) {
+  const bb = new THREE.Box3().setFromObject(o); if (bb.isEmpty()) continue;
+  o.userData.cullC = bb.getCenter(new THREE.Vector3()); o.userData.cullR = bb.getSize(new THREE.Vector3()).length() / 2; cullables.push(o);
+}
+let cullT = 0;
+function updateCull(dt) {
+  cullT -= dt; if (cullT > 0) return; cullT = 0.2;
+  const all = state.title || params.has('qa');
+  for (const o of cullables) o.visible = !o.userData.gone && (all || camera.position.distanceTo(o.userData.cullC) - o.userData.cullR < 25);
+}
+sky.onGlitch = () => { if (state.started) { S.sfxGlitch(); glitch(0.5); } };
 
-// Упрощённые «коробки» фасадов для скрытых этажей (видны из окон сверху)
 function buildProxies() {
-  const c = document.createElement('canvas'); c.width = 96; c.height = 64; const g = c.getContext('2d');
-  g.fillStyle = '#4a3a3a'; g.fillRect(0, 0, 96, 64);
-  g.fillStyle = '#e8b870'; g.fillRect(30, 18, 36, 33); g.fillStyle = '#1a1010'; g.fillRect(30, 18, 36, 2); g.fillRect(47, 18, 2, 33);
-  g.fillStyle = '#2a2020'; g.fillRect(0, 58, 96, 6);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.magFilter = THREE.NearestFilter;
-  const mat = new THREE.MeshBasicMaterial({ map: tex, color: 0x9a8070 });
-  const top = new THREE.MeshBasicMaterial({ map: concrete('#3a2a2a', 33), color: 0x8a6a5a });
+  const c = document.createElement('canvas'); c.width = 192; c.height = 128; const g = c.getContext('2d');
+  g.drawImage(stucco('#a8725a', 15).image, 0, 0, 192, 128);
+  g.fillStyle = '#e8b870'; g.fillRect(60, 30, 72, 64); g.fillStyle = '#2a1a14'; g.fillRect(60, 30, 72, 4); g.fillRect(94, 30, 4, 64); g.fillRect(56, 94, 80, 5);
+  g.fillStyle = '#c09a6a'; g.fillRect(0, 118, 192, 10);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  const { TX0, TX1, TZ0, TZ1, LX0, LZ0, LZ1, LH, PH } = LAYOUT;
   const mk = (L, x0, z0, x1, z1, y0, y1) => {
-    const m = new THREE.Mesh(boxGeo(x1 - x0, y1 - y0, z1 - z0, 1), [mat, mat, top, mat, mat, mat]);
+    const m = new THREE.Mesh(boxGeo(x1 - x0, y1 - y0, z1 - z0, 1), mat);
     const uv = m.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 6, uv.getY(i) / 4);
     m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); scene.add(m); (proxies[L] = proxies[L] || []).push(m);
   };
-  for (let L = 0; L <= 3; L++) mk(L, -0.12, -6.52, 30.12, 6.52, L * FH, L * FH + FH - 0.02);
-  mk(0, -26.12, -14.12, 0, 14.12, 0, 8.3);
+  for (let L = 1; L <= 3; L++) mk(L, TX0 - 0.11, TZ0 - 0.11, TX1 + 0.11, TZ1 + 0.11, L * FH, L * FH + FH - 0.02);
+  mk(0, LX0 - 0.11, LZ0 - 0.11, TX1 + 0.11, LZ1 + 0.11, 0, PH - 0.02);
+  mk(0, LX0 - 0.11, LZ0 - 0.11, TX0, LZ1 + 0.11, PH - 0.02, LH);
+  mk(0, TX0, TZ0 - 0.11, TX1 + 0.11, TZ1 + 0.11, PH - 0.02, FH);
 }
 
 // ---------- состояние игрока ----------
@@ -77,11 +139,11 @@ const player = {
   pos: new THREE.Vector3(-23, 0, 0.5), vy: 0, yaw: -P / 2, pitch: 0, radius: 0.28, eye: 1.62,
   sitting: null, standPos: null, bob: 0, lastStepPhase: 0, level: 0, ground: 'marble', vel: new THREE.Vector3(),
 };
-if (params.has('x')) { player.pos.set(+params.get('x'), +(params.get('y') || 0), +params.get('z')); }
+if (params.has('x')) player.pos.set(+params.get('x'), +(params.get('y') || 0), +params.get('z'));
 if (params.has('yaw')) player.yaw = +params.get('yaw');
 if (params.has('pitch')) player.pitch = +params.get('pitch');
 
-const state = { started: false, paused: true, modal: null, secrets: new Set(), items: new Map(), zone: null, flags: W.flags, fade: 0, busy: false, sens: +(store.get('hotel.sens') || 1) };
+const state = { started: false, paused: true, modal: null, secrets: new Set(), items: new Map(), zone: null, busy: false, sens: +(store.get('hotel.sens') || 1), journal: {}, title: true };
 G.flags = W.flags;
 
 // ---------- ввод ----------
@@ -89,32 +151,35 @@ const keys = {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
   keys[e.code] = true;
-  if (state.modal) { if (['Escape', 'KeyE', 'Space', 'Enter'].includes(e.code) && state.modal !== 'ending') closeModal(); return; }
+  if (state.modal) {
+    if (['Escape', 'KeyE', 'Enter'].includes(e.code) && state.modal !== 'ending') closeModal();
+    if (e.code === 'KeyJ' && state.modal === 'journal') closeModal();
+    return;
+  }
   if (!state.started) return;
   if (e.code === 'Escape' && lockFailed) { state.paused = true; showPause(); return; }
   if (e.code === 'KeyE') doInteract();
   if (e.code === 'Space' && player.sitting) standUp();
   if (e.code === 'KeyF') toggleFlash();
+  if (e.code === 'KeyJ') openJournal();
   if (e.code === 'KeyM') { const v = S.audio.musicVolume > 0 ? 0 : 0.55; S.setMusicVolume(v); $('vol').value = v; toast(v ? 'Музыка включена' : 'Музыка выключена'); }
-  if (e.code === 'KeyP') { retro = !retro; store.set('hotel.retro', retro ? '1' : '0'); $('retro').checked = retro; resize(); }
+  if (e.code === 'KeyP') { vhs = !vhs; store.set('hotel.vhs', vhs ? '1' : '0'); $('vhs').checked = vhs; resize(); toast(vhs ? 'VHS: включено' : 'VHS: выключено'); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-function toggleFlash() { flash.intensity = flash.intensity > 0 ? 0 : 12; S.sfxClick(); }
+function toggleFlash() { flash.intensity = flash.intensity > 0 ? 0 : 14; S.sfxClick(); }
 
 const canvas = renderer.domElement;
-let downAt = null;
+let downAt = null, lockFailed = false;
 canvas.addEventListener('mouseup', e => { if (lockFailed && downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) < 6 && !state.modal) doInteract(); downAt = null; });
 canvas.addEventListener('mousedown', e => {
   if (!state.started || state.modal) return;
   if (document.pointerLockElement !== canvas && !TOUCH && !lockFailed) { lockPointer(); return; }
   if (e.button === 0) { downAt = [e.clientX, e.clientY]; if (!lockFailed) doInteract(); }
 });
-// Если захват курсора недоступен (например, во встроенном окне) — смотрим, зажав кнопку мыши
-let lockFailed = false;
 function lockPointer() {
   if (lockFailed) { state.paused = false; $('start').classList.add('hidden'); return; }
   try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(onLockFail); } catch (e) { onLockFail(); }
-  setTimeout(() => { if (document.pointerLockElement !== canvas && !state.modal && state.started && $('start').classList.contains('hidden') === false) onLockFail(); }, 700);
+  setTimeout(() => { if (document.pointerLockElement !== canvas && !state.modal && state.started && !$('start').classList.contains('hidden')) onLockFail(); }, 700);
 }
 function onLockFail() {
   if (lockFailed) return; lockFailed = true;
@@ -173,28 +238,33 @@ if (TOUCH) {
   $('btnRun').addEventListener('touchstart', e => { e.preventDefault(); keys.ShiftLeft = !keys.ShiftLeft; $('btnRun').classList.toggle('on', keys.ShiftLeft); });
   $('btnLight').addEventListener('touchstart', e => { e.preventDefault(); toggleFlash(); });
   $('btnMenu').addEventListener('touchstart', e => { e.preventDefault(); state.paused = true; showPause(); });
+  $('btnJournal').addEventListener('touchstart', e => { e.preventDefault(); openJournal(); });
 }
 function showStick(x, y) { const s = $('stick'); s.style.display = 'block'; s.style.left = x - 50 + 'px'; s.style.top = y - 50 + 'px'; }
 function moveStick(x, y) { $('knob').style.transform = `translate(${x * 30}px, ${y * 30}px)`; }
 function hideStick() { $('stick').style.display = 'none'; $('knob').style.transform = ''; }
 
 // ---------- старт / пауза ----------
-function showPause() {
-  $('start').classList.remove('hidden'); $('startBtn').textContent = 'Продолжить';
-  $('startTitle').textContent = 'Пауза';
-}
+function showPause() { $('start').classList.remove('hidden'); $('startBtn').textContent = 'Продолжить'; $('startTitle').textContent = 'Пауза'; }
 $('startBtn').addEventListener('click', start);
 $('vol').addEventListener('input', e => S.setMusicVolume(+e.target.value));
 $('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
-$('retro').checked = retro; $('retro').addEventListener('change', e => { retro = e.target.checked; store.set('hotel.retro', retro ? '1' : '0'); resize(); });
+$('vhs').checked = vhs; $('vhs').addEventListener('change', e => { vhs = e.target.checked; store.set('hotel.vhs', vhs ? '1' : '0'); resize(); });
+$('journalBtn').addEventListener('click', () => openJournal());
 function start() {
   S.initAudio(); S.setMusicVolume(+$('vol').value);
-  if (!state.started) { state.started = true; setTimeout(() => toast('Отель «Полдень». Добро пожаловать. Снова.'), 800); setTimeout(() => { if (!state.zone) return; }, 0); $('help').classList.add('show'); setTimeout(() => $('help').classList.remove('show'), 12000); }
+  if (!state.started) {
+    state.started = true; state.title = false;
+    fadeTo(1, 10); setTimeout(() => fadeTo(0, 900), 60);
+    setTimeout(() => toast('Отель «Полдень». Добро пожаловать. Снова.'), 900);
+    $('help').classList.add('show'); setTimeout(() => $('help').classList.remove('show'), 12000);
+    document.body.classList.add('playing');
+  }
   if (TOUCH) { state.paused = false; $('start').classList.add('hidden'); try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => { }); } catch (e) { } }
   else lockPointer();
 }
 
-// ---------- UI: сообщения и модальные окна ----------
+// ---------- сообщения и окна ----------
 function toast(msg, ms = 3800) {
   if (!msg) return;
   const d = document.createElement('div'); d.className = 'toast'; d.textContent = msg; $('toasts').appendChild(d);
@@ -208,25 +278,72 @@ function openModal(kind, html) {
 }
 function closeModal() {
   state.modal = null; $('modal').className = '';
-  if (!TOUCH) lockPointer();
+  if (!TOUCH && state.started) lockPointer();
 }
-$('modal').addEventListener('click', e => { if (e.target.dataset.floor !== undefined) return; if (state.modal !== 'ending' || e.target.id === 'stay') closeModal(); });
+$('modal').addEventListener('click', e => {
+  if (e.target.closest('[data-keep]')) return;
+  if (state.modal !== 'ending' || e.target.id === 'stay') closeModal();
+});
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const nl = s => esc(s).replace(/\n/g, '<br>');
+
+// журнал: что найдено по каждой сюжетной линии
+const STORY_TOTAL = {};
+for (const [, , st] of Object.values(STORY_TEXTS)) if (st) STORY_TOTAL[st] = (STORY_TOTAL[st] || 0) + 1;
+function remember(story, title, text) {
+  if (!story) return;
+  const j = state.journal[story] = state.journal[story] || {};
+  if (!j[title]) {
+    j[title] = text; S.sfxPaper();
+    const n = Object.keys(j).length;
+    setTimeout(() => toast(`Журнал: «${STORIES[story].title}» ${n}/${STORY_TOTAL[story]}`), 400);
+    if (n === STORY_TOTAL[story]) setTimeout(() => toast(`История «${STORIES[story].title}» собрана целиком.`, 5000), 1600);
+  }
+  renderInv();
+}
+function openJournal(openStory = null) {
+  const items = Object.entries(STORIES).map(([id, s]) => {
+    const j = state.journal[id] || {}; const n = Object.keys(j).length;
+    const entries = Object.keys(j).map((t, i) => `<li><button data-keep data-s="${id}" data-i="${i}">${esc(t)}</button></li>`).join('');
+    return `<section><h4>${esc(s.title)} <span>${n}/${STORY_TOTAL[id]}</span></h4>${n ? `<ul>${entries}</ul>` : `<p class="dim">Пока ничего. Где искать: ${esc(s.hint)}.</p>`}</section>`;
+  }).join('');
+  openModal('journal', `<div class="journal" data-keep><h3>Журнал постояльца</h3><div class="jgrid">${items}</div><div class="jread" id="jread"></div><small>J / Esc — закрыть</small></div>`);
+  $('modalBody').querySelectorAll('button[data-s]').forEach(b => b.addEventListener('click', () => {
+    const j = state.journal[b.dataset.s]; const t = Object.keys(j)[+b.dataset.i];
+    $('jread').innerHTML = `<div class="paper"><h3>${esc(t)}</h3><p>${nl(j[t])}</p></div>`;
+  }));
+}
 
 G.toast = toast; G.subtitle = subtitle;
-G.note = (title, text) => openModal('note', `<div class="paper"><h3>${esc(title)}</h3><p>${esc(text).replace(/\n/g, '<br>')}</p><small>E / клик — закрыть</small></div>`);
+G.note = (title, text, story) => {
+  const st = story && typeof story === 'object' ? story.story : story;
+  openModal('note', `<div class="paper"><h3>${esc(title)}</h3><p>${nl(text)}</p><small>E / клик — закрыть</small></div>`);
+  remember(st, title, text);
+};
+G.computer = (name, files) => {
+  const list = files.map((f, i) => `<button data-keep data-f="${i}">📄 ${esc(f.name)}</button>`).join('');
+  openModal('pc', `<div class="pc" data-keep><div class="pcbar">ПОЛДЕНЬ-OS 98 — ${esc(name)}<span>✕</span></div><div class="pcbody"><div class="pcfiles">${list}</div><pre class="pctext" id="pctext">Выбери файл.\n\n> _</pre></div><small>Esc — выключить</small></div>`);
+  $('modalBody').querySelectorAll('button[data-f]').forEach(b => b.addEventListener('click', () => {
+    const f = files[+b.dataset.f]; S.sfxTypewriter(4);
+    $('pctext').textContent = f.text;
+    $('modalBody').querySelectorAll('button[data-f]').forEach(x => x.classList.toggle('on', x === b));
+    remember(f.story, f.title || f.name, f.text);
+  }));
+  $('modalBody').querySelector('.pcbar span').addEventListener('click', closeModal);
+};
 G.showPicture = im => {
   if (!im) return;
-  const credit = im.author ? `${esc(im.author)} · ${esc(im.license)}${im.url ? ` · <a href="${esc(im.url)}" target="_blank" rel="noopener">источник</a>` : ''}` : (im.group === 'portrait' ? 'портрет из коллекции отеля' : 'из коллекции отеля');
-  let title = im.title.replace(/_/g, ' ').replace(/\(cropped\)/, '').trim();
-  if (/^(images|photo|vtym|\w{20,}|\d)/i.test(title)) title = 'Без названия';
-  openModal('picture', `<figure><img src="${W.imageUrls[im.id]}" alt=""><figcaption><b>${esc(title)}</b><br>${credit}</figcaption></figure><small>E / клик — закрыть</small>`);
+  const cap = caption(im);
+  let title = cap ? cap.title : im.title.replace(/_/g, ' ').trim();
+  const text = cap ? `<i>${esc(cap.text)}</i><br>` : '';
+  const credit = im.author ? `«${esc(im.title)}» — ${esc(im.author)} · ${esc(im.license)}${im.url ? ` · <a data-keep href="${esc(im.url)}" target="_blank" rel="noopener">источник</a>` : ''}` : 'из коллекции отеля';
+  openModal('picture', `<figure><img src="${W.imageUrls[im.id]}" alt=""><figcaption><b>${esc(title)}</b><br>${text}<span class="dim">${credit}</span></figcaption></figure><small>E / клик — закрыть</small>`);
 };
 G.addItem = (id, name) => { state.items.set(id, name); renderInv(); toast('Получено: ' + name); };
 G.hasItem = id => state.items.has(id);
 G.secret = (id, name) => {
   if (state.secrets.has(id)) return;
-  state.secrets.add(id); S.sfxSecret(); renderInv();
+  state.secrets.add(id); S.sfxSecret(); renderInv(); glitch(0.35);
   toast(`✦ Секрет найден: ${name} (${state.secrets.size}/${SECRETS_TOTAL})`, 5000);
   if (state.secrets.size >= 4 && !W.flags.phoneRang) {
     W.flags.phoneRang = true;
@@ -239,7 +356,9 @@ G.answerPhone = () => {
 };
 function renderInv() {
   $('secrets').textContent = `✦ ${state.secrets.size}/${SECRETS_TOTAL}`;
-  $('inv').innerHTML = [...state.items.values()].map(n => `<div>▪ ${esc(n)}</div>`).join('');
+  const notes = Object.values(state.journal).reduce((a, j) => a + Object.keys(j).length, 0);
+  const total = Object.values(STORY_TOTAL).reduce((a, b) => a + b, 0);
+  $('inv').innerHTML = [...state.items.values()].map(n => `<div>▪ ${esc(n)}</div>`).join('') + `<div class="jl">журнал ${notes}/${total} · J</div>`;
 }
 renderInv();
 
@@ -247,7 +366,7 @@ G.sit = ({ x, y, z, yaw, lie }) => {
   if (player.sitting) return;
   S.sfxSit();
   player.standPos = player.pos.clone();
-  player.sitting = { x, y, z, yaw, lie, t: 0 };
+  player.sitting = { x, y, z, yaw, lie, t: performance.now() };
   player.yaw = yaw; player.pitch = lie ? 1.1 : -0.05;
   hint(TOUCH ? 'Кнопка «E» — встать' : 'Пробел / движение — встать', true);
 };
@@ -257,25 +376,24 @@ function standUp() {
   if (player.standPos) player.pos.copy(player.standPos);
 }
 G.teleport = (x, y, z, yaw, msg) => {
-  if (state.busy) return; state.busy = true;
+  if (state.busy) return; state.busy = true; glitch(0.6);
   fadeTo(1, 350, () => {
     player.pos.set(x, y, z); player.yaw = yaw; player.pitch = 0; player.vy = 0;
     if (msg) toast(msg);
     setTimeout(() => fadeTo(0, 500, () => { state.busy = false; }), 250);
   });
 };
-function fadeTo(v, ms, cb) {
-  const f = $('fade'); f.style.transition = `opacity ${ms}ms`; f.style.opacity = v;
-  setTimeout(() => cb && cb(), ms + 30);
-}
+function fadeTo(v, ms, cb) { const f = $('fade'); f.style.transition = `opacity ${ms}ms`; f.style.opacity = v; setTimeout(() => cb && cb(), ms + 30); }
+let glitchT = 0;
+function glitch(s) { glitchT = Math.max(glitchT, s); }
 
 // ---------- лифт ----------
 const FLOOR_NAMES = { '-1': 'Б · подвал', 0: '1 · вестибюль', 1: '2', 2: '3', 3: '4', 4: '∞' };
 G.elevatorPanel = L => {
   const opts = [-1, 0, 1, 2, 3];
   if (G.hasItem('infCard') || L === 4) opts.push(4);
-  const btns = opts.map(f => `<button data-floor="${f}" class="${f === L ? 'cur' : ''} ${f === 4 ? 'inf' : ''}">${f === -1 ? 'Б' : f === 4 ? '∞' : f + 1}</button>`).join('');
-  openModal('elevator', `<div class="lift"><div class="liftTitle">ЛИФТ · сейчас: ${FLOOR_NAMES[L]}</div><div class="liftBtns">${btns}</div>${G.hasItem('infCard') ? '' : '<div class="liftHint">Под кнопками — пустое место и щель для карты.</div>'}<small>Esc — закрыть</small></div>`);
+  const btns = opts.map(f => `<button data-keep data-floor="${f}" class="${f === L ? 'cur' : ''} ${f === 4 ? 'inf' : ''}">${f === -1 ? 'Б' : f === 4 ? '∞' : f + 1}</button>`).join('');
+  openModal('elevator', `<div class="lift" data-keep><div class="liftTitle">ЛИФТ · сейчас: ${FLOOR_NAMES[L]}</div><div class="liftBtns">${btns}</div>${G.hasItem('infCard') ? '' : '<div class="liftHint">Под кнопками — пустое место и щель для карты.</div>'}<small>Esc — закрыть</small></div>`);
   $('modalBody').querySelectorAll('button[data-floor]').forEach(b => b.addEventListener('click', ev => { ev.stopPropagation(); ride(L, +b.dataset.floor); }));
 };
 function ride(from, to) {
@@ -285,11 +403,13 @@ function ride(from, to) {
   elevatorDoors(from, false); S.sfxClick();
   setTimeout(() => {
     S.sfxElevatorRide(2.6 + Math.abs(to - from) * 0.3);
+    $('osdMode').textContent = to > from ? '▲▲ FF' : '▼▼ REW';
     fadeTo(0.92, 600, () => {
       player.pos.y += (to - from) * FH; player.vy = 0;
       for (const k of Object.keys(ELEV.doors)) if (+k !== to) elevatorDoors(+k, false);
       setTimeout(() => {
         fadeTo(0, 600, () => {
+          $('osdMode').textContent = '▶ PLAY';
           S.sfxElevatorDing(); elevatorDoors(to, true); state.busy = false;
           if (to === 4) toast('Этаж ∞. Двери открываются прямо в небо.');
         });
@@ -297,11 +417,11 @@ function ride(from, to) {
     });
   }, 1100);
 }
-
 G.ending = () => {
-  fadeTo(0.0, 10);
   setTimeout(() => {
-    openModal('ending', `<div class="end"><h2>Солнце не садится</h2><p>Ты сидишь на крыше отеля «Полдень». Внизу — малиновая пустыня, над тобой — тёплое жёлтое небо. Никуда не нужно идти.</p><p class="big">Секретов найдено: ${state.secrets.size} из ${SECRETS_TOTAL}</p><button id="stay">Остаться ещё немного</button></div>`);
+    const total = Object.values(STORY_TOTAL).reduce((a, b) => a + b, 0);
+    const notes = Object.values(state.journal).reduce((a, j) => a + Object.keys(j).length, 0);
+    openModal('ending', `<div class="end"><h2>Солнце не садится</h2><p>Ты сидишь на крыше отеля «Полдень». Внизу — малиновая пустыня, над тобой — тёплое жёлтое небо. Никуда не нужно идти.</p><p class="big">Секретов: ${state.secrets.size} из ${SECRETS_TOTAL} · Историй: ${notes} из ${total}</p><button id="stay">Остаться ещё немного</button></div>`);
   }, 1500);
 };
 
@@ -310,6 +430,11 @@ const ray = new THREE.Raycaster(); ray.far = 2.6;
 let focus = null, rayTimer = 0;
 const center = new THREE.Vector2(0, 0);
 function isShown(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
+function ownerOf(o) {
+  let own = o.userData.owner || o;
+  while (own && !own.userData.interact) own = own.parent && own.parent.userData ? (own.parent.userData.owner || own.parent) : null;
+  return own && own.userData.interact ? own : null;
+}
 function updateFocus() {
   ray.setFromCamera(center, camera);
   const groups = Object.values(W.levels).filter(g => g.visible);
@@ -320,10 +445,7 @@ function updateFocus() {
     if (o.userData.noRay || (o.material && o.material.blending === THREE.AdditiveBlending)) continue;
     if (o.material && o.material.transparent && o.material.opacity < 0.2 && !o.userData.owner && !o.userData.hit) continue;
     if (!isShown(o)) continue;
-    let own = o.userData.owner || o;
-    while (own && !(own.userData.interact)) own = own.parent && own.parent.userData ? (own.parent.userData.owner || own.parent) : null;
-    f = own && own.userData.interact ? own : null;
-    break;
+    f = ownerOf(o); break;
   }
   focus = f;
   if (player.sitting) return;
@@ -363,7 +485,7 @@ function collide(p) {
       if (!c.enabled || c.maxY <= y0 || c.minY >= y1) continue;
       if (p.x + r < c.minX || p.x - r > c.maxX || p.z + r < c.minZ || p.z - r > c.maxZ) continue;
       const cx = Math.max(c.minX, Math.min(p.x, c.maxX)), cz = Math.max(c.minZ, Math.min(p.z, c.maxZ));
-      let dx = p.x - cx, dz = p.z - cz; const d2 = dx * dx + dz * dz;
+      const dx = p.x - cx, dz = p.z - cz; const d2 = dx * dx + dz * dz;
       if (d2 > r * r) continue;
       if (d2 > 1e-8) { const d = Math.sqrt(d2), push = r - d; p.x += dx / d * push; p.z += dz / d * push; }
       else {
@@ -376,17 +498,13 @@ function collide(p) {
     if (!moved) break;
   }
 }
-
-const fwd = new THREE.Vector3(), right = new THREE.Vector3(), wish = new THREE.Vector3();
+const fwd = new THREE.Vector3(), right = new THREE.Vector3(), wish = new THREE.Vector3(), tmpV = new THREE.Vector3();
 function updatePlayer(dt) {
   if (player.sitting) {
     const s = player.sitting;
     const moving = keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD || keys.ArrowUp || keys.ArrowDown || Math.abs(touch.mx) + Math.abs(touch.my) > 0.6;
-    if (moving && performance.now() > hintSticky - 2000) { standUp(); }
-    else {
-      camera.position.lerp(new THREE.Vector3(s.x, s.y, s.z), Math.min(1, dt * 6));
-      return;
-    }
+    if (moving && performance.now() - s.t > 600) standUp();
+    else { camera.position.lerp(tmpV.set(s.x, s.y, s.z), Math.min(1, dt * 6)); return; }
   }
   fwd.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   right.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
@@ -403,55 +521,63 @@ function updatePlayer(dt) {
   if (wish.lengthSq() > 1) wish.normalize();
   player.vel.lerp(wish.multiplyScalar(speed), Math.min(1, dt * 10));
   const p = player.pos;
-  const nx = p.x + player.vel.x * dt, nz = p.z + player.vel.z * dt;
-  const np = new THREE.Vector3(nx, p.y, nz); collide(np);
-  // не даём шагнуть в пустоту без опоры (кроме лестничных провалов — там есть поверхности)
-  const [g2] = groundAt(np.x, np.z, p.y);
-  if (g2 > -Infinity) { p.x = np.x; p.z = np.z; }
+  // шаг дробится, чтобы на низком FPS не проходить сквозь тонкие стены
+  const steps = Math.max(1, Math.ceil(Math.hypot(player.vel.x, player.vel.z) * dt / 0.12));
+  for (let i = 0; i < steps; i++) {
+    const np = new THREE.Vector3(p.x + player.vel.x * dt / steps, p.y, p.z + player.vel.z * dt / steps); collide(np);
+    const [g2] = groundAt(np.x, np.z, p.y);
+    if (g2 > -Infinity) { p.x = np.x; p.z = np.z; }
+  }
   const [g, snd] = groundAt(p.x, p.z, p.y);
   player.vy -= 22 * dt; p.y += player.vy * dt;
   if (g > -Infinity && p.y <= g) { p.y = g; player.vy = 0; player.ground = snd; }
   if (p.y < -12) { p.set(-23, 0, 0.5); player.vy = 0; }
-  // покачивание и шаги
   const sp = Math.hypot(player.vel.x, player.vel.z);
   if (sp > 0.3 && player.vy === 0) {
     player.bob += dt * sp * (run ? 2.2 : 2.6);
     const ph = Math.floor(player.bob / P);
     if (ph !== player.lastStepPhase) { player.lastStepPhase = ph; S.sfxStep(player.ground, run); }
   } else player.bob += (Math.round(player.bob / P) * P - player.bob) * Math.min(1, dt * 6);
-  const bobY = Math.abs(Math.sin(player.bob)) * 0.05;
+  const bobY = Math.abs(Math.sin(player.bob)) * 0.045;
   camera.position.set(p.x, p.y + player.eye - 0.03 + bobY, p.z);
 }
 
-// ---------- свет: пул ближайших источников ----------
+// ---------- свет: пул ближайших источников с плавным появлением ----------
 let lightTimer = 0;
 function updateLights(t, dt) {
   lightTimer -= dt;
   const blackout = W.flags.blackout;
   if (lightTimer <= 0) {
-    lightTimer = 0.2;
+    lightTimer = 0.25;
     const cands = [];
     for (const a of W.anchors) {
-      if (a.glow) a.glow.visible = a.on && !blackout;
-      if (!a.on || blackout || a.level !== player.level) continue;
+      if (!a.on || (blackout && a.grid) || a.level !== player.level) continue;
       const d = a.pos.distanceTo(camera.position);
-      if (d > a.distance + 9) continue;
-      cands.push([d - a.intensity * 0.3, a]);
+      if (d > a.distance + 10) continue;
+      cands.push([d - a.intensity * 0.25, a]);
     }
     cands.sort((x, y) => x[0] - y[0]);
-    POOL.forEach((l, i) => { const a = cands[i] && cands[i][1]; l.userData.a = a || null; if (a) { l.position.copy(a.pos); l.color.copy(a.color); l.distance = a.distance; } });
+    const want = new Set(cands.slice(0, POOL.length).map(c => c[1]));
+    const keep = new Set(cands.slice(0, POOL.length + 3).map(c => c[1]));
+    for (const l of POOL) { const a = l.userData.a; if (a && (!keep.has(a) || !a.on || (blackout && a.grid))) l.userData.a = null; else if (a) want.delete(a); }
+    for (const a of want) {
+      const l = POOL.find(l => !l.userData.a); if (!l) break;
+      l.userData.a = a; l.userData.fade = 0; l.position.copy(a.pos); l.color.copy(a.color); l.distance = a.distance;
+    }
   }
   for (const l of POOL) {
     const a = l.userData.a;
     if (!a) { l.intensity = 0; continue; }
+    l.userData.fade = Math.min(1, l.userData.fade + dt * 3);
     let k = 1;
-    if (a.flicker) { const n = Math.sin(t * 13 + a.phase) + Math.sin(t * 31 + a.phase * 2); k = n > 1.75 - a.flicker * 0.4 ? 0.15 : (Math.random() < a.flicker * 0.02 ? 0.3 : 1); }
-    l.intensity = a.intensity * 3.2 * k;
+    if (a.flicker) { const n = Math.sin(t * 13 + a.phase) + Math.sin(t * 31 + a.phase * 2); k = n > 1.82 - a.flicker * 0.3 ? 0.35 : 1; }
+    l.intensity = a.intensity * 3.2 * k * l.userData.fade;
   }
-  hemi.intensity = (blackout ? 0.5 : 1) * (state.zone && state.zone.amb || 1.1);
-  sun.intensity = player.level === 4 ? 2.2 : 0;
-  hemi.color.setHex(player.level === 4 ? 0xffd090 : 0x8a6048);
-  hemi.intensity *= player.level === 4 ? 1.6 : 1;
+  const zoneAmb = state.zone && state.zone.amb || 1.15;
+  const roof = player.level === 4 || state.title;
+  hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb);
+  hemi.color.setHex(roof ? 0xffd090 : 0xc08a5a);
+  sun.intensity = roof ? 2.4 : 0;
 }
 
 // ---------- зоны, триггеры, видимость ----------
@@ -460,11 +586,13 @@ function updateWorld() {
   const L = Math.max(-1, Math.min(4, Math.floor((p.y + 1.2) / FH)));
   player.level = L;
   for (const [k, g] of Object.entries(W.levels)) {
-    const vis = Math.abs(+k - L) <= 1;
+    const vis = state.title || params.has('qa') || Math.abs(+k - L) <= 1;
     g.visible = vis;
     if (proxies[k]) proxies[k].forEach(m => m.visible = !vis);
   }
-  scene.fog.far = L === 4 ? 2000 : 42; scene.fog.near = L === 4 ? 1500 : 7;
+  const far = L === 4 || state.title;
+  scene.fog.far = far ? 2000 : 46; scene.fog.near = far ? 1500 : 8;
+  if (state.title) return;
   let z = null, za = Infinity;
   for (const zn of W.zones) {
     if (zn.level !== L || p.x < zn.minX || p.x > zn.maxX || p.z < zn.minZ || p.z > zn.maxZ) continue;
@@ -483,26 +611,105 @@ function updateWorld() {
   }
 }
 
+// ---------- экранная индикация VHS ----------
+let osdClock = 3 * 3600 + 33 * 60;
+function updateOsd(dt) {
+  osdClock += dt;
+  const s = Math.floor(osdClock), hh = Math.floor(s / 3600) % 24, mm = Math.floor(s / 60) % 60, ss = s % 60;
+  $('osdTime').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  if (state.paused && state.started) $('osdMode').textContent = '❚❚ PAUSE';
+  else if ($('osdMode').textContent === '❚❚ PAUSE') $('osdMode').textContent = '▶ PLAY';
+}
+
 // ---------- цикл ----------
 const clock = new THREE.Clock();
-let staticT = 0, fpsAcc = 0, fpsN = 0;
+let staticT = 0, fpsT0 = performance.now(), fpsN = 0;
 function frame() {
-  const dt = Math.min(0.05, clock.getDelta()); const t = clock.elapsedTime;
-  if (state.started && !state.paused || TOUCH && state.started) updatePlayer(dt);
-  else { camera.position.set(player.pos.x, player.pos.y + player.eye, player.pos.z); }
-  camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+  const dt = Math.min(0.1, clock.getDelta()); const t = clock.elapsedTime;
+  if (state.title && !params.has('autostart') && !params.has('x')) {
+    // облёт фасада на стартовом экране
+    const a = t * 0.045 + 2.4, R = 78;
+    camera.position.set(2 + Math.cos(a) * R, 20 + Math.sin(t * 0.1) * 3, Math.sin(a) * R);
+    camera.lookAt(0, 5, 0);
+  } else {
+    if (state.title) state.title = false;
+    if ((state.started && !state.paused) || (TOUCH && state.started) || params.has('autostart')) updatePlayer(dt);
+    else camera.position.set(player.pos.x, player.pos.y + player.eye, player.pos.z);
+    camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+  }
   updateWorld();
+  updateCull(dt);
   updateLights(t, dt);
   for (const f of W.animated) f(dt, t);
-  ext.update(t, dt);
+  sky.update(t, dt);
   staticT -= dt; if (staticT < 0) { staticT = 0.07; updateStatic(t); }
   rayTimer -= dt; if (rayTimer < 0) { rayTimer = 0.08; if (state.started && !state.modal) updateFocus(); }
-  renderer.render(scene, camera);
-  fpsAcc += dt; fpsN++; if (fpsAcc > 1) { window.__fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+  glitchT = Math.max(0, glitchT - dt);
+  postU.uTime.value = t; postU.uGlitch.value = glitchT;
+  updateOsd(dt);
+  renderer.setRenderTarget(rt); renderer.render(scene, camera); window.__calls = renderer.info.render.calls;
+  renderer.setRenderTarget(null); renderer.render(postScene, postCam);
+  fpsN++; { const nw = performance.now(); if (nw - fpsT0 > 1000) { window.__fps = fpsN * 1000 / (nw - fpsT0); fpsT0 = nw; fpsN = 0; } }
   requestAnimationFrame(frame);
 }
 resize();
 requestAnimationFrame(frame);
 $('loading').classList.add('hidden');
-if (params.has('autostart')) { state.started = true; state.paused = false; $('start').classList.add('hidden'); }
+if (params.has('autostart')) { state.started = true; state.paused = false; state.title = false; $('start').classList.add('hidden'); document.body.classList.add('playing'); }
+
+// ---------- автопроверка расстановки (?qa=1) ----------
+window.__qa = () => {
+  const out = [];
+  const statics = [];
+  for (const g of Object.values(W.levels)) g.traverse(o => { if (o.isMesh && !o.userData.noRay && !o.userData.hit && !(o.material && o.material.transparent)) statics.push(o); });
+  const rc = new THREE.Raycaster();
+  const hitDist = (from, dir, self, far = 0.5) => {
+    rc.set(from, dir); rc.far = far;
+    const hs = rc.intersectObjects(statics, false);
+    for (const h of hs) { let o = h.object, mine = false; while (o) { if (o === self) { mine = true; break; } o = o.parent; } if (!mine) return h.distance; }
+    return Infinity;
+  };
+  const q = new THREE.Quaternion(), n = new THREE.Vector3(), r = new THREE.Vector3(), u = new THREE.Vector3(), p = new THREE.Vector3();
+  for (const it of W.qa) {
+    const o = it.obj; o.updateMatrixWorld(true);
+    o.getWorldPosition(p); o.getWorldQuaternion(q);
+    const name = it.what || (o.userData.interact ? (typeof o.userData.interact.label === 'function' ? o.userData.interact.label() : o.userData.interact.label) : 'объект');
+    const at = p.toArray().map(v => +v.toFixed(2));
+    if (it.kind === 'wall') {
+      n.set(0, 0, 1).applyQuaternion(q); r.set(1, 0, 0).applyQuaternion(q); u.set(0, 1, 0).applyQuaternion(q);
+      const c = p.clone().addScaledVector(u, it.dy || 0);
+      const corners = [[0, 0], [-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]];
+      const bad = corners.filter(([a, b]) => {
+        const s = c.clone().addScaledVector(r, a * (it.w || 0.3)).addScaledVector(u, b * (it.h || 0.3)).addScaledVector(n, 0.06);
+        return hitDist(s, n.clone().negate(), o, 0.2) > 0.14;
+      });
+      if (bad.length) out.push(`${name} @${at}: ${bad.length}/5 точек не на стене`);
+      if (it.what && it.what.startsWith('картина')) { const fd = hitDist(c.clone().addScaledVector(n, 0.07), n, o, 0.3); if (fd < 0.3) out.push(`${name} @${at}: загорожена (${fd.toFixed(2)} м)`); }
+    } else if (it.kind === 'floor' || it.kind === 'table') {
+      const d = hitDist(p.clone().add(new THREE.Vector3(0, 0.05, 0)), new THREE.Vector3(0, -1, 0), o, 0.6);
+      if (d > (it.kind === 'floor' ? 0.12 : 0.1)) out.push(`${name} @${at}: висит над опорой (${d === Infinity ? '∞' : d.toFixed(2)} м)`);
+    } else if (it.kind === 'ceiling') {
+      const d = hitDist(p.clone().add(new THREE.Vector3(0, -0.05, 0)), new THREE.Vector3(0, 1, 0), o, 0.6);
+      if (d > 0.15) out.push(`${name} @${at}: не касается потолка (${d === Infinity ? '∞' : d.toFixed(2)} м)`);
+    }
+  }
+  // мебель, врезанная в стены
+  const walls = W.colliders.filter(c => c.ref && c.ref.isMesh && c.enabled);
+  for (const c of W.colliders) {
+    if (!c.ref || !c.ref.isGroup || !c.enabled) continue;
+    for (const w of walls) {
+      const ox = Math.min(c.maxX, w.maxX) - Math.max(c.minX, w.minX), oz = Math.min(c.maxZ, w.maxZ) - Math.max(c.minZ, w.minZ), oy = Math.min(c.maxY, w.maxY) - Math.max(c.minY, w.minY);
+      if (ox > 0.04 && oz > 0.04 && oy > 0.05) { const l = c.ref.userData.interact; out.push(`в стене: ${l ? (typeof l.label === 'function' ? l.label() : l.label) : 'мебель'} @${[(c.minX + c.maxX) / 2, c.minY, (c.minZ + c.maxZ) / 2].map(v => +v.toFixed(2))} (${ox.toFixed(2)}×${oz.toFixed(2)})`); break; }
+    }
+  }
+  // картины, налезающие друг на друга
+  const pics = W.qa.filter(i => i.kind === 'wall');
+  for (let i = 0; i < pics.length; i++) for (let j = i + 1; j < pics.length; j++) {
+    const a = pics[i], b = pics[j]; const pa = a.obj.getWorldPosition(new THREE.Vector3()), pb = b.obj.getWorldPosition(new THREE.Vector3());
+    if (Math.abs(pa.y - pb.y) > (a.h + b.h) / 2 + 0.6) continue;
+    const dxz = Math.hypot(pa.x - pb.x, pa.z - pb.z);
+    if (dxz < (a.w + b.w) / 2 - 0.02 && Math.abs(pa.y + (a.dy || 0) - pb.y - (b.dy || 0)) < (a.h + b.h) / 2 && Math.abs(a.obj.rotation.y - b.obj.rotation.y) < 0.1) out.push(`наложение: ${a.what || 'предмет'} и ${b.what || 'предмет'} @${pa.toArray().map(v => +v.toFixed(2))}`);
+  }
+  return out;
+};
 window.__game = { player, W, state, camera, renderer, G, scene, S };

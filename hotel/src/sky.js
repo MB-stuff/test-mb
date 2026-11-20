@@ -53,8 +53,7 @@ void main(){
     col = mix(col, col.gbr * 1.1, g * uGlitch);
   }
   // мягкая плёночная зернистость
-  col += (h(gl_FragCoord.xy + uTime) - 0.5) * 0.025;
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(pow(max(col, vec3(0.0)), vec3(2.2)), 1.0);
 }`;
 
 const groundVert = `
@@ -93,20 +92,24 @@ export function buildExterior(scene) {
     uShadow: { value: new THREE.Color(0x22040f) }, uHaze: { value: new THREE.Color(0x9a3446) },
   };
   const gMat = new THREE.ShaderMaterial({ vertexShader: groundVert, fragmentShader: groundFrag, uniforms: gU, fog: false });
-  // Дюны: плоско у отеля, волны дальше
+  // Дюны: плоско у отеля, волны дальше. Под зданием земли нет (она опущена и закрыта
+  // ближней площадкой с вырезом под фундамент) — иначе её видно в лестничном проёме подвала.
   const geo = new THREE.PlaneGeometry(1600, 1600, 120, 120); geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i); const r = Math.hypot(x, z);
-    const k = THREE.MathUtils.smoothstep(r, 60, 160);
+    const k = THREE.MathUtils.smoothstep(r, 80, 180);
     const hgt = (Math.sin(x * 0.021) * Math.cos(z * 0.017) * 5 + Math.sin(x * 0.007 + z * 0.011) * 9 + Math.sin(z * 0.05 + x * 0.013) * 1.6) * k;
-    pos.setY(i, hgt - 0.06 - 0.5 * k);
+    pos.setY(i, r < 70 ? -9 : hgt - 0.06 - 0.5 * k);
   }
   geo.computeVertexNormals();
-  const ground = new THREE.Mesh(geo, gMat); scene.add(ground);
-  // ближняя ровная площадка без шва
-  const near = new THREE.Mesh(new THREE.PlaneGeometry(160, 160, 16, 16).rotateX(-Math.PI / 2), gMat);
-  near.position.y = -0.05; scene.add(near);
+  scene.add(new THREE.Mesh(geo, gMat));
+  // ближняя ровная земля 180×180 с вырезом под здание
+  const F = [-26.3, -14.3, 30.3, 14.3], E = 90;
+  for (const [x0, z0, x1, z1] of [[-E, -E, E, F[1]], [-E, F[3], E, E], [-E, F[1], F[0], F[3]], [F[2], F[1], E, F[3]]]) {
+    const pg = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.ceil((x1 - x0) / 10), Math.ceil((z1 - z0) / 10)); pg.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(pg, gMat); m.position.set((x0 + x1) / 2, -0.05, (z0 + z1) / 2); scene.add(m);
+  }
 
   // Столовые горы и скалы
   const mesa = (x, z, r, h, seg = 7) => {
