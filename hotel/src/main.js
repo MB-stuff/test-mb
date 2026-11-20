@@ -41,7 +41,7 @@ const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
     float line = floor(uv.y * uRes.y / 2.0);
     float t = uTime;
     // плёночное дрожание строк и «полоса трекинга», медленно ползущая вверх
-    float jit = (hash(vec2(line, floor(t * 30.0))) - 0.5) * 0.0009;
+    float jit = (hash(vec2(line, floor(t * 6.0))) - 0.5) * 0.0004;
     float bandPos = fract(t * 0.045);
     float band = smoothstep(0.018, 0.0, abs(uv.y - bandPos)) * smoothstep(0.55, 0.95, sin(t * 0.21));
     uv.x += jit + band * 0.006 * sin(t * 50.0 + uv.y * 300.0) + uGlitch * 0.03 * (hash(vec2(line, floor(t * 20.0))) - 0.5);
@@ -55,7 +55,7 @@ const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
     float l = dot(col, vec3(0.299, 0.587, 0.114));
     col = mix(vec3(l), col, 0.92) * vec3(1.05, 1.0, 0.93);
     col *= 0.94 + 0.06 * sin(gl_FragCoord.y * 3.14159);
-    col += (hash(uv * uRes + t * 61.0) - 0.5) * 0.055;
+    col += (hash(uv * uRes + t * 61.0) - 0.5) * 0.035;
     col += band * (hash(vec2(uv.x * 400.0, t * 40.0)) - 0.5) * 0.12;
     float bb = smoothstep(0.03, 0.0, vUv.y);
     col = mix(col, vec3(hash(vec2(floor(vUv.x * 200.0), floor(t * 25.0)))), bb * 0.6);
@@ -559,16 +559,17 @@ function updateLights(t, dt) {
     cands.sort((x, y) => x[0] - y[0]);
     const want = new Set(cands.slice(0, POOL.length).map(c => c[1]));
     const keep = new Set(cands.slice(0, POOL.length + 3).map(c => c[1]));
-    for (const l of POOL) { const a = l.userData.a; if (a && (!keep.has(a) || !a.on || (blackout && a.grid))) l.userData.a = null; else if (a) want.delete(a); }
+    for (const l of POOL) { const a = l.userData.a; if (a && (!keep.has(a) || !a.on || (blackout && a.grid))) l.userData.dying = true; else if (a) { want.delete(a); l.userData.dying = false; } }
     for (const a of want) {
       const l = POOL.find(l => !l.userData.a); if (!l) break;
-      l.userData.a = a; l.userData.fade = 0; l.position.copy(a.pos); l.color.copy(a.color); l.distance = a.distance;
+      l.userData.a = a; l.userData.fade = 0; l.userData.dying = false; l.position.copy(a.pos); l.color.copy(a.color); l.distance = a.distance;
     }
   }
   for (const l of POOL) {
     const a = l.userData.a;
     if (!a) { l.intensity = 0; continue; }
-    l.userData.fade = Math.min(1, l.userData.fade + dt * 3);
+    if (l.userData.dying) { l.userData.fade -= dt * 2.5; if (l.userData.fade <= 0) { l.userData.a = null; l.userData.dying = false; l.intensity = 0; continue; } }
+    else l.userData.fade = Math.min(1, l.userData.fade + dt * 2.5);
     let k = 1;
     if (a.flicker) { const n = Math.sin(t * 13 + a.phase) + Math.sin(t * 31 + a.phase * 2); k = n > 1.82 - a.flicker * 0.3 ? 0.35 : 1; }
     l.intensity = a.intensity * 3.2 * k * l.userData.fade;
@@ -693,6 +694,20 @@ window.__qa = () => {
       if (d > 0.15) out.push(`${name} @${at}: не касается потолка (${d === Infinity ? '∞' : d.toFixed(2)} м)`);
     }
   }
+  // над каждой зоной должен быть потолок своего этажа, а не фасад/экстерьер
+  if (W.exterior) {
+    const ext = [], lvl = [];
+    W.exterior.traverse(o => { if (o.isMesh) ext.push(o); });
+    for (const z of W.zones) {
+      for (const [fx, fz] of [[0.5, 0.5], [0.15, 0.15], [0.85, 0.85], [0.15, 0.85], [0.85, 0.15]]) {
+        const x = z.minX + (z.maxX - z.minX) * fx, zz = z.minZ + (z.maxZ - z.minZ) * fz, y = z.level * FH + 1.6;
+        rc.set(new THREE.Vector3(x, y, zz), new THREE.Vector3(0, 1, 0)); rc.far = 7;
+        const he = rc.intersectObjects(ext, false)[0]; if (!he) continue;
+        const hl = rc.intersectObjects(statics, false)[0];
+        if (!hl || he.distance < hl.distance + 0.005) { out.push(`фасад внутри помещения: ${z.name} @${[x, y, zz].map(v => +v.toFixed(1))} (на ${he.distance.toFixed(2)} м выше глаз)`); break; }
+      }
+    }
+  }
   // мебель, врезанная в стены
   const walls = W.colliders.filter(c => c.ref && c.ref.isMesh && c.enabled);
   for (const c of W.colliders) {
@@ -712,4 +727,60 @@ window.__qa = () => {
   }
   return out;
 };
+// ---------- поиск совпадающих поверхностей (мерцание) ----------
+window.__qaCoplanar = (maxReport = 60) => {
+  const tris = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+  const roots = [...Object.values(W.levels), W.exterior].filter(Boolean);
+  for (const root of roots) root.traverse(o => {
+    if (!o.isMesh || o.userData.noRay || o.userData.hit) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (mats.every(m => m.transparent || m.polygonOffset || m.blending !== THREE.NormalBlending)) return;
+    o.updateMatrixWorld(true);
+    const g = o.geometry, pos = g.attributes.position, idx = g.index;
+    const cnt = idx ? idx.count : pos.count;
+    const matOf = i => { if (!Array.isArray(o.material)) return o.material; const gr = g.groups.find(gr => i >= gr.start && i < gr.start + gr.count); return gr ? o.material[gr.materialIndex] : o.material[0]; };
+    for (let i = 0; i < cnt; i += 3) {
+      const m = matOf(i); if (m.transparent || m.polygonOffset) continue;
+      const ia = idx ? idx.getX(i) : i, ib = idx ? idx.getX(i + 1) : i + 1, ic = idx ? idx.getX(i + 2) : i + 2;
+      a.fromBufferAttribute(pos, ia).applyMatrix4(o.matrixWorld); b.fromBufferAttribute(pos, ib).applyMatrix4(o.matrixWorld); c.fromBufferAttribute(pos, ic).applyMatrix4(o.matrixWorld);
+      n.crossVectors(e1.subVectors(b, a), e2.subVectors(c, a)); const area = n.length() / 2; if (area < 1e-4) continue; n.normalize();
+      const ax = Math.abs(n.x) > 0.999 ? 0 : Math.abs(n.y) > 0.999 ? 1 : Math.abs(n.z) > 0.999 ? 2 : -1;
+      if (ax < 0) continue; // проверяем только осевые грани — их подавляющее большинство
+      const sgn = Math.sign([n.x, n.y, n.z][ax]);
+      const d = [a.x, a.y, a.z][ax];
+      const u = (ax + 1) % 3, v = (ax + 2) % 3;
+      const P = [a, b, c].map(p => [[p.x, p.y, p.z][u], [p.x, p.y, p.z][v]]);
+      tris.push({ ax, sgn, d, P, minU: Math.min(...P.map(q => q[0])), maxU: Math.max(...P.map(q => q[0])), minV: Math.min(...P.map(q => q[1])), maxV: Math.max(...P.map(q => q[1])), m: m.name || m.type, o });
+    }
+  });
+  const buckets = new Map();
+  for (const t of tris) { const k = t.ax + '|' + t.sgn + '|' + Math.round(t.d / 0.01); (buckets.get(k) || buckets.set(k, []).get(k)).push(t); }
+  const res = new Map();
+  const ov = (p, q) => Math.min(p.maxU, q.maxU) - Math.max(p.minU, q.minU) > 0.02 && Math.min(p.maxV, q.maxV) - Math.max(p.minV, q.minV) > 0.02;
+  // точная проверка пересечения двух треугольников в плоскости (разделяющие оси)
+  const sepAx = (A, B) => { for (const T of [A, B]) for (let i = 0; i < 3; i++) { const p = T[i], q = T[(i + 1) % 3]; const nx = q[1] - p[1], ny = p[0] - q[0]; const pa = A.map(r => r[0] * nx + r[1] * ny), pb = B.map(r => r[0] * nx + r[1] * ny); if (Math.max(...pa) < Math.min(...pb) + 1e-3 || Math.max(...pb) < Math.min(...pa) + 1e-3) return true; } return false; };
+  for (const [k, list] of buckets) {
+    const [ax, sg, di] = k.split('|');
+    const near = [list, buckets.get(ax + '|' + sg + '|' + (+di + 1)) || []];
+    for (let i = 0; i < list.length; i++) for (const L of near) for (let j = (L === list ? i + 1 : 0); j < L.length; j++) {
+      const p = list[i], q = L[j];
+      if (p.o === q.o && p.m === q.m) continue;
+      if (Math.abs(p.d - q.d) > 0.006) continue;
+      if (!ov(p, q) || sepAx(p.P, q.P)) continue;
+      if (p.ax === 1 && p.sgn < 0 && Math.abs(p.d / FH - Math.round(p.d / FH)) < 0.003) continue; // низ на уровне пола не виден
+      if (p.ax === 1 && p.sgn > 0 && (Math.ceil(p.d / FH - 1e-6) * FH - p.d) < 0.03 && (Math.ceil(p.d / FH - 1e-6) * FH - p.d) > 0.005) continue; // верх стены под полом следующего этажа
+      // видна ли эта грань: точка чуть перед ней не должна быть внутри стены/пола/потолка
+      const cu = (Math.max(p.minU, q.minU) + Math.min(p.maxU, q.maxU)) / 2, cv = (Math.max(p.minV, q.minV) + Math.min(p.maxV, q.maxV)) / 2;
+      const pt = [0, 0, 0]; pt[p.ax] = p.d + p.sgn * 0.012; pt[(p.ax + 1) % 3] = cu; pt[(p.ax + 2) % 3] = cv;
+      if (W.solids.some(b => pt[0] > b[0] + 1e-3 && pt[0] < b[3] - 1e-3 && pt[1] > b[1] + 1e-3 && pt[1] < b[4] - 1e-3 && pt[2] > b[2] + 1e-3 && pt[2] < b[5] - 1e-3)) continue;
+      const key = [p.m, q.m].sort().join(' × ') + ' @' + ['x', 'y', 'z'][p.ax] + '=' + p.d.toFixed(2);
+      const r = res.get(key) || { n: 0, at: [], gap: Math.abs(p.d - q.d) }; r.n++;
+      if (r.at.length < 2) r.at.push([(p.minU + p.maxU) / 2, (p.minV + p.maxV) / 2].map(x => +x.toFixed(1)).join(','));
+      res.set(key, r);
+    }
+  }
+  return [...res.entries()].sort((x, y) => y[1].n - x[1].n).slice(0, maxReport).map(([k, r]) => `${k} (${r.n} пар, зазор ${(r.gap * 1000).toFixed(1)} мм; в осях плоскости: ${r.at.join(' / ')})`);
+};
+window.__THREE = THREE;
 window.__game = { player, W, state, camera, renderer, G, scene, S };

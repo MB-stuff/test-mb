@@ -23,6 +23,19 @@ function neon(text, x, y, z, ry, w, h, color) {
   const p = plane(w, h, m, x, y, z, 0, ry); p.userData.noRay = true; return p;
 }
 
+// Кольцо карниза вокруг прямоугольника стен (x0..x1, z0..z1 — оси стен): только снаружи,
+// внутрь заходит не дальше середины стены, чтобы не попадать в интерьер.
+function ring(x0, z0, x1, z1, y0, y1, out, mat, { skipEastZ = null, inner = 0 } = {}) {
+  const o = { collide: false };
+  block(x0 - out, y0, z1 - inner, x1 + out, y1, z1 + out, mat, o);
+  block(x0 - out, y0, z0 - out, x1 + out, y1, z0 + inner, mat, o);
+  block(x0 - out, y0, z0 + inner, x0 + inner, y1, z1 - inner, mat, o);
+  if (skipEastZ) {
+    block(x1 - inner, y0, z0 + inner, x1 + out, y1, skipEastZ[0], mat, o);
+    block(x1 - inner, y0, skipEastZ[1], x1 + out, y1, z1 - inner, mat, o);
+  } else block(x1 - inner, y0, z0 + inner, x1 + out, y1, z1 - inner, mat, o);
+}
+
 export function buildExterior() {
   setExterior();
   const { TX0, TX1, TZ0, TZ1, LX0, LZ0, LZ1, LH, PH } = LAYOUT;
@@ -36,10 +49,16 @@ export function buildExterior() {
   const tTop = 4 * FH;
   // угловые пилястры и пилястры между номерами (выше крыши подиума)
   for (const x of [6, 12, 18, 24]) for (const [z, s] of [[TZ1, 1], [TZ0, -1]]) block(x - 0.2, PH + 0.4, z + s * T / 2, x + 0.2, tTop, z + s * (T / 2 + o), trim, { collide: false });
-  for (const [x, z] of [[TX0, TZ0], [TX0, TZ1], [TX1, TZ0], [TX1, TZ1]]) block(x - 0.32, PH + 0.4, z - 0.32, x + 0.32, tTop, z + 0.32, trim, { collide: false });
+  // угловые пилястры — только снаружи стен (две полосы на внешних гранях угла)
+  for (const [x, z, sx, sz] of [[TX0, TZ0, -1, -1], [TX0, TZ1, -1, 1], [TX1, TZ0, 1, -1], [TX1, TZ1, 1, 1]]) {
+    const y0 = x === TX0 ? LH + 0.75 : PH + 0.4;
+    const fx = x + sx * T / 2, fz = z + sz * T / 2;
+    block(Math.min(x - sx * 0.3, fx + sx * 0.2), y0, Math.min(fz, fz + sz * 0.2), Math.max(x - sx * 0.3, fx + sx * 0.2), tTop - 0.55, Math.max(fz, fz + sz * 0.2), trim, { collide: false });
+    block(Math.min(fx, fx + sx * 0.2), y0, Math.min(z - sz * 0.3, fz), Math.max(fx, fx + sx * 0.2), tTop - 0.55, Math.max(z - sz * 0.3, fz), trim, { collide: false });
+  }
   // венчающий карниз башни
-  block(TX0 - 0.45, tTop - 0.3, TZ0 - 0.45, TX1 + 0.45, tTop, TZ1 + 0.45, trim, { collide: false });
-  block(TX0 - 0.3, tTop - 0.55, TZ0 - 0.3, TX1 + 0.3, tTop - 0.3, TZ1 + 0.3, stucco, { collide: false });
+  ring(TX0, TZ0, TX1, TZ1, tTop - 0.3, tTop, 0.45, trim);
+  ring(TX0, TZ0, TX1, TZ1, tTop - 0.55, tTop - 0.3, 0.3, stucco);
 
   // ---------- подиум и вестибюль ----------
   // цоколь по всему периметру первого этажа
@@ -73,9 +92,10 @@ export function buildExterior() {
   // вестибюль: пилястры между высокими окнами и карниз
   for (const z of [-13.4, -9.75, -6.25, -2.6, 2.6, 6.25, 9.75, 13.4]) block(LX0 - T / 2 - o, 0.45, z - 0.22, LX0 - T / 2, LH, z + 0.22, trim, { collide: false });
   for (const x of [-24.6, -21.75, -18, -14.25, -10.75, -7.4]) { block(x - 0.2, 0.45, zMax, x + 0.2, LH, zMax + o, trim, { collide: false }); block(x - 0.2, 0.45, zMin - o, x + 0.2, LH, zMin, trim, { collide: false }); }
-  block(LX0 - 0.55, LH, zMin - 0.45, TX0, LH + 0.35, zMax + 0.45, trim, { collide: false });
-  block(LX0 - 0.3, LH + 0.35, zMin - 0.2, TX0, LH + 0.75, zMax + 0.2, stucco, { collide: false });
-  const lobbyRoof = plane(TX0 - LX0 + 0.3, zMax - zMin + 0.3, roofM, (LX0 + TX0) / 2, LH + 0.3, 0, -P / 2, 0); lobbyRoof.userData.noRay = true;
+  // карниз и парапет вестибюля — кольцом снаружи стен (с восточной стороны — только вне башни)
+  ring(LX0, LZ0, TX0, LZ1, LH, LH + 0.35, 0.45, trim, { skipEastZ: [TZ0 - T / 2, TZ1 + T / 2] });
+  ring(LX0, LZ0, TX0, LZ1, LH + 0.35, LH + 0.75, 0.2, stucco, { skipEastZ: [TZ0 - T / 2, TZ1 + T / 2], inner: 0.3 });
+  const lobbyRoof = plane(TX0 - LX0, LZ1 - LZ0, roofM, (LX0 + TX0) / 2, LH + 0.02, 0, -P / 2, 0); lobbyRoof.userData.noRay = true;
 
   // ---------- козырёк над входом ----------
   const cx0 = LX0 - 9, cx1 = LX0 - T / 2;
@@ -97,9 +117,9 @@ export function buildExterior() {
   const flat = (x0, z0, x1, z1, y, m) => { const p = plane(x1 - x0, z1 - z0, m, (x0 + x1) / 2, y, (z0 + z1) / 2, -P / 2, 0); p.userData.noRay = true; return p; };
   flat(LX0 - 26, -12, LX0 - T / 2, 12, 0.0, paving);
   flat(LX0 - 900, -4, LX0 - 26, 4, 0.0, asphalt);
-  for (let i = 0; i < 120; i++) flat(LX0 - 30 - i * 7, -0.08, LX0 - 27 - i * 7, 0.08, 0.004, basic('dash', { color: 0xc8a050 }));
+  for (let i = 0; i < 120; i++) flat(LX0 - 30 - i * 7, -0.08, LX0 - 27 - i * 7, 0.08, 0.03, basic('dash', { color: 0xc8a050 }));
   flat(LX0 - 26, 12, LX0 - 4, 30, 0.0, asphalt);
-  for (let i = 0; i < 8; i++) flat(LX0 - 24 + i * 2.6, 17, LX0 - 23.9 + i * 2.6, 22, 0.004, basic('pline', { color: 0xb8a890 }));
+  for (let i = 0; i < 8; i++) flat(LX0 - 24 + i * 2.6, 17, LX0 - 23.9 + i * 2.6, 22, 0.03, basic('pline', { color: 0xb8a890 }));
   // одинокий автомобиль
   const car = new THREE.Group(); car.position.set(LX0 - 14.7, 0, 19.5); car.rotation.y = 0.04; W.group.add(car);
   const cb = col(0xb06a70);

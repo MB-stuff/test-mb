@@ -12,7 +12,7 @@ export const CEIL = 3.7;      // высота потолка от пола эт�
 
 export const W = {
   scene: null, levels: {}, group: null, level: 0, exterior: null,
-  colliders: [], surfaces: [], interactables: [], anchors: [], zones: [], animated: [], triggers: [],
+  colliders: [], surfaces: [], solids: [], interactables: [], anchors: [], zones: [], animated: [], triggers: [],
   images: [], imageUrls: {}, usedImages: new Set(), flags: {}, qa: [],
 };
 export const G = {};
@@ -32,7 +32,7 @@ const matCache = {};
 export function lam(key, params, uv = 0) {
   if (matCache[key]) return matCache[key];
   const m = new THREE.MeshLambertMaterial(params);
-  m.userData.worldUV = uv;
+  m.userData.worldUV = uv; m.name = key;
   return (matCache[key] = m);
 }
 export function col(hex, extra = {}) { return lam('c' + hex + JSON.stringify(extra), { color: hex, ...extra }); }
@@ -63,6 +63,7 @@ export function block(x0, y0, z0, x1, y1, z1, mats, { collide = true, parent = n
   const m = new THREE.Mesh(boxGeo(w, h, d), mats);
   m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
   (parent || W.group).add(m);
+  if (!parent) W.solids.push([Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1), Math.max(x0, x1), Math.max(y0, y1), Math.max(z0, z1)]);
   if (collide) m.userData.collider = addCollider(x0, y0, z0, x1, y1, z1, m);
   return m;
 }
@@ -123,8 +124,8 @@ export function wall(axis, c, a0, a1, y0, h, mats, openings = [], { inside = 0, 
     const b = axis === 'x' ? block(s0, yy0, c - T / 2, s1, yy1, c + T / 2, arr) : block(c - T / 2, yy0, s0, c + T / 2, yy1, s1, arr);
     if (!trim) return b;
     // плинтус внизу и карниз под потолком (выступают на 2 см с каждой стороны)
-    const TT = T / 2 + 0.02;
-    const band = (ya, yb, m) => axis === 'x' ? block(s0, ya, c - TT, s1, yb, c + TT, trimArr(m), { collide: false }) : block(c - TT, ya, s0, c + TT, yb, s1, trimArr(m), { collide: false });
+    const TT = T / 2 + 0.02, E = 0.012; // концы полос выступают на 1,2 см, чтобы не совпадать с торцом стены
+    const band = (ya, yb, m) => axis === 'x' ? block(s0 - E, ya, c - TT, s1 + E, yb, c + TT, trimArr(m), { collide: false }) : block(c - TT, ya, s0 - E, c + TT, yb, s1 + E, trimArr(m), { collide: false });
     if (Math.abs(yy0 - y0) < 0.001) band(y0, y0 + 0.12, tm.skirt);
     const cy = ceil ?? (y0 + Math.min(h, CEIL));
     if (yy0 < cy - 0.1 && yy1 > cy - 0.01) band(cy - 0.1, cy, tm.crown);
@@ -132,7 +133,7 @@ export function wall(axis, c, a0, a1, y0, h, mats, openings = [], { inside = 0, 
   };
   const ops = openings.slice().sort((p, q) => p.at - q.at);
   let cur = Math.min(a0, a1); const end = Math.max(a0, a1);
-  const Y1 = y0 + h;
+  const top = y0 + h, Y1 = Math.abs(top / FH - Math.round(top / FH)) < 1e-6 ? top - 0.012 : top;
   for (const o of ops) {
     const s0 = o.at - o.w / 2, s1 = o.at + o.w / 2;
     seg(cur, s0, y0, Y1);
@@ -165,8 +166,8 @@ function addWindow(axis, c, s0, s1, ya, yb, blocks, mull, neg, pos) {
   put(mid, yb - 0.03, w, 0.06, 0.06); put(s0 + 0.03, (ya + yb) / 2, 0.06, h, 0.06); put(s1 - 0.03, (ya + yb) / 2, 0.06, h, 0.06);
   for (let i = 1; i < mull; i++) put(s0 + w * i / mull, (ya + yb) / 2, 0.05, h, 0.04);
   if (h > 1.4 && !blocks) put(mid, ya + h * 0.72, w, 0.045, 0.04);
-  put(mid, ya - 0.02, w + 0.16, 0.05, 0.1, tm.sill, -0.1);
-  put(mid, ya - 0.02, w + 0.16, 0.05, 0.1, EXT.mats.has(neg) || EXT.mats.has(pos) ? tm.stone : tm.sill, 0.1);
+  put(mid, ya, w + 0.16, 0.05, 0.1, tm.sill, -0.1);
+  put(mid, ya, w + 0.16, 0.05, 0.1, EXT.mats.has(neg) || EXT.mats.has(pos) ? tm.stone : tm.sill, 0.1);
   let m;
   if (blocks) m = texMat('gblock', TX.glassBlock(), 0xffffff, { emissive: 0xffc070, emissiveIntensity: 0.5, emissiveMap: TX.glassBlock() }, 0.5);
   else m = glassMat();
@@ -190,7 +191,7 @@ export function floorRect(x0, z0, x1, z1, y, mat, sound = 'concrete', { walk = t
   const w = x1 - x0, d = z1 - z0; if (w <= 0.001 || d <= 0.001) return;
   const m = new THREE.Mesh(planeUV(w, d, 2), mat);
   m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
-  W.group.add(m);
+  W.group.add(m); W.solids.push([x0, y - 0.3, z0, x1, y, z1]);
   if (walk) W.surfaces.push({ minX: x0, maxX: x1, minZ: z0, maxZ: z1, y: () => y, sound });
   return m;
 }
@@ -198,7 +199,7 @@ export function ceilRect(x0, z0, x1, z1, y, mat) {
   const w = x1 - x0, d = z1 - z0; if (w <= 0.001 || d <= 0.001) return;
   const m = new THREE.Mesh(planeUV(w, d, 2), mat);
   m.rotation.x = Math.PI / 2; m.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
-  W.group.add(m); return m;
+  W.group.add(m); W.solids.push([x0, y, z0, x1, y + 0.3, z1]); return m;
 }
 export function surface(x0, z0, x1, z1, yFn, sound) {
   W.surfaces.push({ minX: Math.min(x0, x1), maxX: Math.max(x0, x1), minZ: Math.min(z0, z1), maxZ: Math.max(z0, z1), y: yFn, sound });
@@ -263,7 +264,7 @@ export class Door {
     if (axis === 'z') this.pivot.rotation.y = -Math.PI / 2;
     W.group.add(this.pivot);
     const panelMat = mat || texMat('doorwood', TX.wood('#4a2a18'), 0xffffff, {}, 1);
-    const panel = new THREE.Mesh(boxGeo(w - 0.04, h - 0.02, 0.06, 1), panelMat);
+    const panel = new THREE.Mesh(boxGeo(w - 0.06, h - 0.04, 0.06, 1), panelMat);
     panel.position.set(-hinge * (w / 2), h / 2, 0);
     this.pivot.add(panel); this.panel = panel;
     const inset = col(0x2a160c);
@@ -280,13 +281,13 @@ export class Door {
     const fm = col(0x24160c);
     const TT = T / 2 + 0.04;
     if (axis === 'x') {
-      block(at - w / 2 - 0.08, y0, c - TT, at - w / 2, y0 + h + 0.08, c + TT, fm, { collide: false });
-      block(at + w / 2, y0, c - TT, at + w / 2 + 0.08, y0 + h + 0.08, c + TT, fm, { collide: false });
-      block(at - w / 2, y0 + h, c - TT, at + w / 2, y0 + h + 0.08, c + TT, fm, { collide: false });
+      block(at - w / 2 - 0.08, y0, c - TT, at - w / 2 + 0.02, y0 + h + 0.08, c + TT, fm, { collide: false });
+      block(at + w / 2 - 0.02, y0, c - TT, at + w / 2 + 0.08, y0 + h + 0.08, c + TT, fm, { collide: false });
+      block(at - w / 2 + 0.02, y0 + h - 0.02, c - TT, at + w / 2 - 0.02, y0 + h + 0.08, c + TT, fm, { collide: false });
     } else {
-      block(c - TT, y0, at - w / 2 - 0.08, c + TT, y0 + h + 0.08, at - w / 2, fm, { collide: false });
-      block(c - TT, y0, at + w / 2, c + TT, y0 + h + 0.08, at + w / 2 + 0.08, fm, { collide: false });
-      block(c - TT, y0 + h, at - w / 2, c + TT, y0 + h + 0.08, at + w / 2, fm, { collide: false });
+      block(c - TT, y0, at - w / 2 - 0.08, c + TT, y0 + h + 0.08, at - w / 2 + 0.02, fm, { collide: false });
+      block(c - TT, y0, at + w / 2 - 0.02, c + TT, y0 + h + 0.08, at + w / 2 + 0.08, fm, { collide: false });
+      block(c - TT, y0 + h - 0.02, at - w / 2 + 0.02, c + TT, y0 + h + 0.08, at + w / 2 - 0.02, fm, { collide: false });
     }
     this.collider = axis === 'x' ? addCollider(at - w / 2, y0, c - 0.1, at + w / 2, y0 + h, c + 0.1)
       : addCollider(c - 0.1, y0, at - w / 2, c + 0.1, y0 + h, at + w / 2);
@@ -342,9 +343,9 @@ export function picture(groups, x, y, z, ry, size = 0.9, { frame = 'dark', paren
   // рама из четырёх планок + задник
   const bar = (w, h, x, y) => { const b = new THREE.Mesh(boxGeo(w, h, 0.05, 1), fm); b.position.set(x, y, 0.025); g.add(b); };
   bar(pw + fw * 2, fw, 0, ph / 2 + fw / 2); bar(pw + fw * 2, fw, 0, -ph / 2 - fw / 2); bar(fw, ph, -pw / 2 - fw / 2, 0); bar(fw, ph, pw / 2 + fw / 2, 0);
-  const back = new THREE.Mesh(boxGeo(pw, ph, 0.02, 1), col(0x0e0806)); back.position.z = 0.01; g.add(back);
+  const back = new THREE.Mesh(boxGeo(pw, ph, 0.016, 1), col(0x0e0806)); back.position.z = 0.008; g.add(back);
   const mat = new THREE.MeshLambertMaterial({ map: pictureTexture(im.id), emissive: 0xffffff, emissiveMap: pictureTexture(im.id), emissiveIntensity: 0.18 });
-  const p = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat); p.position.z = 0.022; p.userData.noMerge = true; g.add(p);
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat); p.position.z = 0.032; p.userData.noMerge = true; g.add(p);
   (parent || W.group).add(g);
   g.userData.img = im; g.userData.size = [pw + fw * 2, ph + fw * 2];
   interact(g, 'Рассмотреть картину', () => G.showPicture(im));

@@ -2,7 +2,7 @@
 // X — с запада на восток, Z — с юга на север, Y — вверх; 1 единица = 1 м.
 // Уровни: -1 подвал, 0 вестибюль и подиум (ресторан, казино), 1–3 жилые этажи (2–4), 4 крыша.
 import * as THREE from 'three';
-import { W, G, FH, T, CEIL, EXT, setLevel, wall, block, floorRect, ceilRect, surface, rectMinus, col, texMat, emis, basic, Door, interact, anchor, glow, zone, trigger, picture, addCollider, box, cyl, plane, mount } from './engine.js';
+import { W, G, FH, T, CEIL, EXT, setLevel, wall, block, floorRect, ceilRect, surface, rectMinus, rectsMinus, col, texMat, emis, basic, Door, interact, anchor, glow, zone, trigger, picture, addCollider, box, cyl, plane, mount } from './engine.js';
 import * as TX from './textures.js';
 import * as PR from './props.js';
 import * as S from './audio.js';
@@ -15,6 +15,7 @@ const LA = [0.15, 1.75], LB = [1.95, 3.4], SZ0 = -6.3, SZ1 = -1.5, SLAND = -4.7;
 const EX0 = 1.2, EX1 = 4.2, EZ0 = 3.6;
 const LX0 = -26, LZ0 = -14, LZ1 = 14, LH = 8, PH = 4.6, PCEIL = 4.2;
 const SX0 = LB[1] + 0.1, SX1 = 6;
+const CAB = [EX0, EZ0, EX1, TZ1], SERV = [SX0, TZ0, SX1, SZ1];
 export const LAYOUT = { TX0, TX1, TZ0, TZ1, LX0, LZ0, LZ1, LH, PH, EX0, EX1, EZ0 };
 
 const M = {};
@@ -53,6 +54,7 @@ function mats() {
   ];
   M.roof = texMat('roof', TX.gravel(), 0xffffff, {}, 1.5);
   M.dark = col(0x1a1410);
+  M.serviceFloor = { [-1]: M.concrete, 1: M.tileFloor, 2: M.tileFloor, 3: M.carpet };
 }
 export { M as HOTEL_MATS };
 
@@ -82,7 +84,7 @@ function hangSign(text, x, yy, z, ry, { w = 1.0, h = 0.22, bg, fg } = {}) {
   box(w + 0.04, h + 0.04, 0.03, col(0x140c08), 0, -h / 2 - 0.02, 0, { parent: g });
   const tex = TX.signTex(text, { aspect: w / h, bg: bg || '#1a120c', fg: fg || '#e0c890' });
   const m = texMat('hs' + text + w, tex, 0xffffff, { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.25 }, 0);
-  for (const s of [1, -1]) { const p = plane(w, h, m, 0, 0, s * 0.018, 0, s > 0 ? 0 : P, { parent: g }); p.userData.noMerge = true; }
+  for (const s of [1, -1]) { const p = plane(w, h, m, 0, 0, s * 0.03, 0, s > 0 ? 0 : P, { parent: g }); p.userData.noMerge = true; }
   box(0.015, 0.4, 0.015, col(0x111111), -w * 0.4, h / 2, 0, { parent: g }); box(0.015, 0.4, 0.015, col(0x111111), w * 0.4, h / 2, 0, { parent: g });
   mount(g, 'hang');
   return g;
@@ -110,7 +112,8 @@ function towerFloorsAndCeiling(L, rooms, { corrMat, corrSound, coreMat, coreSoun
   const y = L * FH;
   const holeBelow = [LA[0], SZ0, LB[1], SZ1];
   const hole = L === -1 ? null : (L === 3 ? [LB[0], SLAND, LB[1], SZ1] : holeBelow);
-  for (const r of hole ? rectMinus([TX0, TZ0, 6, TZ1], hole) : [[TX0, TZ0, 6, TZ1]]) floorRect(r[0], r[1], r[2], r[3], y, coreMat, coreSound);
+  for (const r of rectsMinus([[TX0, TZ0, 6, TZ1]], [hole, CAB, SERV].filter(Boolean))) floorRect(r[0], r[1], r[2], r[3], y, coreMat, coreSound);
+  floorRect(SERV[0], SERV[1], SERV[2], SERV[3], y, M.serviceFloor[L] || coreMat, 'tile');
   floorRect(6, CZ0, TX1, CZ1, y, corrMat, corrSound);
   for (const r of rooms) floorRect(r.x0, Math.min(r.z0, r.z1), r.x1, Math.max(r.z0, r.z1), y, r.floor || corrMat, r.sound || corrSound);
   const ceilRects = L === 3 ? [[TX0, TZ0, TX1, TZ1]] : rectMinus([TX0, TZ0, TX1, TZ1], holeBelow);
@@ -130,13 +133,13 @@ function towerOuter(L, rooms, { coreMat, glassBlocks = false }) {
   for (const side of [1, -1]) {
     const c = side > 0 ? TZ1 : TZ0;
     const coreOps = glassBlocks ? [] : (side > 0 ? [{ at: 0.6, w: 0.9, type: 'window', sill: 0.9, h: 2 }] : [{ at: 1.8, w: 2.4, type: 'window', sill: 1.6, h: 1.8, light: 0.12 }]);
-    const spans = [[TX0 - T / 2, 6, coreMat, coreOps]];
-    for (const r of rooms.filter(r => r.side === side).sort((a, b) => a.x0 - b.x0)) spans.push([r.x0, r.x1 + (r.x1 === TX1 ? T / 2 : 0), r.mat, r.wins || win(r.x0, r.x1)]);
+    const spans = [[TX0, 6, coreMat, coreOps]];
+    for (const r of rooms.filter(r => r.side === side).sort((a, b) => a.x0 - b.x0)) spans.push([r.x0, r.x1, r.mat, r.wins || win(r.x0, r.x1)]);
     for (const [a, b, m, ops] of spans) wall('x', c, a, b, y, FH, side > 0 ? { neg: m, pos: M.ext } : { neg: M.ext, pos: m }, ops, { inside: -side });
   }
   const nr = rooms.find(r => r.side > 0 && r.x1 === TX1), sr = rooms.find(r => r.side < 0 && r.x1 === TX1);
   wall('z', TX1, CZ0, CZ1, y, FH, { neg: L === -1 ? M.concWall : M.corrWall, pos: M.ext }, [glassBlocks ? { at: 0, w: 1.6, type: 'blocks', sill: 2.9, h: 0.6 } : { at: 0, w: 1.8, type: 'window', sill: 0.5, h: 2.6, light: 0.3 }], { inside: -1 });
-  for (const [r, a, b] of [[nr, CZ1, TZ1], [sr, TZ0, CZ0]]) {
+  for (const [r, a, b] of [[nr, CZ1, TZ1 + T / 2], [sr, TZ0 - T / 2, CZ0]]) {
     const ops = glassBlocks ? [{ at: (a + b) / 2, w: 1.4, type: 'blocks', sill: 2.9, h: 0.6 }] : [];
     wall('z', TX1, a, b, y, FH, { neg: r.mat, pos: M.ext }, ops, { inside: -1 });
   }
@@ -158,7 +161,7 @@ function corridorWalls(L, rooms, { corrMat, doorOpts, partitionOps = {} }) {
       wall('x', c, r.x0, r.x1, y, FH, side > 0 ? { neg: corrMat, pos: r.mat } : { neg: r.mat, pos: corrMat }, ops);
       if (o) {
         r.door = new Door('x', c, r.x0 + 1.1, { swing: side, hinge: -1, ...o });
-        if (o.plate !== false) sgn(o.plate || String(r.num), 'x', c, -side, r.x0 + 1.95, y + 1.6, { w: Math.max(0.3, (o.plate || '').length * 0.07), h: 0.15, bg: '#1e140a', fg: '#e0c070' });
+        if (o.plate !== false) { const pw = Math.max(0.3, (o.plate || '').length * 0.07); sgn(o.plate || String(r.num), 'x', c, -side, r.x0 + 1.82 + pw / 2, y + 1.6, { w: pw, h: 0.15, bg: '#1e140a', fg: '#e0c070' }); }
       }
     }
     const z0 = side > 0 ? CZ1 : TZ0, z1 = side > 0 ? TZ1 : CZ0;
@@ -178,7 +181,7 @@ function coreWalls(L, { coreMat, serviceDoor = true, serviceName = 'служеб
   const sm = serviceMat || col(0x6a6058);
   wall('z', SX0, TZ0, SZ1, y, h, { neg: M.concWall, pos: sm });
   const sx = (SX0 + 6) / 2;
-  wall('x', SZ1, SX0 - T / 2, 6 - T / 2, y, h, { neg: sm, pos: coreMat }, serviceDoor ? [{ at: sx, w: 1.0, type: 'door' }] : []);
+  wall('x', SZ1, SX0, 6 - T / 2, y, h, { neg: sm, pos: coreMat }, serviceDoor ? [{ at: sx, w: 1.0, type: 'door' }] : []);
   if (serviceDoor) return new Door('x', SZ1, sx, { name: serviceName, swing: -1, locked: serviceLocked, lockedMsg: lockedMsg || 'Заперто.' });
 }
 function liftLobbyDecor(L, fname) {
@@ -372,7 +375,7 @@ function furnishRoom(r, L) {
       break;
     }
     case 'lounge': {
-      PR.sofa(...at(3, 4.25), RY('door'), 0x1a4a4a, 2.2);
+      PR.sofa(...at(3, 4.0), RY('door'), 0x1a4a4a, 2.2);
       PR.armchair(...at(1.0, 2.4), RY('east'), 0x5a3a1a);
       const t = PR.table(...at(3, 3.0), { w: 1.0, d: 0.6, h: 0.45, color: '#2a1810' });
       PR.glass(...onTop(t, -0.2, 0)); PR.glass(...onTop(t, 0.15, 0.1), { wine: true });
@@ -414,7 +417,7 @@ function furnishRoom(r, L) {
       break;
     }
     case 'suite': {
-      PR.sofa(...at(3, 3.9), RY('door'), 0x6a3a2a, 2.4);
+      PR.sofa(...at(3, 3.85), RY('door'), 0x6a3a2a, 2.4);
       PR.armchair(...at(1.2, 2.4), RY('east') + 0.3, 0x5a2a1a); PR.armchair(...at(4.8, 2.4), RY('west') - 0.3, 0x5a2a1a);
       const t = PR.table(...at(3, 2.6), { w: 1.2, d: 0.7, h: 0.45, color: '#2a1810' });
       PR.bottle(...onTop(t, 0.2, 0), 0x2a4a1a); PR.glass(...onTop(t, -0.1, 0.1), { wine: true }); PR.glass(...onTop(t, -0.3, -0.1), { wine: true });
@@ -456,7 +459,6 @@ function phoneMsg(num) {
 // СЛУЖЕБНЫЕ КОМНАТЫ ЯДРА
 const SZC = (TZ0 + SZ1) / 2;
 function linenRoom(y) {
-  floorRect(SX0, TZ0, SX1, SZ1, y + 0.002, M.tileFloor, 'tile', { walk: false });
   PR.shelf(SX1 - T / 2 - 0.24, SZC - 0.8, -P / 2, { fill: 'towels', w: 2.2, color: 0x7a7a7a, d: 0.45 });
   PR.ceilingLamp((SX0 + SX1) / 2, SZC, { y: y + CEIL, kind: 'tube', color: 0xd0f0ff, intensity: 2, distance: 5, flicker: 0.4 });
   pic(['02_weirdcore_liminal'], 'x', TZ0, 1, (SX0 + 6) / 2, y + 1.7, 0.7, { frame: 'black' });
@@ -465,7 +467,6 @@ function linenRoom(y) {
   zone(SX0, TZ0, SX1, SZ1, 'БЕЛЬЕВАЯ', { reverb: 0.05, buzz: 0.02 });
 }
 function iceRoom(y) {
-  floorRect(SX0, TZ0, SX1, SZ1, y + 0.002, M.tileFloor, 'tile', { walk: false });
   const g = PR.grp(SX1 - T / 2 - 0.42, SZC, -P / 2, y);
   box(0.8, 1.6, 0.8, col(0x9a9aa0), 0, 0, 0, { parent: g });
   interact(g, 'Взять лёд', () => { S.sfxVending(); G.toast('Лёд с запахом хлорки. Где-то рядом бассейн?'); }); PR.solid(g, 0.8, 0.8, 1.6); mount(g, 'floor');
@@ -473,8 +474,8 @@ function iceRoom(y) {
   zone(SX0, TZ0, SX1, SZ1, 'ПОДСОБКА ЭТАЖА', { reverb: 0.05, buzz: 0.03 });
 }
 function tvSecretRoom(y) {
-  for (let i = 0; i < 6; i++) PR.tv(SX0 + 0.55 + (i % 2) * 0.95, y + Math.floor(i / 2) * 0.5, TZ0 + T / 2 + 0.33, 0, { on: true });
-  for (let k = 1; k < 3; k++) box(1.95, 0.02, 0.6, col(0x2a2018), SX0 + 1.03, y + k * 0.5 - 0.02, TZ0 + T / 2 + 0.33);
+  for (let i = 0; i < 6; i++) PR.tv(SX0 + 0.55 + (i % 2) * 0.95, y + Math.floor(i / 2) * 0.5, TZ0 + T / 2 + 0.45, 0, { on: true });
+  for (let k = 1; k < 3; k++) box(1.95, 0.02, 0.6, col(0x2a2018), SX0 + 1.03, y + k * 0.5 - 0.02, TZ0 + T / 2 + 0.42);
   PR.tv(SX0 + 0.45, y, SZ1 - 0.6, P / 2 + 0.3, { on: true, screen: TX.screenTex(['NO SIGNAL', '', 'КАНАЛ 0', '', 'ВЫ УЖЕ', 'СМОТРИТЕ ЭТО']) });
   pic(['03_y2k', '02_weirdcore_liminal'], 'z', SX1, -1, SZC + 1.4, y + 1.9, 0.6);
   PR.candle(SX1 - 0.4, y, SZ1 - 0.45);
@@ -528,7 +529,8 @@ function poolRoom(r) {
 function buildGround() {
   setLevel(0); const y = 0;
   const holeBelow = [LA[0], SZ0, LB[1], SZ1];
-  for (const r of rectMinus([TX0, TZ0, 6, TZ1], holeBelow)) floorRect(r[0], r[1], r[2], r[3], y, M.marble, 'marble');
+  for (const r of rectsMinus([[TX0, TZ0, 6, TZ1]], [holeBelow, CAB, SERV])) floorRect(r[0], r[1], r[2], r[3], y, M.marble, 'marble');
+  floorRect(SERV[0], SERV[1], SERV[2], SERV[3], y, M.pinkTile, 'tile');
   floorRect(6, CZ0, TX1, CZ1, y, M.carpet, 'carpet');
   floorRect(6, CZ1, 18, TZ1, y, M.tileFloor, 'tile');
   floorRect(18, CZ1, TX1, TZ1, y, M.parquet, 'wood');
@@ -549,20 +551,20 @@ function buildGround() {
     doorOpts: r => r.plate ? { name: r.name, plate: r.plate } : null,
     partitionOps: { [-6]: [{ at: -5.7, w: 0.7, type: 'gap', sill: 0.25, h: 1.0 }] },
   });
-  wall('x', TZ1, TX0 - T / 2, 6, y, PH, { neg: M.lobbyWall, pos: M.cloakWall }, [], { ceil: CEIL });
-  wall('x', TZ1, 6, 12, y, PH, { neg: M.concWall, pos: M.restWall }, [], { ceil: CEIL });
-  wall('x', TZ1, 12, 18, y, PH, { neg: M.tileW, pos: M.restWall }, [{ at: 15, w: 1.0, type: 'door' }], { ceil: CEIL });
-  wall('x', TZ1, 18, TX1 + T / 2, y, PH, { neg: M.rooms[1], pos: M.restWall }, [{ at: 26, w: 3.6, type: 'open', h: 3.0 }], { ceil: CEIL });
+  wall('x', TZ1, TX0, 6, y, FH, { neg: M.lobbyWall, pos: M.cloakWall }, [], { ceil: CEIL });
+  wall('x', TZ1, 6, 12, y, FH, { neg: M.concWall, pos: M.restWall }, [], { ceil: CEIL });
+  wall('x', TZ1, 12, 18, y, FH, { neg: M.tileW, pos: M.restWall }, [{ at: 15, w: 1.0, type: 'door' }], { ceil: CEIL });
+  wall('x', TZ1, 18, TX1, y, FH, { neg: M.rooms[1], pos: M.restWall }, [{ at: 26, w: 3.6, type: 'open', h: 3.0 }], { ceil: CEIL });
   new Door('x', TZ1, 15, { name: 'дверь в ресторан', swing: 1 });
-  wall('x', TZ0, TX0 - T / 2, SX0, y, PH, { neg: M.casinoWall, pos: M.concWall }, [], { ceil: CEIL });
-  wall('x', TZ0, SX0, 6, y, PH, { neg: M.casinoWall, pos: M.pinkTile }, [], { ceil: CEIL });
-  wall('x', TZ0, 6, 18, y, PH, { neg: M.casinoWall, pos: M.tileW }, [], { ceil: CEIL });
-  wall('x', TZ0, 18, 24, y, PH, { neg: M.casinoWall, pos: M.concWall }, [], { ceil: CEIL });
-  wall('x', TZ0, 24, TX1 + T / 2, y, PH, { neg: M.casinoWall, pos: M.rooms[3] }, [{ at: 27, w: 1.0, type: 'door' }], { ceil: CEIL });
+  wall('x', TZ0, TX0, SX0, y, FH, { neg: M.casinoWall, pos: M.concWall }, [], { ceil: CEIL });
+  wall('x', TZ0, SX0, 6, y, FH, { neg: M.casinoWall, pos: M.pinkTile }, [], { ceil: CEIL });
+  wall('x', TZ0, 6, 18, y, FH, { neg: M.casinoWall, pos: M.tileW }, [], { ceil: CEIL });
+  wall('x', TZ0, 18, 24, y, FH, { neg: M.casinoWall, pos: M.concWall }, [], { ceil: CEIL });
+  wall('x', TZ0, 24, TX1, y, FH, { neg: M.casinoWall, pos: M.rooms[3] }, [{ at: 27, w: 1.0, type: 'door' }], { ceil: CEIL });
   new Door('x', TZ0, 27, { name: 'дверь в казино', swing: -1, mat: texMat('doorRed', TX.wood('#5a1a1a'), 0xffffff, {}, 1) });
-  wall('z', TX1, CZ0, CZ1, y, PH, { neg: M.corrWall, pos: M.ext }, [{ at: 0, w: 1.8, type: 'window', sill: 0.5, h: 2.6, light: 0.3 }], { inside: -1, ceil: CEIL });
-  wall('z', TX1, CZ1, TZ1, y, PH, { neg: M.rooms[1], pos: M.ext }, [{ at: 3.85, w: 1.8, type: 'window', sill: 0.75, h: 2.1 }], { inside: -1, ceil: CEIL });
-  wall('z', TX1, TZ0, CZ0, y, PH, { neg: M.rooms[3], pos: M.ext }, [{ at: -3.85, w: 1.8, type: 'window', sill: 0.75, h: 2.1 }], { inside: -1, ceil: CEIL });
+  wall('z', TX1, CZ0, CZ1, y, FH, { neg: M.corrWall, pos: M.ext }, [{ at: 0, w: 1.8, type: 'window', sill: 0.5, h: 2.6, light: 0.3 }], { inside: -1, ceil: CEIL });
+  wall('z', TX1, CZ1, TZ1, y, FH, { neg: M.rooms[1], pos: M.ext }, [{ at: 3.85, w: 1.8, type: 'window', sill: 0.75, h: 2.1 }], { inside: -1, ceil: CEIL });
+  wall('z', TX1, TZ0, CZ0, y, FH, { neg: M.rooms[3], pos: M.ext }, [{ at: -3.85, w: 1.8, type: 'window', sill: 0.75, h: 2.1 }], { inside: -1, ceil: CEIL });
   wall('z', TX0, TZ0 - T / 2, TZ1 + T / 2, y, FH, { neg: M.lobbyWall, pos: M.lobbyWall }, [{ at: 1.1, w: 4.8, type: 'open', h: 3.3 }], { ceil: CEIL });
   coreWalls(0, { coreMat: M.lobbyWall, serviceDoor: false, serviceMat: M.pinkTile });
   hangSign('ВЫХОД · ЛЕСТНИЦА', 0.95, y + 3.35, -1.45, 0, { w: 1.2, h: 0.2, bg: '#0a2a14', fg: '#6aff9a' });
@@ -633,7 +635,6 @@ function buildGround() {
   });
   zone(6, TZ0, 12, CZ0, 'УБОРНАЯ', { reverb: 0.45 });
   // Розовая комната
-  floorRect(SX0, TZ0, SX1, SZ1, y + 0.002, M.pinkTile, 'tile', { walk: false });
   anchor((SX0 + SX1) / 2, y + 2.8, -4, { color: 0xff70b0, intensity: 5, distance: 6 });
   plane(0.3, 0.3, emis(0xff80c0, 1.2), (SX0 + SX1) / 2, y + CEIL - 0.01, -4, P / 2, 0);
   pic(['02_weirdcore_liminal'], 'z', SX0, 1, -3.4, y + 1.7, 0.8, { frame: 'pink' });
@@ -734,8 +735,8 @@ function buildPodium() {
   }
   const jb = PR.grp(7.0, LZ1 - T / 2 - 0.32, P);
   box(0.9, 1.5, 0.6, col(0x8a3a1a), 0, 0, 0, { parent: jb });
-  const arch = cyl(0.45, 0.45, 0.6, 16, col(0xc89a3a, { emissive: 0x302000 }), 0, 1.2, 0, { parent: jb }); arch.rotation.x = P / 2; arch.position.y = 1.5;
-  plane(0.6, 0.4, emis(0xffb060, 0.9), 0, 0.95, 0.305, 0, 0, { parent: jb });
+  const arch = cyl(0.45, 0.45, 0.56, 16, col(0xc89a3a, { emissive: 0x302000 }), 0, 1.2, 0, { parent: jb }); arch.rotation.x = P / 2; arch.position.y = 1.5;
+  plane(0.6, 0.4, emis(0xffb060, 0.9), 0, 0.95, 0.316, 0, 0, { parent: jb });
   interact(jb, 'Музыкальный автомат: сменить пластинку', () => { const n = S.nextStation(); G.toast('🎵 ' + n); }); PR.solid(jb, 0.9, 0.6, 1.9); mount(jb, 'floor');
   for (const x of [10.8, 24.6]) PR.chandelier(x, 10.4, y + PCEIL);
   for (const x of [8.5, 12.5, 16.5, 20.5, 24.5]) PR.curtains('x', LZ1 - T / 2, x - 1, x + 1, y, -1, 0x7a1a24);
@@ -795,7 +796,7 @@ function drums(x, z, y) {
 // ВЕСТИБЮЛЬ
 function buildLobby() {
   setLevel(0); const y = 0;
-  floorRect(LX0, LZ0, TX0, LZ1, y, M.marble, 'marble');
+  for (const r of rectMinus([LX0, LZ0, TX0, LZ1], [-6, LZ0, 0, -9.4])) floorRect(r[0], r[1], r[2], r[3], y, M.marble, 'marble');
   ceilRect(LX0, LZ0, TX0, LZ1, y + LH, M.coffer);
   const tall = (at, w = 1.8) => ({ at, w, type: 'window', sill: 0.5, h: 6.4, light: 0.3, mull: 2 });
   const wOps = [-11.5, -8, -4.5, 4.5, 8, 11.5].map(z => tall(z));
@@ -911,7 +912,7 @@ function buildManagerOffice() {
   wall('x', LZ0, x0, x1, y, LH, { neg: M.ext, pos: om }, [{ at: -3, w: 1.8, type: 'window', sill: 0.8, h: 2.2, light: 0.2 }], { inside: 1, ceil: OH });
   wall('z', TX0, LZ0, z1, y, PH, { neg: om, pos: M.casinoWall }, [], { ceil: OH });
   wall('z', TX0, LZ0, z1, y + PH, LH - PH, { neg: M.lobbyWall, pos: M.ext }, [], { trim: false });
-  floorRect(x0, z0, x1, z1, y + 0.002, M.parquet, 'wood');
+  floorRect(x0, z0, x1, z1, y, M.parquet, 'wood');
   ceilRect(x0, z0, x1, z1, y + OH, M.ceil);
   const d = new Door('x', z1, -2.0, { name: 'кабинет управляющего', swing: -1, locked: true, lockedMsg: 'Заперто. На табличке: «Управляющий. Без стука не входить». Стук ничего не даёт.', mat: texMat('doorDark', TX.wood('#2a160c'), 0xffffff, {}, 1) });
   sgn('УПРАВЛЯЮЩИЙ', 'x', z1, 1, -0.95, y + 1.8, { w: 0.7, h: 0.16 });
@@ -1052,7 +1053,6 @@ function buildBasement() {
   sgn('КАМЕРА ХРАНЕНИЯ', 'z', TX1, -1, -2.2, y + 2.4, { w: 1.2, h: 0.22 });
   PR.ceilingLamp(27, -4, { y: y + CEIL, kind: 'tube', color: 0xe8f0d0, intensity: 2, distance: 6, flicker: 0.3 });
   zone(24, TZ0, TX1, CZ0, 'КАМЕРА ХРАНЕНИЯ', { reverb: 0.3, muffle: 900, wind: 0 });
-  floorRect(SX0, TZ0, SX1, SZ1, y + 0.002, M.concrete, 'concrete', { walk: false });
   PR.shelf(SX1 - T / 2 - 0.24, -4.0, -P / 2, { fill: 'boxes', w: 2.6, d: 0.45 });
   zone(SX0, TZ0, SX1, SZ1, 'КЛАДОВКА', { reverb: 0.05, muffle: 900, wind: 0 });
 }
@@ -1098,12 +1098,11 @@ function buildElevator() {
   for (const L of [-1, 0, 1, 2, 3, 4]) {
     setLevel(L); const y = L * FH;
     const cab = texMat('cab', TX.wood('#4a2814'), 0xffffff, {}, 1);
-    block(EX0 + T / 2, y, TZ1 - T / 2 - 0.02, EX1 - T / 2, y + 2.6, TZ1 - T / 2, cab, { collide: false });
-    floorRect(EX0 + T / 2, EZ0 + T / 2, EX1 - T / 2, TZ1 - T / 2, y + 0.003, texMat('cabF', TX.carpetOrnament('#5a1a22', '#a07a3a', 'cab'), 0xffffff, {}, 1.2), 'carpet', { walk: L === 4 });
-    ceilRect(EX0, EZ0, EX1, TZ1, y + 2.6, col(0x2a2018));
+    block(EX0 + T / 2 + 0.03, y + 0.15, TZ1 - T / 2 - 0.05, EX1 - T / 2 - 0.03, y + 2.55, TZ1 - T / 2 - 0.03, cab, { collide: false });
+    floorRect(EX0, EZ0, EX1, TZ1, y, texMat('cabF', TX.carpetOrnament('#5a1a22', '#a07a3a', 'cab'), 0xffffff, {}, 1.2), 'carpet');
     plane(1.6, 0.5, emis(0xffd090, 0.9), ELEV.cx, y + 2.59, ELEV.cz, P / 2, 0);
     anchor(ELEV.cx, y + 2.3, ELEV.cz, { color: 0xffd090, intensity: 2, distance: 4 });
-    block(EX0, y + 2.6, EZ0, EX1, y + (L === 4 ? 3 : CEIL), TZ1, col(0x111111), { collide: false });
+    block(EX0, y + 2.6, EZ0, EX1, y + (L === 4 ? 2.99 : CEIL - 0.01), TZ1, col(0x2a2018), { collide: false });
     const dm = col(0x8a7450, { emissive: 0x100c06 });
     const dl = box(0.7, 2.3, 0.05, dm, ELEV.cx - 0.35, y, EZ0 - T / 2 - 0.03);
     const dr = box(0.7, 2.3, 0.05, dm, ELEV.cx + 0.35, y, EZ0 - T / 2 - 0.03);

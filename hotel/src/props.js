@@ -77,8 +77,8 @@ export function bed(x, z, ry, { double = true, color = 0x6a2030, frame = '#3a201
   B(g, w, 0.32, L, f, 0, 0, 0);
   B(g, w + 0.06, 1.05, 0.08, f, 0, 0, -L / 2 + 0.04);
   B(g, w - 0.06, 0.2, L - 0.12, col(0xd8ccb0), 0, 0.32, 0.02);
-  B(g, w - 0.02, 0.07, L * 0.62, col(color), 0, 0.5, L * 0.18);
-  B(g, w + 0.02, 0.3, 0.03, col(color), 0, 0.24, L / 2 - 0.02);
+  B(g, w + 0.05, 0.07, L * 0.62, col(color), 0, 0.5, L * 0.18);
+  B(g, w + 0.05, 0.3, 0.03, col(color), 0, 0.24, L / 2 + 0.02);
   const pc = col(0xe0d6c0);
   if (double) { B(g, 0.6, 0.14, 0.36, pc, -0.4, 0.52, -L / 2 + 0.32); B(g, 0.6, 0.14, 0.36, pc, 0.4, 0.52, -L / 2 + 0.32); }
   else B(g, 0.65, 0.14, 0.36, pc, 0, 0.52, -L / 2 + 0.32);
@@ -94,7 +94,7 @@ export function bunk(x, z, ry) {
   const g = bed(x, z, ry, { double: false, color: 0x2a4a6a });
   const f = col(0x7a7a80);
   B(g, 1.0, 0.12, 2.05, f, 0, 1.4, 0); B(g, 0.9, 0.15, 1.9, col(0xd8ccb0), 0, 1.52, 0); B(g, 0.9, 0.05, 1.2, col(0x7a2a4a), 0, 1.67, 0.3);
-  for (const [a, b] of [[-0.48, -1], [0.48, -1], [-0.48, 1], [0.48, 1]]) B(g, 0.05, 1.9, 0.05, f, a, 0, b);
+  for (const [a, b] of [[-0.535, -1], [0.535, -1], [-0.535, 1], [0.535, 1]]) B(g, 0.05, 1.9, 0.05, f, a, 0, b);
   return g;
 }
 
@@ -211,7 +211,7 @@ export function bottle(x, y, z, color = 0x1a4a2a) {
 }
 export function plate(x, y, z, { cutlery = true, ry = 0 } = {}) {
   const g = grp(x, z, ry, y);
-  C(g, 0.13, 0.1, 0.02, 14, col(0xe8e0d0), 0, 0, 0); C(g, 0.08, 0.08, 0.005, 12, col(0xd8ccb8), 0, 0.02, 0);
+  C(g, 0.13, 0.1, 0.02, 14, col(0xe8e0d0), 0, 0, 0); C(g, 0.08, 0.08, 0.004, 12, col(0xd8ccb8), 0, 0.028, 0);
   if (cutlery) { B(g, 0.015, 0.006, 0.19, col(0xb8b8b8), -0.17, 0, 0); B(g, 0.015, 0.006, 0.19, col(0xb8b8b8), 0.17, 0, 0); }
   hitBox(g, 0.3, 0.06, 0.3);
   interact(g, 'Постучать вилкой по тарелке', () => S.sfxClink(1.6));
@@ -240,10 +240,10 @@ export function chips(x, y, z, n = 3) {
 export function tv(x, y, z, ry, { on = false, big = false, screen = null } = {}) {
   const g = grp(x, z, ry, y); const s = big ? 1.3 : 1;
   B(g, 0.6 * s, 0.48 * s, 0.5 * s, col(0x24201c), 0, 0, -0.05);
-  B(g, 0.4 * s, 0.32 * s, 0.25 * s, col(0x1a1612), 0, 0.08 * s, -0.4 * s);
+  B(g, 0.4 * s, 0.32 * s, 0.16 * s, col(0x1a1612), 0, 0.08 * s, -0.33 * s);
   const offMat = col(0x0a120e, { emissive: 0x020604 });
   const onMat = screen ? basic('scr' + screen.uuid, { map: screen }) : basic('static', { map: TX.staticTex() });
-  const sc = plane(0.48 * s, 0.36 * s, on ? onMat : offMat, 0, 0.24 * s, 0.205 * s, 0, 0, { parent: g }); sc.userData.noMerge = true;
+  const sc = plane(0.48 * s, 0.36 * s, on ? onMat : offMat, 0, 0.24 * s, 0.2 * s + 0.015, 0, 0, { parent: g }); sc.userData.noMerge = true;
   const a = anchor(0, 0, 0, { color: 0x9ab8ff, intensity: 1.2, distance: 3, on }); a.pos.copy(wp(g, 0, 0.25, 0.6));
   let isOn = on; const id = 'tv' + Math.random();
   const set = v => { isOn = v; sc.material = v ? onMat : offMat; a.on = v; if (v && !screen) S.loopStart(id, 'static'); else S.loopStop(id); };
@@ -268,7 +268,7 @@ export function computer(x, y, z, ry, name, files, { on = true } = {}) {
   B(g, 0.42, 0.36, 0.4, col(0xc8bca0), 0, 0.06, -0.02);
   B(g, 0.3, 0.06, 0.3, col(0xb8ac90), 0, 0, -0.02);
   B(g, 0.44, 0.03, 0.15, col(0xb8ac90), 0, 0, 0.3);
-  const scr = plane(0.32, 0.25, on ? basic('pcOn', { map: TX.screenTex(['ПОЛДЕНЬ-OS 98', '', '> ' + name.toUpperCase(), '', 'нажми E']) }) : col(0x0a120e), 0, 0.25, 0.185, 0, 0, { parent: g });
+  const scr = plane(0.32, 0.25, on ? basic('pcOn', { map: TX.screenTex(['ПОЛДЕНЬ-OS 98', '', '> ' + name.toUpperCase(), '', 'нажми E']) }) : col(0x0a120e), 0, 0.25, 0.196, 0, 0, { parent: g });
   scr.userData.noMerge = true;
   anchor(0, 0, 0, { color: 0x80ffb0, intensity: 0.8, distance: 2.4, grid: false }).pos.copy(wp(g, 0, 0.3, 0.5));
   hitBox(g, 0.5, 0.45, 0.6);
@@ -299,8 +299,8 @@ export function recordPlayer(x, y, z, ry) {
 export function radio(x, y, z, ry) {
   const g = grp(x, z, ry, y);
   B(g, 0.38, 0.22, 0.16, woodM('#5a3018'), 0, 0, 0);
-  plane(0.18, 0.14, col(0x2a2018), -0.07, 0.11, 0.081, 0, 0, { parent: g });
-  plane(0.1, 0.04, emis(0xffa040, 0.8), 0.1, 0.15, 0.081, 0, 0, { parent: g });
+  plane(0.18, 0.14, col(0x2a2018), -0.07, 0.11, 0.092, 0, 0, { parent: g });
+  plane(0.1, 0.04, emis(0xffa040, 0.8), 0.1, 0.15, 0.092, 0, 0, { parent: g });
   hitBox(g, 0.44, 0.28, 0.24);
   interact(g, 'Переключить радиостанцию', () => { const n = S.nextStation(); G.toast('📻 ' + n); });
   onTable(g); return g;
@@ -393,7 +393,7 @@ export function clock(x, y, z, ry, { r = 0.3 } = {}) {
   const g = grp(x, z, ry, y);
   const rim = C(g, r + 0.03, r + 0.03, 0.06, 20, col(0x4a3220), 0, -0.03, 0); rim.rotation.x = P / 2; rim.position.set(0, 0, 0.03);
   const f = new THREE.Mesh(new THREE.CircleGeometry(r, 24), texMat('clock', TX.clockTex(), 0xffffff, { emissive: 0x302820, emissiveMap: TX.clockTex() }, 0));
-  f.position.z = 0.062; g.add(f);
+  f.position.z = 0.075; g.add(f);
   interact(g, 'Посмотреть на часы', () => G.toast('3:33. Секундная стрелка дрожит, но не идёт.'));
   onWall(g, r * 2, r * 2); return g;
 }
@@ -402,8 +402,8 @@ export function sign(text, x, y, z, ry, { w = 0.6, h = 0.22, bg = '#1a120c', fg 
   const tex = TX.signTex(text, { aspect: w / h, bg, fg, family: family || 'Georgia, serif', border, glowText: glowing });
   const m = glowing ? basic('sign' + text + fg + w, { map: tex }) : texMat('sign' + text + bg + fg + w, tex, 0xffffff, { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.2 }, 0);
   const g = grp(x, z, ry, y);
-  B(g, w + 0.03, h + 0.03, 0.02, col(0x140c08), 0, -h / 2 - 0.015, 0);
-  const p = plane(w, h, m, 0, 0, 0.022, 0, 0, { parent: g }); p.userData.noMerge = true;
+  B(g, w + 0.03, h + 0.03, 0.016, col(0x140c08), 0, -h / 2 - 0.015, 0.008);
+  const p = plane(w, h, m, 0, 0, 0.03, 0, 0, { parent: g }); p.userData.noMerge = true;
   if (qa) onWall(g, w, h);
   return g;
 }
@@ -441,7 +441,7 @@ export function piano(x, z, ry, { onPlay = null } = {}) {
 export function vending(x, z, ry) {
   const g = grp(x, z, ry);
   B(g, 0.9, 1.9, 0.75, col(0x7a1424), 0, 0, 0);
-  plane(0.6, 1.2, emis(0xffd8b0, 0.6), -0.08, 1.1, 0.38, 0, 0, { parent: g });
+  plane(0.6, 1.2, emis(0xffd8b0, 0.6), -0.08, 1.1, 0.382, 0, 0, { parent: g });
   for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) B(g, 0.08, 0.16, 0.02, col([0xd04040, 0x40a0d0, 0xe0c040, 0x60c060][(r + c) % 4], { emissive: 0x222222 }), -0.3 + c * 0.15, 0.62 + r * 0.28, 0.38);
   B(g, 0.15, 0.6, 0.02, col(0x1a1a1a), 0.33, 1.1, 0.38); B(g, 0.5, 0.15, 0.02, col(0x050505), -0.08, 0.2, 0.38);
   anchor(0, 0, 0, { color: 0xffc0a0, intensity: 1.5, distance: 3.5, grid: false }).pos.copy(wp(g, 0, 1.1, 0.8));
@@ -464,7 +464,7 @@ export function sink(x, z, ry, { mirror = true } = {}) {
   const g = grp(x, z, ry); const por = col(0xd8d4c8);
   B(g, 0.6, 0.15, 0.45, por, 0, 0.75, 0); C(g, 0.06, 0.08, 0.75, 8, por, 0, 0, -0.05);
   B(g, 0.03, 0.15, 0.03, col(0xb8b8b8), 0, 0.9, -0.18);
-  if (mirror) { const mr = plane(0.6, 0.8, col(0x50606a, { emissive: 0x101c20 }), 0, 1.6, -0.21, 0, 0, { parent: g }); mr.userData.noMerge = true; B(g, 0.66, 0.86, 0.02, col(0x8a7a5a), 0, 1.17, -0.225); }
+  if (mirror) { const mr = plane(0.6, 0.8, col(0x50606a, { emissive: 0x101c20 }), 0, 1.6, -0.198, 0, 0, { parent: g }); mr.userData.noMerge = true; B(g, 0.66, 0.86, 0.02, col(0x8a7a5a), 0, 1.17, -0.225); }
   const id = 'water' + Math.random(); let on = false;
   interact(g, () => on ? 'Закрыть кран' : 'Открыть кран', () => { on = !on; S.sfxClick(); on ? S.loopStart(id, 'water') : S.loopStop(id); });
   if (mirror) { const mp = wp(g, 0, 0, -0.2); const mh = grp(mp.x, mp.z, ry, Y() + 1.2); hitBox(mh, 0.6, 0.8, 0.05); interact(mh, 'Посмотреть в зеркало', () => G.toast(pick(['В зеркале — пустая уборная. Тебя там нет.', 'Отражение моргнуло позже тебя.', 'За твоей спиной в отражении — окно. Здесь нет окна.', 'Всё нормально. Просто ты.']))); }
@@ -485,8 +485,8 @@ export function bathtub(x, z, ry) {
 export function washer(x, z, ry) {
   const g = grp(x, z, ry);
   B(g, 0.65, 0.85, 0.6, col(0xc8c4b8), 0, 0, 0);
-  const d = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), col(0x2a3a4a, { emissive: 0x0a1018 })); d.position.set(0, 0.42, 0.305); g.add(d);
-  B(g, 0.55, 0.1, 0.02, col(0x555555), 0, 0.72, 0.3);
+  const d = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), col(0x2a3a4a, { emissive: 0x0a1018 })); d.position.set(0, 0.42, 0.318); g.add(d);
+  B(g, 0.55, 0.1, 0.02, col(0x555555), 0, 0.72, 0.31);
   interact(g, 'Запустить стирку', () => { S.sfxWasher(); let t = 0; const x0 = g.position.x; const iv = setInterval(() => { t++; g.position.x = x0 + (t % 2 ? 0.008 : -0.008); if (t > 60) { clearInterval(iv); g.position.x = x0; } }, 90); });
   solid(g, 0.65, 0.6, 0.85); floor(g); return g;
 }
@@ -532,7 +532,7 @@ export function arcade(x, z, ry, imgGroups = ['05_retro_games_arcade']) {
   B(g, 0.75, 0.25, 0.4, col(0x32204a), 0, 0.95, 0.4);
   for (let i = 0; i < 4; i++) C(g, 0.03, 0.03, 0.03, 8, col([0xff3050, 0x30a0ff, 0xffd030, 0x30ff80][i], { emissive: 0x333333 }), -0.2 + i * 0.12, 1.2, 0.5);
   const p = picture(imgGroups, 0, 0, 0, 0, 0.5, { qa: false }); if (p) { g.add(p); p.position.set(0, 1.5, 0.4); p.rotation.x = -0.15; }
-  plane(0.7, 0.18, emis(0xff40a0, 0.9), 0, 1.92, 0.405, 0, 0, { parent: g });
+  plane(0.7, 0.18, emis(0xff40a0, 0.9), 0, 1.92, 0.418, 0, 0, { parent: g });
   anchor(0, 0, 0, { color: 0xb060ff, intensity: 1.4, distance: 3, grid: false }).pos.copy(wp(g, 0, 1.5, 0.9));
   const tunes = [[72, 76, 79, 84], [67, 71, 74, 79, 83], [60, 63, 67, 70, 72]];
   interact(g, 'Сыграть', () => { pick(tunes).forEach((n, i) => S.sfxPiano(n, 0.05, i * 0.08)); G.toast('INSERT COIN · HI-SCORE: 999999 · «???»'); });
@@ -596,7 +596,7 @@ export function fireExt(x, z, ry) {
 }
 export function stackedChairs(x, z, ry, n = 5) {
   const g = grp(x, z, ry);
-  for (let i = 0; i < n; i++) { B(g, 0.46, 0.06, 0.46, col(0x6a2026), 0, 0.44 + i * 0.12, 0); B(g, 0.46, 0.45, 0.04, col(0x4a2a1a), 0, 0.5 + i * 0.12, -0.21); }
+  for (let i = 0; i < n; i++) { B(g, 0.44, 0.06, 0.42, col(0x6a2026), 0, 0.44 + i * 0.12, 0.01); B(g, 0.46, 0.45, 0.04, col(0x4a2a1a), 0, 0.5 + i * 0.12, -0.21); }
   for (const [a, b] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) B(g, 0.04, 0.44, 0.04, col(0x4a2a1a), a, 0, b);
   interact(g, 'Снять стул со стопки', () => { S.sfxSit(); G.toast('Стопка качнулась. Лучше не трогать.'); });
   solid(g, 0.5, 0.5, 1.2); floor(g); return g;
@@ -661,11 +661,11 @@ export function slotMachine(x, z, ry) {
   const g = grp(x, z, ry);
   B(g, 0.7, 1.0, 0.6, col(0x8a1a24), 0, 0, 0); B(g, 0.7, 0.7, 0.45, col(0xa02030), 0, 1.0, -0.07);
   B(g, 0.72, 0.2, 0.5, col(0xc8a040, { emissive: 0x302000 }), 0, 1.7, -0.05);
-  plane(0.6, 0.14, emis(0xffe080, 1.2), 0, 1.8, 0.205, 0, 0, { parent: g });
+  plane(0.6, 0.14, emis(0xffe080, 1.2), 0, 1.8, 0.218, 0, 0, { parent: g });
   const reels = [];
   for (let i = 0; i < 3; i++) {
     const t = TX.reelTex().clone(); t.needsUpdate = true; t.repeat.set(1, 1 / 6); t.offset.y = Math.floor(Math.random() * 6) / 6;
-    const r = plane(0.16, 0.2, basic('reel' + i + x + z, { map: t }), -0.19 + i * 0.19, 1.35, 0.156, 0, 0, { parent: g }); r.userData.noMerge = true;
+    const r = plane(0.16, 0.2, basic('reel' + i + x + z, { map: t }), -0.19 + i * 0.19, 1.35, 0.172, 0, 0, { parent: g }); r.userData.noMerge = true;
     reels.push({ t, v: 0, target: 0 });
   }
   const lever = new THREE.Group(); lever.position.set(0.38, 1.1, 0); g.add(lever);
@@ -696,7 +696,7 @@ export function roulette(x, z, ry) {
   const felt = texMat('felt', TX.felt('#1a5a3a'), 0xffffff, {}, 0);
   B(g, 2.6, 0.8, 1.2, woodM('#3a1a10'), 0, 0, 0); B(g, 2.5, 0.04, 1.1, felt, 0, 0.8, 0);
   // разметка поля
-  for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) B(g, 0.11, 0.005, 0.2, col((i * 3 + j) % 2 ? 0xa01818 : 0x141010), 0.05 + i * 0.12, 0.84, -0.3 + j * 0.22);
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) B(g, 0.11, 0.004, 0.2, col((i * 3 + j) % 2 ? 0xa01818 : 0x141010), 0.05 + i * 0.12, 0.852, -0.3 + j * 0.22);
   const bowl = C(g, 0.48, 0.42, 0.14, 24, woodM('#4a2210'), -0.85, 0.8, 0);
   const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.03, 37), [col(0x3a2210), texMat('rlt', TX.rouletteTex(), 0xffffff, {}, 0), col(0x3a2210)]);
   wheel.position.set(-0.85, 0.95, 0); g.add(wheel); wheel.userData.noMerge = true;
@@ -723,7 +723,7 @@ export function pokerTable(x, z, { ry = 0, cards = true } = {}) {
   const fm = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.02, 24), texMat('felt', TX.felt('#1a5a3a'), 0xffffff, {}, 0)); fm.scale.set(1.15, 1, 0.7); fm.position.y = 0.77; g.add(fm);
   C(g, 0.15, 0.3, 0.72, 10, col(0x2a140a), 0, 0, 0);
   const deck = ['A♥', 'K♠', 'Q♥', '7♦', '3♣', 'J♦', '10♠', '9♥'];
-  if (cards) for (let i = 0; i < 5; i++) { const c = plane(0.09, 0.13, basic('cb' + i, { map: (i < 3 ? TX.cardTex(deck[i], deck[i].match(/[♥♦]/)) : TX.cardBackTex()) }), -0.24 + i * 0.12, 0.785, 0, -P / 2, 0, { parent: g }); c.userData.noMerge = true; }
+  if (cards) for (let i = 0; i < 5; i++) { const c = plane(0.09, 0.13, basic('cb' + i, { map: (i < 3 ? TX.cardTex(deck[i], deck[i].match(/[♥♦]/)) : TX.cardBackTex()) }), -0.24 + i * 0.12, 0.795, 0, -P / 2, 0, { parent: g }); c.userData.noMerge = true; }
   for (let i = 0; i < 4; i++) { const a = i * P / 2 + P / 4; chips(...wp(g, Math.cos(a) * 0.65, 0.78, Math.sin(a) * 0.42).toArray(), 2 + i); }
   hitBox(g, 2.2, 0.85, 1.4);
   interact(g, 'Раздать карты', () => {
