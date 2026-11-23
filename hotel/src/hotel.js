@@ -1302,6 +1302,15 @@ function buildBasement() {
   PR.solid(eg, 1.4, 0.3, 2.3, 0, 0.15); mount(eg, 'floor');
   sgn('ОПАСНО', 'z', 18, -1, -3.8, y + 2.7, { w: 0.5, h: 0.18, bg: '#e0c020', fg: '#111111', border: false });
   PR.note(18 - T / 2, y + 1.9, -2.5, -P / 2, ...noteArgs('guardSwitch').slice(0, 2), { flat: false, story: 'guard', color: 0xe8d84a });
+  // записка электрика приколота прямо к щиту, над автоматами — подсказка к комнате за шторой
+  {
+    const nx = 18 - T / 2 - 0.3 - 0.004, nz = -4.22, ny = y + 1.95;
+    const n = PR.note(nx, ny, nz, -P / 2, ...noteArgs('electricianNote').slice(0, 2), { flat: false, story: 'guard', color: 0xe4e0d0 });
+    // красная кнопка-гвоздик в верхней части листка
+    const pin = cyl(0.014, 0.014, 0.012, 8, col(0xc01818, { emissive: 0x300000 }), 0, 0.11, 0.016, { parent: n }); pin.rotation.x = P / 2; pin.position.set(0, 0.11, 0.02);
+    // клетка на листке — тонкие линии поверх бумаги
+    for (let i = 0; i < 5; i++) box(0.2, 0.002, 0.001, col(0x8aa0c0), 0, -0.12 + i * 0.05, 0.0115, { parent: n });
+  }
   zone(12, TZ0, 18, CZ0, 'ЭЛЕКТРОЩИТОВАЯ', { reverb: 0.2, buzz: 0.09, muffle: 900, wind: 0 });
   PR.ceilingLamp(15, -4, { y: y + CEIL, kind: 'tube', color: 0xe8f0d0, intensity: 1.8, distance: 6, flicker: 0.5 });
   // Винный погреб
