@@ -116,6 +116,11 @@ function noteArgs(k) { const [title, text, story] = TXT[k]; return [title, text,
 
 // ======================================================================
 // КАРКАС БАШНИ
+// торец перекрытия у лестничного проёма со стороны лифтового холла: между потолком и полом
+// следующего этажа 30 см пустоты, без торца сквозь неё виден соседний этаж
+function stairFascia(y, mat) {
+  block(LA[0], y + CEIL + 0.005, SZ1 - 0.04, LB[1], y + FH - 0.005, SZ1 + 0.02, mat, { collide: false });
+}
 function towerFloorsAndCeiling(L, rooms, { corrMat, corrSound, coreMat, coreSound }) {
   const y = L * FH;
   const holeBelow = [LA[0], SZ0, LB[1], SZ1];
@@ -126,6 +131,7 @@ function towerFloorsAndCeiling(L, rooms, { corrMat, corrSound, coreMat, coreSoun
   for (const r of rooms) floorRect(r.x0, Math.min(r.z0, r.z1), r.x1, Math.max(r.z0, r.z1), y, r.floor || corrMat, r.sound || corrSound);
   const ceilRects = L === 3 ? [[TX0, TZ0, TX1, TZ1]] : rectMinus([TX0, TZ0, TX1, TZ1], holeBelow);
   for (const r of ceilRects) ceilRect(r[0], r[1], r[2], r[3], y + CEIL, M.ceil);
+  if (L !== 3) stairFascia(y, coreMat);
 }
 function roomsSpec(L) {
   const out = [];
@@ -549,6 +555,7 @@ function buildGround() {
   floorRect(18, TZ0, 24, CZ0, y, M.concrete, 'concrete');
   floorRect(24, TZ0, TX1, CZ0, y, texMat('arcadeF', TX.carpetPlain('#2a1840', 12), 0xffffff, {}, 2), 'carpet');
   for (const r of rectMinus([TX0, TZ0, TX1, TZ1], holeBelow)) ceilRect(r[0], r[1], r[2], r[3], y + CEIL, M.ceil);
+  stairFascia(y, M.lobbyWall);
   const spec = {
     1: ['подсобка', M.concWall, 'ПОДСОБКА'], 3: ['кухня', M.tileW, 'КУХНЯ'], 5: ['бар «Полдень»', M.rooms[1], 'БАР'], 7: ['бар «Полдень»', M.rooms[1], null],
     2: ['мужская уборная', M.tileW, 'М'], 4: ['женская уборная', M.tileW, 'Ж'], 6: ['комната персонала', M.concWall, 'ПЕРСОНАЛ'], 8: ['игровой зал', M.rooms[3], 'ИГРЫ'],
