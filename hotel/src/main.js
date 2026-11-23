@@ -25,33 +25,56 @@ $('game').appendChild(renderer.domElement);
 // пиксельный режим: сцена рисуется в маленький буфер и растягивается без сглаживания
 let pixel = store.get('hotel.pixel') !== '0';
 let rt = null;
-const postU = { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uPixel: { value: 1 }, uExposure: { value: 1.35 } };
+const postU = { tDiffuse: { value: null }, tDepth: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uPixel: { value: 1 }, uExposure: { value: 1.12 },
+  uInvProj: { value: new THREE.Matrix4() }, uProjY: { value: 1 }, uAO: { value: +(params.get('ao') ?? 1) } };
 function makeRT() {
   if (rt) rt.dispose();
   rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: pixel ? 0 : +(params.get('msaa') ?? 2),
     magFilter: pixel ? THREE.NearestFilter : THREE.LinearFilter, minFilter: pixel ? THREE.NearestFilter : THREE.LinearFilter });
-  postU.tDiffuse.value = rt.texture;
+  rt.depthTexture = new THREE.DepthTexture(16, 16); rt.depthTexture.type = THREE.UnsignedIntType;
+  postU.tDiffuse.value = rt.texture; postU.tDepth.value = rt.depthTexture;
 }
 makeRT();
 const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: postU, depthTest: false, depthWrite: false,
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: `
-  uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uPixel, uExposure;
+  uniform sampler2D tDiffuse, tDepth; uniform vec2 uRes; uniform float uPixel, uExposure, uProjY, uAO; uniform mat4 uInvProj;
   varying vec2 vUv;
   vec3 tone(vec3 c){ c *= uExposure; vec3 k = vec3(0.8); vec3 o = max(c - k, 0.0); return min(c, k) + (1.0 - k) * (1.0 - exp(-o / (1.0 - k))); }
   vec3 srgb(vec3 c){ c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
   float bayer(vec2 p){ vec2 q = mod(floor(p), 4.0); int i = int(q.x + q.y * 4.0);
     float m[16]; m[0]=0.;m[1]=8.;m[2]=2.;m[3]=10.;m[4]=12.;m[5]=4.;m[6]=14.;m[7]=6.;m[8]=3.;m[9]=11.;m[10]=1.;m[11]=9.;m[12]=15.;m[13]=7.;m[14]=13.;m[15]=5.;
     for (int k = 0; k < 16; k++) if (k == i) return m[k] / 16.0 - 0.5; return 0.0; }
-  void main(){
-    vec3 col = srgb(tone(texture2D(tDiffuse, vUv).rgb));
-    if (uPixel > 0.5) {
-      // как на старой приставке: 5 бит на канал с упорядоченным дизерингом по пикселям буфера
-      vec2 px = floor(vUv * uRes);
-      col = floor(col * 31.0 + 0.5 + bayer(px) * 0.9) / 31.0;
+  vec3 vpos(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 p = uInvProj * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return p.xyz / p.w; }
+  // затенение углов и стыков по буферу глубины (SSAO): даёт предметам объём и «прижимает» их к полу
+  float ssao(vec2 uv, vec2 px){
+    float d0 = texture2D(tDepth, uv).x; if (d0 > 0.99999) return 1.0;
+    vec2 t = 1.0 / uRes; vec3 P = vpos(uv);
+    vec3 dx1 = vpos(uv + vec2(t.x, 0.0)) - P, dx2 = P - vpos(uv - vec2(t.x, 0.0));
+    vec3 dy1 = vpos(uv + vec2(0.0, t.y)) - P, dy2 = P - vpos(uv - vec2(0.0, t.y));
+    vec3 N = normalize(cross(abs(dx1.z) < abs(dx2.z) ? dx1 : dx2, abs(dy1.z) < abs(dy2.z) ? dy1 : dy2));
+    const float R = 1.0;
+    float rpx = R * uProjY * 0.5 * uRes.y / max(-P.z, 0.1); rpx = clamp(rpx, 3.0, uRes.y * 0.25);
+    float ang = fract(52.9829189 * fract(dot(px, vec2(0.06711056, 0.00583715)))) * 6.2832;
+    float occ = 0.0;
+    for (int i = 0; i < 14; i++) {
+      float f = (float(i) + 0.5) / 14.0; float a = ang + float(i) * 2.39996;
+      vec2 o = vec2(cos(a), sin(a)) * rpx * f * f * t + vec2(cos(a), sin(a)) * t;
+      vec3 v = vpos(uv + o) - P; float L = length(v);
+      occ += max(0.0, dot(v, N) / (L + 1e-4) - 0.12) * (1.0 - smoothstep(R * 0.6, R * 1.6, L));
     }
-    vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.45;
+    float ao = clamp(1.0 - occ / 14.0 * 3.2, 0.0, 1.0); return ao * ao;
+  }
+  void main(){
+    vec2 px = floor(vUv * uRes), uv = uPixel > 0.5 ? (px + 0.5) / uRes : vUv;
+    vec3 lin = texture2D(tDiffuse, uv).rgb;
+    if (uAO > 2.5) { gl_FragColor = vec4(vec3(fract(-vpos(uv).z)), 1.0); return; }
+    if (uAO > 1.5) { gl_FragColor = vec4(vec3(ssao(uv, px)), 1.0); return; }
+    if (uAO > 0.0) lin *= mix(1.0, ssao(uv, px), uAO * 0.85);
+    vec3 col = srgb(tone(lin));
+    if (uPixel > 0.5) col = floor(col * 31.0 + 0.5 + bayer(px) * 0.9) / 31.0;
+    vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.6;
     gl_FragColor = vec4(col, 1.0);
   }`,
 }));
@@ -75,8 +98,8 @@ scene.add(camera);
 W.scene = scene;
 window.addEventListener('resize', resize);
 
-const hemi = new THREE.HemisphereLight(0xc08a5a, 0x3a1a10, 1.2); scene.add(hemi);
-const amb = new THREE.AmbientLight(0x5a3a28, 0.55); scene.add(amb);
+const hemi = new THREE.HemisphereLight(0xc08a5a, 0x2a1008, 1.0); scene.add(hemi);
+const amb = new THREE.AmbientLight(0x5a3a28, 0.32); scene.add(amb);
 const sun = new THREE.DirectionalLight(0xffc080, 0); sun.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sun);
 const POOL = [];
 for (let i = 0; i < 10; i++) { const l = new THREE.PointLight(0xffaa66, 0, 8, 1.6); l.userData = { a: null, fade: 0 }; scene.add(l); POOL.push(l); }
@@ -588,7 +611,7 @@ function updateLights(t, dt) {
       if (v > 0.001) { S.loopStart(snd.id, snd.kind); S.loopGain(snd.id, v); } else S.loopStop(snd.id);
     }
   }
-  hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb);
+  hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb * 0.78);
   hemi.color.setHex(roof ? 0xffd090 : 0xc08a5a);
   sun.intensity = roof ? 2.4 : 0;
 }
@@ -649,6 +672,7 @@ function frame() {
   rayTimer -= dt; if (rayTimer < 0) { rayTimer = 0.08; if (state.started && !state.modal) updateFocus(); }
   glitchT = Math.max(0, glitchT - dt);
   renderer.setRenderTarget(rt); renderer.render(scene, camera); window.__calls = renderer.info.render.calls;
+  postU.uInvProj.value.copy(camera.projectionMatrixInverse); postU.uProjY.value = camera.projectionMatrix.elements[5];
   renderer.setRenderTarget(null); renderer.render(postScene, postCam);
   fpsN++; { const nw = performance.now(); if (nw - fpsT0 > 1000) { window.__fps = fpsN * 1000 / (nw - fpsT0); fpsT0 = nw; fpsN = 0; } }
   requestAnimationFrame(frame);

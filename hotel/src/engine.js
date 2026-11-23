@@ -7,7 +7,7 @@ import * as SFX from './audio.js';
 import CAPTIONS from './captions.json';
 
 export const FH = 4;          // высота этажа
-export const T = 0.2;         // толщина стен
+export const T = 0.3;         // толщина стен
 export const CEIL = 3.7;      // высота потолка от пола этажа
 
 export const W = {
@@ -264,8 +264,8 @@ export class Door {
     if (axis === 'z') this.pivot.rotation.y = -Math.PI / 2;
     W.group.add(this.pivot);
     const panelMat = mat || texMat('doorwood', TX.wood('#4a2a18'), 0xffffff, {}, 1);
-    const panel = new THREE.Mesh(boxGeo(w - 0.06, h - 0.04, 0.06, 1), panelMat);
-    panel.position.set(-hinge * (w / 2), h / 2, 0);
+    const panel = new THREE.Mesh(boxGeo(w - 0.036, h - 0.017, 0.06, 1), panelMat); // полотно чуть заходит под наличник — без щелей на просвет
+    panel.position.set(-hinge * (w / 2), 0.005 + (h - 0.017) / 2, 0);
     this.pivot.add(panel); this.panel = panel;
     const inset = col(0x2a160c);
     for (const s of [-1, 1]) for (const yy of [0.62, 1.55]) {

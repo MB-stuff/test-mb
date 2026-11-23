@@ -95,11 +95,13 @@ function hangSign(text, x, yy, z, ry, { w = 1.0, h = 0.22, bg, fg } = {}) {
   mount(g, 'hang');
   return g;
 }
+const dT = (T - 0.2) / 2;
 function roomFrame(r) {
   const fz = r.side > 0 ? CZ1 + T / 2 : CZ0 - T / 2;
   const F = {
     W: r.x1 - r.x0, D: (TZ1 - T / 2) - (CZ1 + T / 2), y: r.y,
-    p: (u, v) => [r.x0 + u, fz + r.side * v],
+    // u, v отсчитаны от разметки под стены 0,2 м: у дальних стен сдвигаем на прирост толщины
+    p: (u, v) => [r.x0 + u + (u < (r.x1 - r.x0) / 2 ? dT : -dT), fz + r.side * (v > 2.25 ? v - 2 * dT : v)],
     ry: dir => ({ win: r.side > 0 ? 0 : P, door: r.side > 0 ? P : 0, east: P / 2, west: -P / 2 }[dir]),
   };
   F.pic = (groups, wallName, t, y, size, opts) => {
@@ -195,7 +197,7 @@ function liftLobbyDecor(L, fname) {
   sgn(fname, 'z', TX0, 1, -0.95, y + 2.0, { w: 0.7, h: 0.25 });
   hangSign('ВЫХОД · ЛЕСТНИЦА', 0.95, y + 3.35, -1.45, 0, { w: 1.2, h: 0.2, bg: '#0a2a14', fg: '#6aff9a' });
   const p = onWall('x', EZ0, -1, 1.55); PR.fireExt(p.x, p.z, p.ry);
-  PR.plant(0.6, 5.7, { s: 1 });
+  PR.plant(0.6, 5.8, { s: 0.8 });
 }
 
 // ======================================================================
@@ -622,7 +624,7 @@ function buildGround() {
   PR.ashtray(21.35, y + 1.1, 4.85); PR.matchbook(19.25, y + 1.1, 4.9, 0.3);
   const bt = PR.table(27.6, 2.6, { w: 0.8, round: true, color: '#2a1810' }); PR.chair(27.6, 3.35, P); PR.chair(27.6, 1.85, 0);
   PR.glass(...PR.top(bt).toArray(), { wine: true });
-  PR.armchair(29.2, 2.0, -P * 0.75, 0x5a1a1a);
+  PR.armchair(29.05, 2.2, -P * 0.75, 0x5a1a1a);
   PR.sofa(21.4, CZ1 + T / 2 + 0.48, 0, 0x5a1a40, 2.0);
   PR.ceilingLamp(21, 3, { y: y + CEIL, kind: 'pendant', intensity: 2.5, distance: 6, color: 0xff8090 });
   PR.ceilingLamp(27, 3.5, { y: y + CEIL, kind: 'pendant', intensity: 2.5, distance: 6, color: 0xffa070 });
@@ -963,7 +965,7 @@ function buildManagerOffice() {
   PR.hitBox(btn, 0.2, 0.2, 0.1, -0.1);
   interact(btn, 'Нажать кнопку под стойкой', () => { S.sfxClick(); setTimeout(() => { S.sfxSwitch(); d.locked = false; d.toggle(true); G.toast('Где-то щёлкнул замок. Дверь кабинета приоткрылась.'); }, 300); });
   mount(btn, 'wall', { w: 0.06, h: 0.06, dy: -0.03 });
-  const dk = PR.desk(-3, -12.6, 0, { color: '#2a160c' }); PR.armchair(-3, -13.45, 0, 0x2a1a1a);
+  const dk = PR.desk(-3, -12.55, 0, { color: "#2a160c" }); PR.armchair(-3, -13.36, 0, 0x2a1a1a);
   PR.tableLamp(...PR.top(dk, -0.5, -0.1).toArray(), { shade: 0x2a5a3a });
   PR.note(...PR.top(dk, -0.15, 0.05).toArray(), 0.2, ...noteArgs('managerDiary'));
   PR.computer(...PR.top(dk, 0.35, -0.05).toArray(), 0, 'управляющий', [
@@ -1078,7 +1080,7 @@ function buildBasement() {
   zone(12, TZ0, 18, CZ0, 'ЭЛЕКТРОЩИТОВАЯ', { reverb: 0.2, buzz: 0.09, muffle: 900, wind: 0 });
   PR.ceilingLamp(15, -4, { y: y + CEIL, kind: 'tube', color: 0xe8f0d0, intensity: 1.8, distance: 6, flicker: 0.5 });
   // Винный погреб
-  for (let i = 0; i < 3; i++) PR.shelf(19.0 + i * 1.95, TZ0 + T / 2 + 0.24, 0, { fill: 'wine', w: 1.7, d: 0.45, color: 0x3a2214 });
+  for (let i = 0; i < 3; i++) PR.shelf(19.1 + i * 1.88, TZ0 + T / 2 + 0.26, 0, { fill: 'wine', w: 1.7, d: 0.45, color: 0x3a2214 });
   const barrel = PR.grp(21.5, -3.0, 0);
   const bb = cyl(0.42, 0.42, 0.9, 14, texMat('barrel', TX.wood('#5a3018'), 0xffffff, {}, 0), 0, 0, 0, { parent: barrel }); bb.rotation.z = P / 2; bb.position.y = 0.42;
   interact(barrel, 'Постучать по бочке', () => { S.sfxKnock(1); G.toast('Бочка полная. На крышке мелом: «на открытие ресторана».'); });
@@ -1271,9 +1273,9 @@ function buildWing() {
 
   // ---------- библиотека ----------
   const sh = (x, z, ry, w) => PR.shelf(x, z, ry, { fill: 'books', w, h: 3.0, d: 0.4, color: 0x3a2214 });
-  sh(TX0 - T / 2 - 0.25, 15.6, -P / 2, 2.2); sh(TX0 - T / 2 - 0.25, 21.6, -P / 2, 2.0);
+  sh(TX0 - T / 2 - 0.25, 15.75, -P / 2, 2.0); sh(TX0 - T / 2 - 0.25, 21.45, -P / 2, 1.8);
   sh(-6.3, WZS - T / 2 - 0.25, P, 2.4); sh(-1.6, WZS - T / 2 - 0.25, P, 2.4);
-  sh(WX + T / 2 + 0.25, 15.9, P / 2, 2.6); sh(WX + T / 2 + 0.25, 21.5, P / 2, 2.0);
+  sh(WX + T / 2 + 0.25, 16.05, P / 2, 2.4); sh(WX + T / 2 + 0.25, 21.4, P / 2, 1.8);
   sh(-6.4, LZ1 + T / 2 + 0.25, 0, 2.4); sh(-1.6, LZ1 + T / 2 + 0.25, 0, 2.4);
   for (const tz of [17.3, 20.3]) {
     const t = PR.table(-4, tz, { w: 2.0, d: 0.9, color: '#3a2214' });
