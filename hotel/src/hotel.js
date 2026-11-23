@@ -78,6 +78,46 @@ export function buildHotel() {
   buildStairs();
   buildElevator();
   fillLeftoverImages();
+  addLightSwitches();
+}
+
+// выключатель у каждой двери, ведущей в комнату с потолочными лампами
+function addLightSwitches() {
+  const inZ = (z, x, zz) => x > z.minX && x < z.maxX && zz > z.minZ && zz < z.maxZ;
+  const done = new Set();
+  for (const d of W.doors || []) {
+    const zs = [-1, 1].map(sd => {
+      const px = d.axis === 'x' ? d.at : d.c + sd * 0.8, pz = d.axis === 'x' ? d.c + sd * 0.8 : d.at;
+      const z = W.zones.find(z => z.level === d.level && inZ(z, px, pz));
+      return z ? { sd, z, area: (z.maxX - z.minX) * (z.maxZ - z.minZ) } : null;
+    }).filter(Boolean).sort((a, b) => a.area - b.area);
+    for (const { sd, z } of zs) {
+      if (done.has(z)) break;
+      const lamps = W.anchors.filter(a => a.ceiling && a.level === d.level && inZ(z, a.pos.x, a.pos.z));
+      if (!lamps.length) continue;
+      // сбоку от двери, со стороны ручки; если там угол комнаты — с другой стороны
+      let along = d.at - d.hinge * (d.w / 2 + 0.24);
+      const lo = d.axis === 'x' ? z.minX : z.minZ, hi = d.axis === 'x' ? z.maxX : z.maxZ;
+      if (along < lo + 0.3 || along > hi - 0.3) along = d.at + d.hinge * (d.w / 2 + 0.24);
+      if (along < lo + 0.3 || along > hi - 0.3) continue;
+      done.add(z); setLevel(d.level);
+      const face = d.c + sd * (T / 2 + 0.003);
+      const x = d.axis === 'x' ? along : face, zz = d.axis === 'x' ? face : along;
+      const ry = d.axis === 'x' ? (sd > 0 ? 0 : P) : (sd > 0 ? P / 2 : -P / 2);
+      const g = PR.grp(x, zz, ry, d.level * FH + 1.2);
+      box(0.08, 0.12, 0.012, col(0xd8d0bc), 0, -0.06, 0.006, { parent: g });
+      const key = box(0.022, 0.04, 0.012, col(0xf0e8d8), 0, -0.02, 0.016, { parent: g }); key.userData.noMerge = true;
+      PR.hitBox(g, 0.16, 0.2, 0.08, -0.1);
+      const st = () => lamps.some(a => a.on);
+      const setKey = () => { key.rotation.x = st() ? -0.35 : 0.35; };
+      setKey();
+      interact(g, () => st() ? 'Выключить свет' : 'Включить свет', () => {
+        const v = !st(); for (const a of lamps) a.setOn(v); setKey(); S.sfxSwitch();
+      });
+      mount(g, 'wall', { w: 0.08, h: 0.12, what: 'выключатель' });
+      break;
+    }
+  }
 }
 
 // ======================================================================

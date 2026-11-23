@@ -75,9 +75,10 @@ export function buildExterior() {
   for (const [x0, z0, x1, z1] of [[TX0, zMax, TX1 + T / 2, zMax + 0.3], [TX0, zMin - 0.3, TX1 + T / 2, zMin], [TX1 + T / 2, zMin - 0.3, TX1 + T / 2 + 0.3, zMax + 0.3]]) {
     block(x0, PH - 0.25, z0, x1, PH, z1, trim, { collide: false });
   }
-  block(TX0, PH, zMax - 0.25, TX1 + T / 2, PH + 0.45, zMax, stucco, { collide: false });
-  block(TX0, PH, zMin, TX1 + T / 2, PH + 0.45, zMin + 0.25, stucco, { collide: false });
-  block(TX1 - 0.15, PH, zMin, TX1 + T / 2, PH + 0.45, zMax, stucco, { collide: false });
+  // парапет подиума: прячется внутри стены (не доходит до внутренней грани) и чуть выступает наружу
+  block(TX0, PH, zMax - T / 2 - 0.05, TX1 + T / 2 + 0.02, PH + 0.45, zMax + 0.02, stucco, { collide: false });
+  block(TX0, PH, zMin - 0.02, TX1 + T / 2 + 0.02, PH + 0.45, zMin + T / 2 + 0.05, stucco, { collide: false });
+  block(TX1 - 0.1, PH, zMin - 0.02, TX1 + T / 2 + 0.02, PH + 0.45, zMax + 0.02, stucco, { collide: false });
   // крыша подиума (гравий) — без площадки над башней и без дырки фонаря ресторана
   const roofM = texMat('roof', TX.gravel(), 0xffffff, {}, 1.5);
   const sky = [14, 9.2, 22, 11.4];

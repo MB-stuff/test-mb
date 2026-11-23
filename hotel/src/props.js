@@ -162,13 +162,20 @@ export function floorLamp(x, z, { on = true } = {}) {
 }
 export function ceilingLamp(x, z, { y = Y() + 3.7, color = 0xffb878, intensity = 3.5, distance = 8, flicker = 0, on = true, kind = 'dome' } = {}) {
   const g = grp(x, z, 0, y);
-  const bulb = emis(color, 1);
+  const bulb = emis(color, 1), bulbOff = col(0x8a8478);
+  const n0 = g.children.length;
   if (kind === 'tube') { box(1.2, 0.05, 0.12, bulb, 0, -0.08, 0, { parent: g }); B(g, 1.3, 0.04, 0.2, col(0x777777), 0, -0.04, 0); }
   else if (kind === 'pendant') { C(g, 0.01, 0.01, 0.7, 4, col(0x111111), 0, -0.7, 0); C(g, 0.06, 0.28, 0.2, 10, col(0x2a3a22, { side: THREE.DoubleSide }), 0, -0.9, 0); C(g, 0.08, 0.08, 0.06, 8, bulb, 0, -0.92, 0); }
   else { C(g, 0.25, 0.3, 0.1, 12, bulb, 0, -0.1, 0); C(g, 0.32, 0.32, 0.02, 12, col(0x6a5020), 0, -0.02, 0); }
   const yy = kind === 'pendant' ? y - 1 : y - 0.25;
   const a = anchor(x, yy, z, { color, intensity, distance, flicker, on });
   if (kind === 'tube') a.hum = true;
+  // лампа под выключателем: светящиеся части не сливаются с остальной геометрией, чтобы их можно было погасить
+  const bulbs = g.children.slice(n0).filter(m => m.material === bulb);
+  for (const m of bulbs) m.userData.noMerge = true;
+  a.ceiling = true;
+  a.setOn = v => { a.on = v; for (const m of bulbs) m.material = v ? bulb : bulbOff; };
+  if (!on) a.setOn(false);
   mount(g, 'ceiling');
   return a;
 }

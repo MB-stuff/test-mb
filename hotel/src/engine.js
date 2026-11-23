@@ -257,6 +257,7 @@ export class Door {
   constructor(axis, c, at, { w = 1, h = 2.2, swing = 1, hinge = -1, mat = null, locked = false, name = 'дверь',
     lockedMsg = 'Заперто.', key = null, onOpen = null, onLocked = null, heavy = false, sound = true } = {}) {
     Object.assign(this, { axis, c, at, w, h, swing, locked, name, lockedMsg, key, onOpen, onLocked, heavy, sound });
+    this.hinge = hinge; this.level = W.level; (W.doors = W.doors || []).push(this);
     this.open = false; this.angle = 0; this.target = 0;
     const y0 = W.level * FH;
     this.pivot = new THREE.Group();
