@@ -684,9 +684,16 @@ function updateLights(t, dt) {
     for (const snd of (W.sounds || [])) {
       const d = snd.active === false ? 999 : snd.anyLevel ? snd.pos.distanceTo(camera.position) + Math.abs(snd.level - player.level) * 6 : snd.level === player.level ? snd.pos.distanceTo(camera.position) : 999;
       if (snd.zone === undefined) snd.zone = W.zones.filter(z => z.level === snd.level && snd.pos.x >= z.minX && snd.pos.x <= z.maxX && snd.pos.z >= z.minZ && snd.pos.z <= z.maxZ).sort((a, b) => (a.maxX - a.minX) * (a.maxZ - a.minZ) - (b.maxX - b.minX) * (b.maxZ - b.minZ))[0] || null;
-      const wallK = snd.zone && state.zone && snd.zone !== state.zone ? 0.3 : 1; // из другой комнаты звук глуше
+      // из другой комнаты звук глуше; из номера с закрытой дверью почти не слышен
+      let wallK = 1;
+      if (snd.zone && state.zone && snd.zone !== state.zone) wallK = snd.zone.doors && roomClosed(snd.zone) ? 0.06 : 0.25;
       const v = Math.max(0, 1 - d / snd.range) ** 1.5 * snd.gain * wallK;
-      if (v > 0.001) { S.loopStart(snd.id, snd.kind); S.loopGain(snd.id, v); } else S.loopStop(snd.id);
+      // петля не перезапускается каждый раз на границе слышимости: стихает до нуля и живёт ещё несколько секунд
+      if (v > 0.0015) { S.loopStartQuiet(snd.id, snd.kind); S.loopGain(snd.id, v); snd.idle = 0; }
+      else if (S.loopActive(snd.id)) {
+        S.loopGain(snd.id, 0.0001); snd.idle = (snd.idle || 0) + 0.2;
+        if (snd.active === false || snd.idle > 6) { S.loopStop(snd.id); snd.idle = 0; }
+      }
     }
   }
   const curtainDark = !roof && state.zone && state.zone.dark || 0;

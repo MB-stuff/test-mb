@@ -265,7 +265,7 @@ export function tv(x, y, z, ry, { on = false, big = false, screen = null } = {})
   const onMat = screen ? basic('scr' + screen.uuid, { map: screen }) : basic('static', { map: TX.staticTex() });
   const sc = plane(0.48 * s, 0.36 * s, on ? onMat : offMat, 0, 0.24 * s, 0.2 * s + 0.015, 0, 0, { parent: g }); sc.userData.noMerge = true;
   const a = anchor(0, 0, 0, { color: 0x9ab8ff, intensity: 1.2, distance: 3, on }); a.pos.copy(wp(g, 0, 0.25, 0.6));
-  let isOn = on; const snd = screen ? null : soundSpot('static', wp(g, 0, 0.3, 0.3), 0.06, 6);
+  let isOn = on; const snd = screen ? null : soundSpot('static', wp(g, 0, 0.3, 0.3), 0.035, 5);
   if (snd) snd.active = on;
   const set = v => { isOn = v; sc.material = v ? onMat : offMat; a.on = v; if (snd) snd.active = v; };
   interact(g, () => isOn ? 'Выключить телевизор' : 'Включить телевизор', () => { S.sfxClick(); set(!isOn); });
@@ -583,22 +583,22 @@ export function washer(x, z, ry) {
   interact(g, 'Запустить стирку', () => { S.sfxWasher(); let t = 0; const x0 = g.position.x; const iv = setInterval(() => { t++; g.position.x = x0 + (t % 2 ? 0.008 : -0.008); if (t > 60) { clearInterval(iv); g.position.x = x0; } }, 90); });
   solid(g, 0.65, 0.6, 0.85); floor(g); return g;
 }
-export function shelf(x, z, ry, { w = 1.8, h = 2.2, d = 0.45, fill = 'boxes', color = 0x5a5048, books = false } = {}) {
+export function shelf(x, z, ry, { w = 1.8, h = 2.2, d = 0.45, fill = 'boxes', color = 0x5a5048, books = false, full = false } = {}) {
   const g = grp(x, z, ry); const m = col(color);
   for (const a of [-w / 2, w / 2]) B(g, 0.04, h, d, m, a, 0, 0);
   B(g, w, 0.04, d, m, 0, h - 0.04, 0);
-  const n = 4; let seed = Math.round(x * 13 + z * 7);
+  const n = full ? Math.max(4, Math.floor((h - 0.1) / 0.4) + 1) : 4; let seed = Math.round(x * 13 + z * 7);
   const rr = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
   for (let i = 0; i < n; i++) {
     const yy = 0.1 + i * (h - 0.25) / (n - 1); B(g, w, 0.03, d, m, 0, yy, 0);
     if (i === n - 1) continue;
     for (let k = 0; k < 3; k++) {
-      if (rr() < 0.2) continue;
+      if (!full && rr() < 0.2) continue;
       const cx = -w / 2 + (k + 0.5) * w / 3;
       if (fill === 'boxes') B(g, w / 3 - 0.12, 0.28, d * 0.8, col([0x7a5a34, 0x6a4c2c, 0x8a6a44][k]), cx, yy + 0.03, 0);
       else if (fill === 'towels') for (let t = 0; t < 3; t++) B(g, w / 3 - 0.14, 0.08, d * 0.8, col(0xe0dacc), cx, yy + 0.03 + t * 0.085, 0);
       else if (fill === 'files') for (let t = 0; t < 6; t++) B(g, 0.06, 0.26 + rr() * 0.08, d * 0.75, col([0x3a4a6a, 0x6a2a2a, 0x4a5a2a, 0x7a6a3a, 0x2a2a2a][(t + k) % 5]), cx - 0.18 + t * 0.07, yy + 0.03, 0);
-      else if (fill === 'books') { const nb = Math.floor((w / 3 - 0.1) / 0.062); for (let t = 0; t < nb; t++) B(g, 0.055, 0.24 + rr() * 0.12, d * 0.8, col([0x8a2a2a, 0x2a4a8a, 0x9a7a2a, 0x3a7a3a, 0x9a4a2a, 0x6a2a6a, 0xc8b890][(t * 3 + k + i) % 7], { emissive: 0x0a0806 }), cx - (w / 3 - 0.1) / 2 + 0.03 + t * 0.062, yy + 0.03, 0); }
+      else if (fill === 'books') { const gap = (h - 0.25) / (n - 1) - 0.05, nb = Math.floor((w / 3 - (full ? 0.02 : 0.1)) / 0.062); for (let t = 0; t < nb; t++) B(g, 0.055, Math.min(gap, 0.24 + rr() * 0.12), d * 0.8, col([0x8a2a2a, 0x2a4a8a, 0x9a7a2a, 0x3a7a3a, 0x9a4a2a, 0x6a2a6a, 0xc8b890][(t * 3 + k + i) % 7], { emissive: 0x0a0806 }), cx - nb * 0.062 / 2 + 0.031 + t * 0.062, yy + 0.03, 0); }
       else if (fill === 'wine') for (let t = 0; t < 5; t++) { const b = C(g, 0.035, 0.035, d * 0.8, 8, col([0x2a0a10, 0x1a3a1a][t % 2]), cx - 0.16 + t * 0.08, yy + 0.07, 0); b.rotation.x = P / 2; b.position.y = yy + 0.07; }
     }
   }

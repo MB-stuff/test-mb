@@ -541,6 +541,7 @@ function furnishRoom(r, L) {
       PR.floorLamp(...at(5.5, 4.4));
       const dr = PR.dresser(...at(F.W - 0.37, 2.2), RY('west'), { w: 1.3 }); PR.tv(...onTop(dr, 0, 0.06), RY('west'));
       PR.ceilingFan(...at(3, 2.0), y + CEIL);
+      if (r.num === 205) PR.book(...onTop(t, 0.32, -0.12), 0.5, 'losevNames', { color: 0x1a2a4a });
       P_(groups, 'west', 3.6, 1.8, 0.8); P_(groups, 'east', 3.7, 2.1, 0.5); P_(groups, 'door', 4.1, 1.8, 0.7);
       break;
     }
@@ -808,25 +809,40 @@ function buildGround() {
   for (const zz of [-5.75, -4.45, -3.15]) PR.toilet(6 + T / 2 + 0.35, zz + (zz === -5.75 ? 0.35 : 0), P / 2);
   for (let i = 0; i < 3; i++) PR.sink(12 - T / 2 - 0.25, -5.5 + i * 1.2, -P / 2);
   PR.ceilingLamp(9, -4, { y: y + CEIL, kind: 'tube', color: 0xf0fff0, intensity: 2.6, distance: 6, flicker: 0.3 });
-  const tile = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.0, 0.7), M.pinkTile);
-  tile.position.set(6 + T / 2 + 0.025, y + 0.75, -5.7); W.group.add(tile); tile.userData.noMerge = true;
-  addCollider(6 - T / 2, y, -6.05, 6 + T / 2 + 0.05, y + 1.25, -5.35);
+  // Лаз в розовую комнату: шатающаяся плитка в свободном углу за последней кабинкой (не за унитазом).
+  const HZ = -1.97, HW = 0.62, HH = 0.8;
+  const tile = new THREE.Mesh(new THREE.BoxGeometry(0.05, HH, HW), M.pinkTile);
+  tile.position.set(6 + T / 2 + 0.026, y + 0.15 + HH / 2, HZ); W.group.add(tile); tile.userData.noMerge = true;
+  // за плиткой — дыра с розовым светом (рисуется на стене и видна, когда плитка снята)
+  const holeMat = new THREE.MeshBasicMaterial({ color: 0xff70b8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+  const hole = plane(HW - 0.08, HH - 0.08, holeMat, 6 + T / 2 + 0.002, y + 0.15 + HH / 2, HZ, 0, P / 2); hole.visible = false; hole.userData.noRay = true; hole.userData.noMerge = true;
+  const holeIn = plane(HW - 0.08, HH - 0.08, holeMat, 6 - T / 2 - 0.002, y + 0.15 + HH / 2, HZ, 0, -P / 2); holeIn.userData.noRay = true; holeIn.userData.noMerge = true;
+  const crawl = PR.grp(6 + T / 2 + 0.05, HZ, P / 2, y + 0.15);
+  PR.hitBox(crawl, HW, HH, 0.12);
   let moved = false;
-  interact(tile, () => moved ? 'Пролезть в лаз' : 'Плитка шатается…', () => {
-    if (!moved) { moved = true; S.sfxSlide(); tile.position.x += 0.4; tile.position.z += 0.3; tile.rotation.y = 0.5; tile.position.y = y + 0.5; G.toast('Плитка отвалилась. За ней — розовый свет.'); return; }
-    G.teleport(4.8, y, -5.0, P / 2, 'Ты пролезаешь в узкий лаз…');
+  interact(tile, 'Плитка шатается…', () => {
+    moved = true; S.sfxSlide();
+    // плитка ложится на пол рядом с лазом, лицом вверх
+    tile.rotation.set(0, 0, P / 2); tile.position.set(6 + T / 2 + 0.1 + HH / 2, y + 0.026, HZ);
+    tile.userData.interact = null; hole.visible = true;
+    G.toast('Плитка отвалилась. За ней — розовый свет.');
   });
+  interact(crawl, () => moved ? 'Пролезть в лаз' : 'Плитка шатается…', () => {
+    if (!moved) return tile.userData.interact && tile.userData.interact.action(tile);
+    G.teleport(5.3, y, -2.05, P / 2, 'Ты пролезаешь в узкий лаз…');
+  });
+  mount(crawl, 'wall', { w: HW, h: HH, dy: HH / 2, what: 'лаз' });
   zone(6, TZ0, 12, CZ0, 'УБОРНАЯ', { reverb: 0.45 });
   // Розовая комната
   anchor((SX0 + SX1) / 2, y + 2.8, -4, { color: 0xff70b0, intensity: 5, distance: 6 });
   plane(0.3, 0.3, emis(0xff80c0, 1.2), (SX0 + SX1) / 2, y + CEIL - 0.01, -4, P / 2, 0);
   pic(['02_weirdcore_liminal'], 'z', SX0, 1, -3.4, y + 1.7, 0.8, { frame: 'pink' });
   pic(['02_weirdcore_liminal'], 'x', SZ1, -1, 4.75, y + 1.7, 0.6, { frame: 'pink' });
-  PR.chair((SX0 + SX1) / 2, -2.4, P, { color: 0xd8b0c0, seatColor: 0xff80b0 });
+  PR.chair(4.3, -3.4, P / 2, { color: 0xd8b0c0, seatColor: 0xff80b0 });
   PR.note((SX0 + SX1) / 2 + 0.3, y, -4.2, 0.5, ...noteArgs('sonyaExit'));
-  const back = PR.grp(6 - T / 2, -5.7, -P / 2, y + 0.25);
-  PR.hitBox(back, 0.7, 1.0, 0.1);
-  interact(back, 'Вылезти обратно', () => G.teleport(7.0, y, -5.7, -P / 2, ''));
+  const back = PR.grp(6 - T / 2 - 0.05, HZ, -P / 2, y + 0.15);
+  PR.hitBox(back, HW, HH, 0.12);
+  interact(back, 'Вылезти обратно', () => G.teleport(6.9, y, HZ, -P / 2, ''));
   trigger(SX0, TZ0, SX1, SZ1, () => G.secret('pink', 'Розовая комната'));
   zone(SX0, TZ0, SX1, SZ1, 'КОМНАТА 0', { reverb: 0.5, muffle: 1600 });
   // Женская уборная
@@ -936,14 +952,25 @@ function buildPodium() {
   box(2.4, 0.06, 0.06, col(0xc0a050), 0, 2.5, 0, { parent: cg });
   PR.solid(cg, 2.4, 0.3, 2.5); mount(cg, 'floor');
   interact(cg, 'Окошко кассы', () => { S.sfxBell(); G.toast('КАССА ЗАКРЫТА. Обмен жетонов на деньги не производится с 1999 года.'); });
-  block(2.8 + 0.01, y, LZ0 + T / 2, 2.85, y + 2.5, LZ0 + T / 2 + 2.05, col(0x4a2418));
-  const cd = PR.desk(1.4, LZ0 + T / 2 + 0.6, P);
+  // перегородка кассы с дверью: внутрь можно войти
+  const cashM = texMat('cashier', TX.wood('#4a2418'), 0xffffff, {}, 1);
+  wall('z', 2.95, LZ0, LZ0 + T / 2 + 2.05, y, 2.5, { neg: cashM, pos: cashM }, [{ at: -12.85, w: 0.8, type: 'door', h: 2.1 }], { ceil: y + 2.48 });
+  new Door('z', 2.95, -12.85, { name: 'касса', w: 0.8, h: 2.1, swing: 1, hinge: 1, mat: texMat('doorCash', TX.wood('#3a1a10'), 0xffffff, {}, 1) });
+  const cd = PR.desk(1.3, LZ0 + T / 2 + 0.42, P);
+  PR.stool(1.3, -12.8, { color: 0x6a1a24 });
+  const safe = PR.grp(0.48, -12.45, P / 2);
+  box(0.6, 0.7, 0.55, col(0x3a3e3a), 0, 0, 0, { parent: safe }); cyl(0.07, 0.07, 0.03, 12, col(0xc0a050, { emissive: 0x201000 }), 0, 0.45, 0.29, { parent: safe }).rotation.x = P / 2;
+  PR.solid(safe, 0.6, 0.55, 0.7); mount(safe, 'floor');
+  interact(safe, 'Открыть сейф', () => { S.sfxDoorOpen(true); G.toast(['Внутри — жетоны. Тысячи жетонов. Ни одной монеты.', 'На дверце изнутри нацарапано: «выигрыш = долг, записанный задом наперёд».', 'Сейф пуст. Пахнет нагретым металлом и пустыней.'][Math.floor(Math.random() * 3)]); });
+  PR.chips(...PR.top(cd, -0.05, 0.16).toArray(), 4);
+  PR.ceilingLamp(1.5, -12.6, { y: y + PCEIL, kind: 'pendant', intensity: 2.6, distance: 5, color: 0xffd090 });
+  zone(0, LZ0, 2.95, LZ0 + T / 2 + 2.05, 'КАССА', { reverb: 0.1, amb: 1.2 });
   PR.computer(...PR.top(cd, 0.2, 0).toArray(), P, 'касса', [
     { name: 'долги.txt', story: 'pianist', title: TXT.pianistDebt[0], text: TXT.pianistDebt[1] },
     { name: 'выигрыши.txt', text: 'Выигрышей за отчётный период: 1 (джекпот, автомат № 3).\nВыплачено: жетонами.\nЖетоны к выводу не принимаются.' },
   ]);
   PR.book(...PR.top(cd, -0.35, 0).toArray(), P + 0.2, 'libBaudCons', { color: 0x8a6a1a });
-  sgn('КАССА', 'x', TZ0, -1, 1.6, y + 3.2, { w: 1.0, h: 0.25, fg: '#ffd070' });
+  PR.sign('КАССА', 1.6, y + 2.82, LZ0 + T / 2 + 2.2, 0, { w: 1.0, h: 0.25, fg: '#ffd070', qa: false });
   PR.plant(5.3, -13.3); PR.plant(0.7, -7.2);
   PR.sofa(5.35, -8.6, -P / 2, 0x1a4a3a, 1.8);
   PR.ceilingLamp(3, -10.2, { y: y + PCEIL, intensity: 3, distance: 7, kind: 'pendant', color: 0xffc070 });
@@ -1136,20 +1163,28 @@ function buildManagerOffice() {
   PR.hitBox(btn, 0.2, 0.2, 0.1, -0.1);
   interact(btn, 'Нажать кнопку под стойкой', () => { S.sfxClick(); setTimeout(() => { S.sfxSwitch(); d.locked = false; d.toggle(true); G.toast('Где-то щёлкнул замок. Дверь кабинета приоткрылась.'); }, 300); });
   mount(btn, 'wall', { w: 0.06, h: 0.06, dy: -0.03 });
-  const dk = PR.desk(-3, -12.55, 0, { color: "#2a160c" }); PR.armchair(-3, -13.36, 0, 0x2a1a1a);
-  PR.tableLamp(...PR.top(dk, -0.5, -0.1).toArray(), { shade: 0x2a5a3a });
-  PR.note(...PR.top(dk, -0.15, 0.05).toArray(), 0.2, ...noteArgs('managerDiary'));
+  // Перестановка: стол развёрнут к двери, вся западная стена — книжные шкафы до потолка,
+  // у восточной стены — кожаный диван для посетителей, у окна — машинка и глобус.
+  const dk = PR.desk(-2.8, -12.15, 0, { color: "#2a160c" }); PR.armchair(-2.8, -13.05, 0, 0x2a1a1a);
+  for (const cx of [-3.3, -2.3]) PR.chair(cx, -11.25, P, { color: 0x2a160c, seatColor: 0x3a1a14 });
+  PR.tableLamp(...PR.top(dk, -0.5, -0.12).toArray(), { shade: 0x2a5a3a });
+  PR.note(...PR.top(dk, -0.12, 0.08).toArray(), 0.2, ...noteArgs('managerDiary'));
   PR.computer(...PR.top(dk, 0.35, -0.05).toArray(), 0, 'управляющий', [
     { name: 'почта/владельцу.txt', story: 'manager', title: TXT.managerMail1[0], text: TXT.managerMail1[1] },
     { name: 'почта/без_темы.txt', story: 'manager', title: TXT.managerMail2[0], text: TXT.managerMail2[1] },
   ]);
-  const sd = PR.table(-5.4, -10.5, { w: 0.6, d: 0.8, color: '#2a160c' });
-  PR.typewriter(...PR.top(sd).toArray(), P / 2, ...TXT.managerOrder);
-  PR.shelf(x0 + T / 2 + 0.22, -12.6, P / 2, { fill: 'books', w: 2.0, color: 0x2a1a0e, d: 0.4 });
-  const gt = PR.table(-0.7, -10.2, { w: 0.5, d: 0.5, color: '#2a160c' }); PR.globe(...PR.top(gt).toArray());
-  pic(['portrait', '06_vintage_photos'], 'z', x1, -1, -11.7, y + 2.0, 0.9, { frame: 'gold' });
-  pic(['plans'], 'z', x1, -1, -13.2, y + 1.9, 0.85, { frame: 'black' }); pic(['plans'], 'z', x1, -1, -10.2, y + 2.0, 0.85, { frame: 'black' });
-  PR.ceilingLamp(-3, -11.7, { y: y + OH, kind: 'pendant', intensity: 3, distance: 7, color: 0xffd0a0 });
+  PR.rug(-2.8, -11.9, 3.0, 2.6, TX.carpetOrnament('#2a1a10', '#8a6a3a', 'office'));
+  for (const sz of [-12.8, -10.7]) PR.shelf(x0 + T / 2 + 0.22, sz, P / 2, { fill: 'books', w: 2.0, h: 3.1, color: 0x2a1a0e, d: 0.4, full: true });
+  const sd = PR.table(-4.55, -13.4, { w: 0.8, d: 0.6, color: '#2a160c' });
+  PR.typewriter(...PR.top(sd).toArray(), 0, ...TXT.managerOrder);
+  const gt = PR.table(-4.7, -10.15, { w: 0.5, d: 0.5, color: '#2a160c' }); PR.globe(...PR.top(gt).toArray());
+  PR.sofa(-0.7, -11.1, -P / 2, 0x3a1a12, 2.0);
+  const ct = PR.table(-1.55, -11.1, { w: 0.45, d: 0.9, h: 0.42, color: '#2a160c' });
+  PR.ashtray(...PR.top(ct, 0, 0.22).toArray()); PR.cigarBox(...PR.top(ct, 0, -0.18).toArray(), P / 2);
+  PR.floorLamp(-0.6, -12.45);
+  pic(['portrait', '06_vintage_photos'], 'z', x1, -1, -11.1, y + 2.0, 0.9, { frame: 'gold' });
+  pic(['plans'], 'z', x1, -1, -12.95, y + 2.05, 0.55, { frame: 'black' }); pic(['plans'], 'z', x1, -1, -10.15, y + 2.0, 0.4, { frame: 'black' });
+  PR.ceilingLamp(-2.8, -11.9, { y: y + OH, kind: 'pendant', intensity: 3, distance: 7, color: 0xffd0a0 });
   // картотека: в нижнем ящике «Ж» — жалобы гостей
   {
     const fc = PR.grp(-0.5, -13.5, -P / 2);
@@ -1165,9 +1200,9 @@ function buildManagerOffice() {
       else { G.noteKey('managerComplaint'); n = 0; }
     });
   }
-  PR.matchbook(...PR.top(dk, 0.1, 0.22).toArray(), 0.4);
+  PR.matchbook(...PR.top(dk, 0.12, 0.22).toArray(), 0.4);
   pic(['06_vintage_photos', 'portrait'], 'x', z0, 1, -0.9, y + 2.1, 0.5, { frame: 'gold' });
-  pic(['06_vintage_photos', 'portrait'], 'x', z1, -1, -4.4, y + 2.0, 0.6, { frame: 'gold' });
+  pic(['06_vintage_photos', 'portrait'], 'x', z1, -1, -4.3, y + 2.0, 0.6, { frame: 'gold' });
   trigger(x0, z0, x1, z1, () => G.secret('office', 'Кабинет управляющего'));
   zone(x0, z0, x1, z1, 'КАБИНЕТ УПРАВЛЯЮЩЕГО', { reverb: 0.08, muffle: 2000 });
 }
@@ -1484,6 +1519,10 @@ function buildWing() {
   PR.book(...PR.top(t2, 0.2, 0).toArray(), -0.1, 'libBaudEccl', { open: true, color: 0x8a2a2a });
   PR.book(...PR.top(t2, 0.75, -0.1).toArray(), 0.4, 'libGuenonCrisis', { color: 0x3a2a1a });
   PR.hourglass(...PR.top(t2, -0.4, 0.2).toArray());
+  // буддийская полка: разложено по столам и на полу у кресла
+  PR.book(...PR.top(t1, -0.3, 0.2).toArray(), 0.5, 'libNagarjuna', { color: 0x8a5a1a });
+  PR.book(...PR.top(t2, -0.32, -0.22).toArray(), -0.4, 'libOrientalists', { color: 0xd8c8a0 });
+  PR.book(-1.95, y, 18.35, 0.9, 'libHeartSutra', { open: true, color: 0xb8401a });
   const gt = PR.table(-6.6, 19, { w: 0.5, d: 0.5, color: '#3a2214' }); PR.globe(...PR.top(gt).toArray());
   PR.armchair(-1.2, 19.0, -P / 2 - 0.3, 0x2a4a3a); PR.floorLamp(-1.0, 17.4);
   // кафедра с картой, которая «предшествует территории»

@@ -280,7 +280,7 @@ export function sfxTypewriter(n = 6) {
 }
 
 // ---------- петли (ТВ-шум, вода, телефон, гул) ----------
-export function loopStart(id, kind) {
+export function loopStart(id, kind, quiet = false) {
   if (!ctx || loops[id]) return;
   const t = now(); const out = ctx.createGain(); out.gain.value = 0.0001; out.connect(sfxBus);
   const nodes = [];
@@ -288,7 +288,7 @@ export function loopStart(id, kind) {
     const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
     const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1200;
     s.connect(f); f.connect(out); s.start(); nodes.push(s);
-    const hum = ctx.createOscillator(); hum.frequency.value = 15734 / 2; const hg = ctx.createGain(); hg.gain.value = 0.01;
+    const hum = ctx.createOscillator(); hum.frequency.value = 15734 / 2; const hg = ctx.createGain(); hg.gain.value = 0.003;
     hum.connect(hg); hg.connect(out); hum.start(); nodes.push(hum);
     out.gain.linearRampToValueAtTime(0.06, t + 0.1);
   } else if (kind === 'fountain') {
@@ -324,6 +324,9 @@ export function loopStart(id, kind) {
   }
   loops[id] = { out, nodes };
 }
+// позиционные петли (main.js) задают громкость сами: начинать с тишины, без собственной «атаки»
+function quietStart(id) { const l = loops[id]; if (!l) return; const t = now(); l.out.gain.cancelScheduledValues(t); l.out.gain.setValueAtTime(0.0001, t); }
+export function loopStartQuiet(id, kind) { if (loops[id]) return; loopStart(id, kind); quietStart(id); }
 export function loopStop(id) {
   const l = loops[id]; if (!l) return;
   const t = now(); l.out.gain.cancelScheduledValues(t); l.out.gain.setTargetAtTime(0.0001, t, 0.05);
