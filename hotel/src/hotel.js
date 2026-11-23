@@ -939,7 +939,6 @@ function buildLobbyIdeas() {
     'На постаменте карандашом: «копия, которая знает, что она копия, — уже оригинал?»',
   ], { faceless: true, color: 0xd8d0c4 });
   PR.sunRelief(wx, y + 5.4, 0, P / 2, 1.1);
-  PR.mannequin(-4.7, -6.6, -P / 2);
   PR.floorTV(-10.6, 13.1, P + 0.35);
   PR.backroomsPatch(-14.25, y + 0.25, LZ0 + T / 2 + 0.005, 0, 1.2, 2.3);
   PR.chair(-23.8, 4.5, -P / 2, { color: 0x2a1a14, seatColor: 0x5a1420 });

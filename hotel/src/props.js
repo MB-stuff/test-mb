@@ -884,28 +884,6 @@ export function sunRelief(x, y, z, ry, r = 1.1) {
   glow(0, 0, 0.05, r * 3.2, 0xff8a40, 0.1, { rx: 0, parent: g });
   onWall(g, r * 1.4, r * 1.4); return g;
 }
-// портье без лица за стойкой
-export function mannequin(x, z, ry) {
-  const g = grp(x, z, ry);
-  const jacket = col(0x7a1a22), pants = col(0x1a1414), skin = col(0xd8ccc0, { flatShading: true }), gold = col(0xc8a040, { emissive: 0x201000 });
-  B(g, 0.12, 0.85, 0.14, pants, -0.08, 0, 0); B(g, 0.12, 0.85, 0.14, pants, 0.08, 0, 0);
-  B(g, 0.38, 0.6, 0.22, jacket, 0, 0.85, 0);
-  for (let i = 0; i < 4; i++) B(g, 0.025, 0.025, 0.01, gold, 0, 0.95 + i * 0.12, 0.112);
-  B(g, 0.09, 0.55, 0.11, jacket, -0.24, 0.92, 0); B(g, 0.09, 0.55, 0.11, jacket, 0.24, 0.92, 0);
-  C(g, 0.05, 0.06, 0.08, 6, skin, 0, 1.48, 0);
-  const h = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), skin); h.position.y = 1.64; h.scale.set(0.9, 1.15, 0.95); g.add(h);
-  C(g, 0.09, 0.09, 0.07, 10, col(0x7a1a22), 0, 1.75, 0); C(g, 0.092, 0.092, 0.012, 10, gold, 0, 1.75, 0);
-  solid(g, 0.5, 0.4, 1.8);
-  const lines = [
-    'Портье не оборачивается. У него нет лица, но тебе кажется, что он улыбается.',
-    '«Ваш номер ещё не готов. Он не будет готов никогда. В этом и состоит номер».',
-    '«Гости, которых нет, приходят первыми. Вы — следующий в очереди».',
-    'Ты касаешься его плеча. Пластик тёплый, как будто его только что выключили.',
-    '«Мы закрыты с тех пор, как открылись», — говорит кто-то за твоей спиной.',
-  ];
-  interact(g, 'Позвать портье', () => { S.sfxBell(); G.toast(pick(lines)); });
-  floor(g); return g;
-}
 // заплатка «нулевого уровня»: под обоями вестибюля — другие обои
 export function backroomsPatch(x, y, z, ry, w = 1.2, h = 2.4) {
   const g = grp(x, z, ry, y);
