@@ -630,8 +630,11 @@ function updateLights(t, dt) {
     const want = new Set(cands.slice(0, POOL.length).map(c => c[1]));
     const keep = new Set(cands.slice(0, POOL.length + 3).map(c => c[1]));
     for (const l of POOL) { const a = l.userData.a; if (a && (!keep.has(a) || !a.on || (blackout && a.grid))) l.userData.dying = true; else if (a) { want.delete(a); l.userData.dying = false; } }
+    const top = new Set(cands.slice(0, POOL.length).map(c => c[1]));
     for (const a of want) {
-      const l = POOL.find(l => !l.userData.a); if (!l) break;
+      // свободного источника нет — забираем тот, что держит дальнюю лампу из «запаса» (иначе
+      // включённая заново ближняя лампа ждала бы, пока ты отойдёшь)
+      const l = POOL.find(l => !l.userData.a) || POOL.find(l => l.userData.dying) || POOL.find(l => !top.has(l.userData.a)); if (!l) break;
       l.userData.a = a; l.userData.fade = 0; l.userData.dying = false; l.position.copy(a.pos); l.color.copy(a.color); l.distance = a.distance;
     }
   }
