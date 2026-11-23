@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { W, G, FH, boxGeo, optimizeLevels } from './engine.js';
-import { buildHotel, ELEV, elevatorDoors, LAYOUT } from './hotel.js';
+import { buildHotel, ELEV, elevatorDoors, LAYOUT, RED } from './hotel.js';
 import { buildExterior as buildSky, SUN_DIR } from './sky.js';
 import { buildExterior as buildFacade } from './exterior.js';
 import * as S from './audio.js';
@@ -124,10 +124,12 @@ function lightBox(a) {
   let best = null;
   for (const z of W.zones) if (z.level === a.level && a.pos.x >= z.minX && a.pos.x <= z.maxX && a.pos.z >= z.minZ && a.pos.z <= z.maxZ) { const ar = (z.maxX - z.minX) * (z.maxZ - z.minZ); if (!best || ar < best[0]) best = [ar, z]; }
   let box = null;
-  if (best && a.level < 4) {
+  if (best && best[1].yBox) box = [new THREE.Vector3(best[1].minX - 0.02, best[1].yBox[0], best[1].minZ - 0.02), new THREE.Vector3(best[1].maxX + 0.02, best[1].yBox[1], best[1].maxZ + 0.02)];
+  else if (best && a.level < 4) {
     const z = best[1], { TZ0, TZ1, LH, PH } = LAYOUT, y0 = z.level * FH;
     const H = z.level !== 0 ? FH : z.maxX <= 0.01 ? LH : (z.minZ >= TZ1 - 0.01 || z.maxZ <= TZ0 + 0.01) ? PH : FH;
-    box = [new THREE.Vector3(z.minX - 0.02, y0 - 0.05, z.minZ - 0.02), new THREE.Vector3(z.maxX + 0.02, y0 + H - 0.02, z.maxZ + 0.02)];
+    const stair = /ЛЕСТНИЦА/.test(z.name); // лестничный пролёт — одна шахта на все этажи
+    box = [new THREE.Vector3(z.minX - 0.02, y0 - (stair ? 2.6 : 0.05), z.minZ - 0.02), new THREE.Vector3(z.maxX + 0.02, y0 + H + (stair ? 2.6 : -0.02), z.maxZ + 0.02)];
   }
   zoneBoxCache.set(a, box); return box;
 }
@@ -444,6 +446,20 @@ G.sit = ({ x, y, z, yaw, lie }) => {
   player.yaw = yaw; player.pitch = lie ? 1.1 : -0.05;
   hint(TOUCH ? 'Кнопка «E» — встать' : 'Пробел / движение — встать', true);
 };
+// За шторой: телепорт туда и обратно. Возвращение — «как будто ничего не было»: та же точка, тот же взгляд.
+let redReturn = null;
+G.redRoom = (on) => {
+  if (player.sitting) standUp();
+  if (on) {
+    redReturn = { pos: player.pos.clone(), yaw: player.yaw, pitch: player.pitch };
+    glitch(0.8); S.sfxGlitch && S.sfxGlitch();
+    player.pos.copy(RED.spawn); player.yaw = RED.yaw; player.pitch = 0; player.vy = 0;
+    S.setDream(true);
+  } else if (redReturn) {
+    player.pos.copy(redReturn.pos); player.yaw = redReturn.yaw; player.pitch = redReturn.pitch; player.vy = 0;
+    redReturn = null; S.setDream(false);
+  }
+};
 function standUp() {
   if (!player.sitting) return;
   player.sitting = null; S.sfxSit(); player.pitch = 0;
@@ -606,7 +622,7 @@ function updatePlayer(dt) {
   const [g, snd] = groundAt(p.x, p.z, p.y);
   player.vy -= 22 * dt; p.y += player.vy * dt;
   if (g > -Infinity && p.y <= g) { p.y = g; player.vy = 0; player.ground = snd; }
-  if (p.y < -12) { p.set(-23, 0, 0.5); player.vy = 0; }
+  if (p.y < -12 && !redReturn) { p.set(-23, 0, 0.5); player.vy = 0; }
   const sp = Math.hypot(player.vel.x, player.vel.z);
   if (sp > 0.3 && player.vy === 0) {
     player.bob += dt * sp * (run ? 2.2 : 2.6);

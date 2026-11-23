@@ -713,3 +713,15 @@ export function ornamentImage(n) {
   const g = c.getContext('2d'); g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = 6; g.strokeRect(0, 0, c.width, c.height);
   return { url: c.toDataURL('image/jpeg', 0.9), w: c.width, h: c.height, title, text };
 }
+
+// тяжёлый красный занавес: вертикальные складки со светом на гребнях
+export const curtainTex = () => cached('redCurtain', () => {
+  const W0 = 256, H0 = 64, [c, g] = canvas(W0, H0);
+  const img = g.createImageData(W0, H0);
+  for (let x = 0; x < W0; x++) {
+    const ph = x / W0 * Math.PI * 2 * 4; const k = 0.5 + 0.5 * Math.sin(ph) * 0.8 + 0.2 * Math.sin(ph * 2.3 + 1);
+    for (let y = 0; y < H0; y++) { const i = (y * W0 + x) * 4; img.data[i] = 120 + k * 120; img.data[i + 1] = 8 + k * 22; img.data[i + 2] = 14 + k * 26; img.data[i + 3] = 255; }
+  }
+  g.putImageData(img, 0, 0);
+  return toTex(c);
+});

@@ -1023,3 +1023,30 @@ export function plaqueStand(x, z, ry, title, text) {
   interact(g, 'Читать табличку', () => { S.sfxPaper(); G.note(title, text); });
   floor(g); return g;
 }
+
+// статуя человека в полный рост на постаменте (белый мрамор, драпировка)
+export function statue(x, z, ry, y = Y()) {
+  const g = grp(x, z, ry, y);
+  const mm = col(0xf0ece4, { flatShading: true, emissive: 0x2a2826 });
+  const pm = texMat('statPed', TX.marble('#d8d4cc', '#bcb6ac'), 0xffffff, {}, 0);
+  B(g, 0.8, 0.12, 0.8, pm, 0, 0, 0); B(g, 0.66, 0.5, 0.66, pm, 0, 0.12, 0); B(g, 0.8, 0.08, 0.8, pm, 0, 0.62, 0);
+  const Y0 = 0.7;
+  const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.32, 1.0, 9), mm); robe.position.y = Y0 + 0.5; g.add(robe);
+  for (let i = 0; i < 6; i++) { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.95, 5), mm); const a = -1 + i * 0.4; f.position.set(Math.sin(a) * 0.27, Y0 + 0.48, Math.cos(a) * 0.27); f.rotation.z = Math.sin(a) * 0.08; g.add(f); }
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.62, 8), mm); torso.position.y = Y0 + 1.31; torso.scale.z = 0.7; g.add(torso);
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 6), mm); sh.rotation.z = P / 2; sh.position.y = Y0 + 1.58; g.add(sh);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.1, 6), mm); neck.position.y = Y0 + 1.66; g.add(neck);
+  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 1), mm); head.position.y = Y0 + 1.8; head.scale.set(0.9, 1.15, 1); g.add(head);
+  // одна рука опущена вдоль тела, вторая прижата к груди
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.62, 6), mm); armL.position.set(-0.25, Y0 + 1.28, 0.02); armL.rotation.z = 0.08; g.add(armL);
+  const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.34, 6), mm); armR.position.set(0.2, Y0 + 1.44, 0.04); armR.rotation.z = -0.3; g.add(armR);
+  const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.3, 6), mm); fore.position.set(0.08, Y0 + 1.36, 0.12); fore.rotation.set(1.2, 0, 1.1); g.add(fore);
+  solid(g, 0.8, 0.8, 2.6);
+  interact(g, 'Осмотреть статую', () => { S.sfxPaper(); G.toast(pick([
+    'Статуя стоит спиной к залу, хотя ты видишь её лицо. Мрамор тёплый.',
+    'На постаменте нет имени. Есть только дата: «вчера, завтра».',
+    'Ты моргаешь — и статуя стоит на шаг ближе к краю сцены. Ты моргаешь снова — на прежнем месте.',
+    'Если долго смотреть, кажется, что она говорит. Слова доходят задом наперёд.',
+  ])); });
+  floor(g); return g;
+}

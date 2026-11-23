@@ -79,6 +79,52 @@ export function buildHotel() {
   buildElevator();
   fillLeftoverImages();
   addLightSwitches();
+  buildRedRoom();
+}
+
+// ======================================================================
+// ЗА ШТОРОЙ: десять щелчков выключателем в бальном зале. Комната вне плана, глубоко под пустыней.
+export const RED = { x0: -66, x1: -54, z0: -5, z1: 5, y: -30, H: 4.4 };
+function buildRedRoom() {
+  setLevel(-1);
+  const { x0, x1, z0, z1, y, H } = RED;
+  const cur = texMat('redCur', TX.curtainTex(), 0xffffff, { emissive: 0xffffff, emissiveMap: TX.curtainTex(), emissiveIntensity: 0.28 }, 2.2);
+  const floorM = texMat('redFloor', TX.chevronTex('#141010', '#ece6da'), 0xffffff, { emissive: 0xffffff, emissiveMap: TX.chevronTex('#141010', '#ece6da'), emissiveIntensity: 0.12 }, 1.4);
+  floorRect(x0, z0, x1, z1, y, floorM, 'wood');
+  ceilRect(x0, z0, x1, z1, y + H, col(0x2a0408));
+  const t = 0.2;
+  block(x0 - t, y, z0 - t, x1 + t, y + H, z0, cur); block(x0 - t, y, z1, x1 + t, y + H, z1 + t, cur);
+  block(x0 - t, y, z0, x0, y + H, z1, cur); block(x1, y, z0, x1 + t, y + H, z1, cur);
+  // объёмные складки по всему периметру
+  const fold = col(0x9a1020, { emissive: 0x3a0408 });
+  const F = (fx, fz) => cyl(0.11, 0.11, H - 0.04, 6, fold, fx, y + 0.02, fz);
+  for (let x = x0 + 0.25; x < x1 - 0.1; x += 0.42) { F(x, z0 + 0.02); F(x, z1 - 0.02); }
+  for (let z = z0 + 0.25; z < z1 - 0.1; z += 0.42) { F(x0 + 0.02, z); F(x1 - 0.02, z); }
+  // сцена и статуя
+  const sx = x1 - 3.2;
+  block(sx, y, z0 + 0.13, x1 - 0.13, y + 0.4, z1 - 0.13, col(0x1a0a0a, { emissive: 0x080202 }), { collide: false });
+  surface(sx, z0, x1, z1, () => y + 0.4, 'wood');
+  addCollider(sx, y, z0, sx + 0.02, y + 0.22, z1); // ступенька
+  PR.statue(x1 - 1.5, 0, -P / 2, y + 0.4);
+  // два стула лицом к сцене: зрителей нет, места заняты
+  for (const cz of [-1.6, 1.6]) PR.chair(x0 + 5.0, cz, P / 2, { y, color: 0x1a0a0a, seatColor: 0x8a1020 });
+  // свет: светло и ровно, как во сне, где некуда спрятаться
+  for (const [lx, lz] of [[x0 + 2.5, -2.5], [x0 + 2.5, 2.5], [x0 + 6.5, -2.5], [x0 + 6.5, 2.5], [x1 - 1.6, 0]])
+    anchor(lx, y + H - 0.4, lz, { color: 0xffe2c8, intensity: 7, distance: 11, grid: false });
+  // занавес: всюду заперто
+  const lines = ['За занавесом — ещё один занавес. За ним — тот же зал, только ты в нём уже стоишь.', 'Ткань не раздвигается: под ней стена. Или дверь. Заперто.', 'Из-за шторы тянет теплом и запахом кофе. Пройти нельзя.', 'Ты отодвигаешь край — и видишь коридор отеля, перевёрнутый вверх ногами. Штора падает обратно.'];
+  for (const [hx, hz, ry] of [[(x0 + x1) / 2, z0 + 0.25, 0], [(x0 + x1) / 2, z1 - 0.25, P], [x0 + 0.25, 2.5, P / 2]]) {
+    const h = PR.grp(hx, hz, ry, y); PR.hitBox(h, 3, 3, 0.3);
+    interact(h, 'Раздвинуть занавес', () => { S.sfxCurtain(); G.toast(lines[Math.floor(Math.random() * lines.length)]); });
+  }
+  // выключатель обратно
+  const g = PR.grp(x0 + 0.17, -1.2, P / 2, y + 1.2);
+  box(0.08, 0.12, 0.012, col(0xd8d0bc), 0, -0.06, 0.006, { parent: g });
+  box(0.022, 0.04, 0.012, col(0xf0e8d8), 0, -0.02, 0.016, { parent: g }).rotation.x = 0.35;
+  PR.hitBox(g, 0.16, 0.2, 0.08, -0.1);
+  interact(g, 'Включить свет', () => { S.sfxSwitch(); G.redRoom(false); });
+  RED.spawn = new THREE.Vector3(x0 + 1.4, y, -0.4); RED.yaw = -P / 2;
+  zone(x0, z0, x1, z1, 'ЗА ШТОРОЙ', { reverb: 0.55, wind: 0, buzz: 0, muffle: 9000, amb: 2.6, yBox: [y - 0.05, y + H] });
 }
 
 // Выключатели: в каждой комнате с верхним светом (потолочные лампы, люстры, бра).
@@ -114,7 +160,12 @@ function addLightSwitches() {
     const st = () => lamps.some(a => a.on);
     const setKey = () => { key.rotation.x = st() ? -0.35 : 0.35; };
     setKey();
+    let clicks = 0, lastClick = 0;
     interact(g, () => st() ? 'Выключить свет' : 'Включить свет', () => {
+      if (zn.name === 'БАЛЬНЫЙ ЗАЛ') {
+        const now = performance.now(); clicks = now - lastClick < 2500 ? clicks + 1 : 1; lastClick = now;
+        if (clicks >= 10) { clicks = 0; S.sfxSwitch(); G.redRoom(true, g); return; }
+      }
       const v = !st(); for (const a of lamps) a.setOn(v); setKey(); S.sfxSwitch();
       if (v && W.flags.blackout) G.toast('Щелчок. Света нет — внизу выключен общий рубильник.');
     });
@@ -229,7 +280,7 @@ function towerOuter(L, rooms, { coreMat, glassBlocks = false }) {
   const win = (x0, x1) => glassBlocks ? [{ at: (x0 + x1) / 2, w: 1.6, type: 'blocks', sill: 2.9, h: 0.6 }] : [{ at: (x0 + x1) / 2, w: 2.2, type: 'window', sill: 0.75, h: 2.1, light: 0.24 }];
   for (const side of [1, -1]) {
     const c = side > 0 ? TZ1 : TZ0;
-    const coreOps = glassBlocks ? [] : (side > 0 ? [{ at: 0.6, w: 0.9, type: 'window', sill: 0.9, h: 2 }] : [{ at: 1.8, w: 2.4, type: 'window', sill: 1.6, h: 1.8, light: 0.12 }]);
+    const coreOps = glassBlocks ? [] : (side > 0 ? [{ at: 0.6, w: 0.9, type: 'window', sill: 0.9, h: 2 }] : [{ at: 1.8, w: 2.4, type: 'window', sill: 2.2, h: 1.3, light: 0.12 }]);
     const spans = [[TX0, 6, coreMat, coreOps]];
     for (const r of rooms.filter(r => r.side === side).sort((a, b) => a.x0 - b.x0)) spans.push([r.x0, r.x1, r.mat, r.wins || win(r.x0, r.x1)]);
     for (const [a, b, m, ops] of spans) wall('x', c, a, b, y, FH, side > 0 ? { neg: m, pos: M.ext } : { neg: M.ext, pos: m }, ops, { inside: -side });
@@ -241,7 +292,7 @@ function towerOuter(L, rooms, { coreMat, glassBlocks = false }) {
     wall('z', TX1, a, b, y, FH, { neg: r.mat, pos: M.ext }, ops, { inside: -1 });
   }
   if (L >= 1) {
-    const ws = [{ at: 1.0, w: 2.6, type: 'window', sill: 0.6, h: 2.4, light: 0.25 }, { at: -3.6, w: 2.4, type: 'window', sill: 1.4, h: 2.0, light: 0.1 }];
+    const ws = [{ at: 1.0, w: 2.6, type: 'window', sill: 0.6, h: 2.4, light: 0.25 }, { at: -3.6, w: 2.4, type: 'window', sill: 2.15, h: 1.3, light: 0.1 }];
     wall('z', TX0, TZ0 - T / 2, TZ1 + T / 2, y, FH, { neg: L === 1 ? M.lobbyWall : M.ext, pos: coreMat }, ws, { inside: L === 1 ? 0 : 1 });
   } else if (L === -1) wall('z', TX0, TZ0 - T / 2, TZ1 + T / 2, y, FH, { neg: M.ext, pos: coreMat });
 }
@@ -435,6 +486,7 @@ function furnishRoom(r, L) {
       ]);
       PR.shelf(...at(F.W - 0.32, 1.4), RY('west'), { fill: 'books', w: 1.6, color: 0x3a2214, d: 0.4 });
       PR.bed(...at(F.W - 1.14, 3.75), RY('west'), { double: false, color: 0x4a3a1a });
+      if (r.kind === 'writer') PR.note(...onTop(d, -0.12, 0.12), -0.25, ...noteArgs('writerGospel'), { color: 0xd8ccb0 });
       P_(groups, 'west', 1.4, 1.75, 0.6); P_(groups, 'door', 3.0, 1.7, 0.6); P_(groups, 'east', 3.75, 1.9, 0.7);
       break;
     }
@@ -1098,6 +1150,21 @@ function buildManagerOffice() {
   pic(['portrait', '06_vintage_photos'], 'z', x1, -1, -11.7, y + 2.0, 0.9, { frame: 'gold' });
   pic(['plans'], 'z', x1, -1, -13.2, y + 1.9, 0.85, { frame: 'black' }); pic(['plans'], 'z', x1, -1, -10.2, y + 2.0, 0.85, { frame: 'black' });
   PR.ceilingLamp(-3, -11.7, { y: y + OH, kind: 'pendant', intensity: 3, distance: 7, color: 0xffd0a0 });
+  // картотека: в нижнем ящике «Ж» — жалобы гостей
+  {
+    const fc = PR.grp(-0.5, -13.5, -P / 2);
+    const steel = col(0x5a5e58), dark = col(0x1a1a18), brass = col(0xb08a3a, { emissive: 0x1a0c02 });
+    box(0.5, 1.32, 0.6, steel, 0, 0, 0, { parent: fc });
+    for (let i = 0; i < 4; i++) { box(0.44, 0.29, 0.014, col(0x6a6e66), 0, 0.05 + i * 0.32, 0.309, { parent: fc }); box(0.12, 0.025, 0.02, brass, 0, 0.2 + i * 0.32, 0.326, { parent: fc }); box(0.08, 0.05, 0.006, col(0xe8e0c8), 0, 0.27 + i * 0.32, 0.32, { parent: fc }); }
+    box(0.5, 0.01, 0.6, dark, 0, 1.32, 0, { parent: fc });
+    PR.solid(fc, 0.5, 0.6, 1.32); mount(fc, 'floor');
+    let n = 0;
+    interact(fc, 'Порыться в картотеке', () => {
+      S.sfxSlide();
+      if (n++ < 2) G.toast(['Ящик «А–В»: накладные на песок. Песок закуплен, доставлен, рассыпан.', 'Ящик «Г–Е»: пусто. На дне — один зуб от расчёски.'][n - 1]);
+      else { G.noteKey('managerComplaint'); n = 0; }
+    });
+  }
   PR.matchbook(...PR.top(dk, 0.1, 0.22).toArray(), 0.4);
   pic(['06_vintage_photos', 'portrait'], 'x', z0, 1, -0.9, y + 2.1, 0.5, { frame: 'gold' });
   pic(['06_vintage_photos', 'portrait'], 'x', z1, -1, -4.4, y + 2.0, 0.6, { frame: 'gold' });
@@ -1252,13 +1319,14 @@ function buildStairs() {
     }
     surface(LB[0], SLAND, LB[1], SZ1, (x, z) => yb + 2 + 2 * (z - SLAND) / (SZ1 - SLAND), 'wood');
     block(LA[1], yb, SLAND, LB[0], yb + FH, SZ1, rail);
-    pic(['02_weirdcore_liminal', '01_japan_underground'], 'z', TX0, 1, -5.5, yb + 3.0, 0.55, { frame: 'black' });
+    pic(['02_weirdcore_liminal', '01_japan_underground'], 'z', TX0, 1, -5.5, yb + 3.2, 0.5, { frame: 'black' });
     zone(LA[0], SZ0, LB[1], SZ1, 'ЛЕСТНИЦА', { reverb: 0.6, amb: 0.9 });
     // пролёты: тёплое бра над площадкой, второе над верхним маршем и холодный светильник у начала нижнего —
     // свет пятнами, а не ровной заливкой
-    const s1 = sconceAt('z', LB[1] + 0.1, -1, -5.6, yb + 3.2); s1.intensity = 2.6; s1.distance = 5.5;
-    const s2 = sconceAt('z', LB[1] + 0.1, -1, -2.9, yb + 3.35); s2.intensity = 1.8; s2.distance = 4.5;
-    const ls = PR.sconce(LA[0] + 0.003, yb + 1.9, -2.2, P / 2); ls.color.setHex(0xc8d8ff); ls.intensity = 1.5;
+    // высоты считаются от ступени под светильником: ~2 м над маршем, ~2.3 м над площадкой
+    const s1 = sconceAt('z', LB[1] + 0.1, -1, -5.6, yb + 4.3); s1.intensity = 2.6; s1.distance = 5.5;
+    const ls = PR.sconce(LA[0] + 0.003, yb + 2.3, -2.0, P / 2); ls.color.setHex(0xc8d8ff); ls.intensity = 1.5;
+    if (L + 1 <= 3) { setLevel(L + 1); const s2 = sconceAt('z', LB[1] + 0.1, -1, -2.6, yb + 5.3); s2.intensity = 1.8; s2.distance = 4.5; setLevel(L); }
   }
   setLevel(3);
   block(LA[1], 3 * FH, SLAND, LB[0], 3 * FH + 1.0, SZ1, rail);

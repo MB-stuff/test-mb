@@ -376,6 +376,33 @@ const STATIONS = [
     chords: [[45, 52, 55, 59, 64], [41, 48, 52, 55, 60], [43, 50, 53, 57, 62], [40, 47, 50, 55, 59]] },
 ];
 export const stationNames = STATIONS.map(s => s.name);
+// сон за шторой: медленный тёмный джаз — контрабас шагами, щётки, пэд и «терменвокс» с вибрато
+const DREAM = { name: '···', bar: 7, cut: 1300, ep: 0.12,
+  chords: [[41, 48, 51, 55, 56], [39, 46, 50, 53, 58], [37, 44, 48, 51, 55], [36, 43, 46, 52, 55]] };
+let dream = false;
+export function setDream(on) {
+  dream = on; if (!ctx) return;
+  activeVoices.forEach(o => { try { o.stop(ctx.currentTime + 0.3); } catch (e) { } });
+  nextBar = ctx.currentTime + 0.4; chordIdx = 0;
+}
+function pluck(t, midi) {
+  const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = mtof(midi);
+  const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(200, t + 0.6);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.22, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+  o.connect(f); f.connect(g); g.connect(musicLP); o.start(t); o.stop(t + 1.5);
+}
+function brush(t, v) {
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 5200; f.Q.value = 0.7;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+  s.connect(f); f.connect(g); g.connect(musicLP); s.start(t, Math.random()); s.stop(t + 0.4);
+}
+function theremin(t, m1, m2, dur) {
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(mtof(m1), t); o.frequency.exponentialRampToValueAtTime(mtof(m2), t + dur * 0.6);
+  const v = ctx.createOscillator(); v.frequency.value = 5.5; const vg = ctx.createGain(); vg.gain.value = 9; v.connect(vg); vg.connect(o.detune);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + dur * 0.3); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(epOut); o.start(t); v.start(t); o.stop(t + dur + 0.1); v.stop(t + dur + 0.1);
+  activeVoices.add(o); o.onended = () => activeVoices.delete(o);
+}
 let musicTimer = null, nextBar = 0, chordIdx = 0, wobble, padOut, epOut, delay;
 const activeVoices = new Set();
 
@@ -434,9 +461,14 @@ function bass(t, midi, dur) {
 }
 function scheduleMusic() {
   if (!ctx) return;
-  const st = STATIONS[audio.station];
+  const st = dream ? DREAM : STATIONS[audio.station];
   while (nextBar < ctx.currentTime + 1.5) {
     const t = nextBar, ch = st.chords[chordIdx % st.chords.length];
+    if (dream) {
+      const beat = st.bar / 4;
+      for (let b = 0; b < 4; b++) { pluck(t + b * beat, ch[b % 3] - 12 + (b === 3 ? 2 : 0)); brush(t + b * beat, 0.05); brush(t + b * beat + beat * 0.66, 0.025); }
+      if (Math.random() < 0.7) { const a = ch[3 + Math.floor(Math.random() * 2)] + 12, b2 = ch[1 + Math.floor(Math.random() * 3)] + 12; theremin(t + beat * 0.5, a, b2, st.bar * 0.9); }
+    }
     ch.forEach(m => padVoice(t, m, st.bar, st));
     bass(t, ch[0], st.bar);
     // россыпь нот электропиано по звукам аккорда
