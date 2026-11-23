@@ -156,7 +156,12 @@ for (const [lk, lv] of Object.entries(W.levels)) for (const o of lv.children) if
 const SEE_THROUGH = /ЛЕСТНИЦА|ЛИФТ|ВЕСТИБЮЛЬ|КРЫША/;
 // Номер с закрытой дверью не виден снаружи: его вещи не рисуются, пока ты не войдёшь или дверь не откроется.
 const zoneAt = (lv, x, z) => { let b = null, ba = Infinity; for (const zn of W.zones) if (zn.level === lv && x >= zn.minX && x <= zn.maxX && z >= zn.minZ && z <= zn.maxZ) { const a = (zn.maxX - zn.minX) * (zn.maxZ - zn.minZ); if (a < ba) { ba = a; b = zn; } } return b; };
-for (const o of cullables) { const zn = zoneAt(o.userData.cullL, o.userData.cullC.x, o.userData.cullC.z); if (zn && /^НОМЕР \d/.test(zn.name)) o.userData.cullZ = zn; }
+// двери и всё, что висит на стене коридора (центр почти на границе зон), к номеру не относим
+for (const o of cullables) {
+  if (o.userData.isDoor) continue;
+  const zn = zoneAt(o.userData.cullL, o.userData.cullC.x, o.userData.cullC.z);
+  if (zn && /^НОМЕР \d/.test(zn.name) && o.userData.cullC.z > zn.minZ + 0.3 && o.userData.cullC.z < zn.maxZ - 0.3 && o.userData.cullC.x > zn.minX + 0.3 && o.userData.cullC.x < zn.maxX - 0.3) o.userData.cullZ = zn;
+}
 for (const d of W.doors || []) for (const sd of [-1, 1]) {
   const zn = zoneAt(d.level, d.axis === 'x' ? d.at : d.c + sd * 0.8, d.axis === 'x' ? d.c + sd * 0.8 : d.at);
   if (zn && /^НОМЕР \d/.test(zn.name)) (zn.doors = zn.doors || []).push(d);
