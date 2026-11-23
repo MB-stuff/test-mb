@@ -17,6 +17,8 @@ export const W = {
 };
 export const G = {};
 
+// анимации запоминают этаж, на котором созданы: пока этаж скрыт, они не считаются
+W.animated.push = function (...fs) { for (const f of fs) if (f.__lvl === undefined && !f.always) f.__lvl = W.level; return Array.prototype.push.apply(this, fs); };
 export function setLevel(L) {
   W.level = L;
   if (!W.levels[L]) { const g = new THREE.Group(); g.name = 'level' + L; W.levels[L] = g; W.scene.add(g); }

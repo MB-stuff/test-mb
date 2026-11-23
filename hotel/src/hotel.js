@@ -81,43 +81,81 @@ export function buildHotel() {
   addLightSwitches();
 }
 
-// выключатель у каждой двери, ведущей в комнату с потолочными лампами
+// Выключатели: в каждой комнате с верхним светом (потолочные лампы, люстры, бра).
+// Сначала — у дверей со стороны ручки; потом — у проёмов в комнатах без дверей.
+function smallestZone(level, x, z) {
+  let best = null;
+  for (const zn of W.zones) if (zn.level === level && x >= zn.minX && x <= zn.maxX && z >= zn.minZ && z <= zn.maxZ) { const ar = (zn.maxX - zn.minX) * (zn.maxZ - zn.minZ); if (!best || ar < best[0]) best = [ar, zn]; }
+  return best && best[1];
+}
 function addLightSwitches() {
-  const inZ = (z, x, zz) => x > z.minX && x < z.maxX && zz > z.minZ && zz < z.maxZ;
-  const done = new Set();
+  const lampsOf = new Map();
+  for (const a of W.anchors) if (a.switchable && a.level < 4) { const zn = smallestZone(a.level, a.pos.x, a.pos.z); if (zn) { if (!lampsOf.has(zn)) lampsOf.set(zn, []); lampsOf.get(zn).push(a); } }
+  const done = new Set(), doorCols = new Set((W.doors || []).map(d => d.collider));
+  const wallItems = W.qa.filter(q => q.kind === 'wall').map(q => { const p = new THREE.Vector3(); q.obj.getWorldPosition(p); return p; });
+  const free = (x, y, zz) => wallItems.every(p => Math.abs(p.y - y) > 0.55 || Math.hypot(p.x - x, p.z - zz) > 0.45);
+  // стена на оси c в точке s: настоящий блок стены (не окно, не дверь) на высоте h от пола
+  const wallCol = (axis, c, s, y) => W.colliders.find(cl => cl.enabled !== false && !doorCols.has(cl) && cl.ref && cl.ref.isMesh && cl.minY <= y && cl.maxY >= y &&
+    (axis === 'x' ? cl.minZ <= c && cl.maxZ >= c && cl.minX <= s && cl.maxX >= s && cl.maxZ - cl.minZ < 0.5 : cl.minX <= c && cl.maxX >= c && cl.minZ <= s && cl.maxZ >= s && cl.maxX - cl.minX < 0.5));
+  const wallAt = (...a) => !!wallCol(...a);
+  const blockedIn = (x, y, zz) => W.colliders.some(cl => cl.enabled !== false && x > cl.minX && x < cl.maxX && zz > cl.minZ && zz < cl.maxZ && y > cl.minY && y < cl.maxY);
+  const place = (zn, axis, c, sd, along) => {
+    const lamps = lampsOf.get(zn); const y = zn.level * FH + 1.2;
+    done.add(zn); setLevel(zn.level);
+    // грань берём у настоящего блока стены: границы некоторых зон не совпадают с осью стены
+    const wc = wallCol(axis, c, along, y);
+    const face = wc ? (axis === 'x' ? (sd > 0 ? wc.maxZ : wc.minZ) : (sd > 0 ? wc.maxX : wc.minX)) + sd * 0.003 : c + sd * (T / 2 + 0.003);
+    const x = axis === 'x' ? along : face, zz = axis === 'x' ? face : along;
+    const ry = axis === 'x' ? (sd > 0 ? 0 : P) : (sd > 0 ? P / 2 : -P / 2);
+    const g = PR.grp(x, zz, ry, y);
+    box(0.08, 0.12, 0.012, col(0xd8d0bc), 0, -0.06, 0.006, { parent: g });
+    const key = box(0.022, 0.04, 0.012, col(0xf0e8d8), 0, -0.02, 0.016, { parent: g }); key.userData.noMerge = true;
+    PR.hitBox(g, 0.16, 0.2, 0.08, -0.1);
+    const st = () => lamps.some(a => a.on);
+    const setKey = () => { key.rotation.x = st() ? -0.35 : 0.35; };
+    setKey();
+    interact(g, () => st() ? 'Выключить свет' : 'Включить свет', () => {
+      const v = !st(); for (const a of lamps) a.setOn(v); setKey(); S.sfxSwitch();
+      if (v && W.flags.blackout) G.toast('Щелчок. Света нет — внизу выключен общий рубильник.');
+    });
+    mount(g, 'wall', { w: 0.08, h: 0.12, what: 'выключатель' });
+    wallItems.push(new THREE.Vector3(x, y, zz));
+  };
+  const ok = (zn, axis, c, sd, s) => {
+    const lo = axis === 'x' ? zn.minX : zn.minZ, hi = axis === 'x' ? zn.maxX : zn.maxZ, y = zn.level * FH;
+    if (s < lo + 0.35 || s > hi - 0.35 || !wallAt(axis, c, s, y + 1.2) || !wallAt(axis, c, s - 0.08, y + 1.2) || !wallAt(axis, c, s + 0.08, y + 1.2)) return false;
+    const fx = axis === 'x' ? s : c + sd * (T / 2 + 0.1), fz = axis === 'x' ? c + sd * (T / 2 + 0.1) : s;
+    return !blockedIn(fx, y + 1.2, fz) && free(axis === 'x' ? s : c, y + 1.2, axis === 'x' ? c : s);
+  };
+  // 1) у дверей
   for (const d of W.doors || []) {
-    const zs = [-1, 1].map(sd => {
+    for (const sd of [-1, 1]) {
       const px = d.axis === 'x' ? d.at : d.c + sd * 0.8, pz = d.axis === 'x' ? d.c + sd * 0.8 : d.at;
-      const z = W.zones.find(z => z.level === d.level && inZ(z, px, pz));
-      return z ? { sd, z, area: (z.maxX - z.minX) * (z.maxZ - z.minZ) } : null;
-    }).filter(Boolean).sort((a, b) => a.area - b.area);
-    for (const { sd, z } of zs) {
-      if (done.has(z)) break;
-      const lamps = W.anchors.filter(a => a.ceiling && a.level === d.level && inZ(z, a.pos.x, a.pos.z));
-      if (!lamps.length) continue;
-      // сбоку от двери, со стороны ручки; если там угол комнаты — с другой стороны
-      let along = d.at - d.hinge * (d.w / 2 + 0.24);
-      const lo = d.axis === 'x' ? z.minX : z.minZ, hi = d.axis === 'x' ? z.maxX : z.maxZ;
-      if (along < lo + 0.3 || along > hi - 0.3) along = d.at + d.hinge * (d.w / 2 + 0.24);
-      if (along < lo + 0.3 || along > hi - 0.3) continue;
-      done.add(z); setLevel(d.level);
-      const face = d.c + sd * (T / 2 + 0.003);
-      const x = d.axis === 'x' ? along : face, zz = d.axis === 'x' ? face : along;
-      const ry = d.axis === 'x' ? (sd > 0 ? 0 : P) : (sd > 0 ? P / 2 : -P / 2);
-      const g = PR.grp(x, zz, ry, d.level * FH + 1.2);
-      box(0.08, 0.12, 0.012, col(0xd8d0bc), 0, -0.06, 0.006, { parent: g });
-      const key = box(0.022, 0.04, 0.012, col(0xf0e8d8), 0, -0.02, 0.016, { parent: g }); key.userData.noMerge = true;
-      PR.hitBox(g, 0.16, 0.2, 0.08, -0.1);
-      const st = () => lamps.some(a => a.on);
-      const setKey = () => { key.rotation.x = st() ? -0.35 : 0.35; };
-      setKey();
-      interact(g, () => st() ? 'Выключить свет' : 'Включить свет', () => {
-        const v = !st(); for (const a of lamps) a.setOn(v); setKey(); S.sfxSwitch();
-      });
-      mount(g, 'wall', { w: 0.08, h: 0.12, what: 'выключатель' });
-      break;
+      const zn = smallestZone(d.level, px, pz); if (!zn || done.has(zn) || !lampsOf.has(zn)) continue;
+      const cand = [d.at - d.hinge * (d.w / 2 + 0.25), d.at + d.hinge * (d.w / 2 + 0.25), d.at - d.hinge * (d.w / 2 + 0.5)];
+      const s = cand.find(s => ok(zn, d.axis, d.c, sd, s)); if (s !== undefined) place(zn, d.axis, d.c, sd, s);
     }
   }
+  // 2) комнаты без дверей: рядом с проёмом в стене по периметру зоны
+  for (const [zn, lamps] of lampsOf) {
+    if (done.has(zn)) continue;
+    const y = zn.level * FH; let bestC = null;
+    const sides = [['x', zn.minZ, 1], ['x', zn.maxZ, -1], ['z', zn.minX, 1], ['z', zn.maxX, -1]];
+    for (const [axis, c, sd] of sides) {
+      const lo = axis === 'x' ? zn.minX : zn.minZ, hi = axis === 'x' ? zn.maxX : zn.maxZ;
+      let prevOpen = null;
+      for (let s = lo + 0.2; s < hi - 0.2; s += 0.1) {
+        const open = !wallAt(axis, c, s, y + 0.3) && !wallAt(axis, c, s, y + 1.2);
+        if (prevOpen !== null && open !== prevOpen) { // край проёма
+          for (const off of [0.3, 0.45, 0.6]) { const ss = open ? s - 0.1 - off : s + off; if (ok(zn, axis, c, sd, ss)) { const sc = off; if (!bestC || sc < bestC[0]) bestC = [sc, axis, c, sd, ss]; break; } }
+        }
+        prevOpen = open;
+      }
+    }
+    if (!bestC) for (const [axis, c, sd] of sides) { const lo = axis === 'x' ? zn.minX : zn.minZ; for (let s = lo + 0.5; !bestC && s < (axis === 'x' ? zn.maxX : zn.maxZ) - 0.5; s += 0.25) if (ok(zn, axis, c, sd, s)) bestC = [9, axis, c, sd, s]; }
+    if (bestC) place(zn, bestC[1], bestC[2], bestC[3], bestC[4]);
+  }
+  W.switchReport = [...lampsOf.keys()].map(zn => (done.has(zn) ? '+ ' : '- ') + zn.name + ' L' + zn.level);
 }
 
 // ======================================================================
@@ -309,7 +347,10 @@ function buildGuestFloor(L) {
   for (const r of rooms) {
     const c = r.side > 0 ? CZ1 : CZ0;
     for (const off of r.x1 - r.x0 > 6 ? [0, 6] : [0]) {
-      sconceAt('x', c, -r.side, r.x0 + off + 3.0, y + 2.0);
+      // на сдвижной панели секретного входа ничего не висит, иначе после сдвига бра повиснет в воздухе
+      const sx = r.x0 + off + 3.0;
+      if (!(r.secretDoorAt && Math.abs(sx - r.secretDoorAt) < 1.3)) sconceAt('x', c, -r.side, sx, y + 2.0);
+      else sconceAt('x', c, -r.side, r.secretDoorAt - 1.55, y + 2.0);
       if (r.kind === 'pool') continue;
       pic(cg, 'x', c, -r.side, r.x0 + off + 4.5, y + 1.75, 0.72, { frame: 'gold' });
     }
@@ -565,7 +606,7 @@ function poolRoom(r) {
     G.toast('Картина сдвинулась вместе со стеной…');
   };
   interact(panel, 'Постучать по стене', () => { S.sfxKnock(2); G.toast('Звук гулкий. За стеной пустота.'); });
-  sgn('3̶1̶3̶', 'x', c, 1, at + 0.85, y + 1.6, { w: 0.3, h: 0.15, bg: '#1e140a', fg: '#e0c070' });
+  sgn('3̶1̶3̶', 'x', c, 1, at - 0.85, y + 1.6, { w: 0.3, h: 0.15, bg: '#1e140a', fg: '#e0c070' });
   const DK = 0.32, x0 = r.x0 + 1.6, x1 = r.x1 - 1.6, z0 = TZ0 + 1.0, z1 = CZ0 - 1.6;
   for (const rr of rectMinus([r.x0, TZ0, r.x1, CZ0], [x0, z0, x1, z1])) {
     floorRect(rr[0], rr[1], rr[2], rr[3], y + DK, M.vaporDeck, 'tile');
@@ -1087,6 +1128,9 @@ function buildBasement() {
   coreWalls(L, { coreMat: M.concWall, serviceName: 'кладовка' });
   for (const z of [-0.9, 0.9]) PR.ceilingPipe(TX0, TX1, y + 3.45, z, y + CEIL, 0.08, z > 0 ? 0x4a5a4a : 0x6a4a3a);
   for (const x of [4, 9, 14, 19, 24, 29]) PR.ceilingLamp(x, 0, { y: y + CEIL, kind: 'tube', color: 0xe8f0d0, intensity: 2.4, distance: 7, flicker: x === 14 || x === 24 ? 0.6 : 0.05 });
+  // верхний свет в подвальных комнатах (котельная, прачечная, склад, наблюдение, кладовка) — у каждой свой выключатель
+  for (const [lx, lz, on] of [[9.4, 3.3, true], [15, 3.9, true], [27, 4.6, false], [9, -3.9, true], [(SX0 + SX1) / 2, (TZ0 + SZ1) / 2, true]])
+    PR.ceilingLamp(lx, lz, { y: y + CEIL, kind: 'tube', color: 0xe8f0d0, intensity: 1.8, distance: 6, flicker: 0.15, on });
   zone(6, CZ0, TX1, CZ1, 'ПОДВАЛ', { reverb: 0.55, buzz: 0.03, muffle: 1100, wind: 0 });
   zone(0, -1.5, 6, TZ1, 'ПОДВАЛ · ЛЕСТНИЦА', { reverb: 0.5, buzz: 0.02, muffle: 1100, wind: 0 });
   sgn('Б', 'z', TX0, 1, -0.95, y + 2.2, { w: 0.4, h: 0.4 });
@@ -1150,6 +1194,7 @@ function buildBasement() {
   for (let i = 0; i < 12; i++) box(0.12, 0.2, 0.05, col(0x111111), -0.5 + (i % 6) * 0.15, 1.0 + Math.floor(i / 6) * 0.35, 0.31, { parent: eg });
   interact(eg, () => G.flags.blackout ? 'Включить рубильник' : 'Выключить рубильник', () => {
     S.sfxSwitch(true); G.flags.blackout = !G.flags.blackout; lever.rotation.x = G.flags.blackout ? 2.6 : 0;
+    for (const a of W.anchors) if (a.refresh) a.refresh(); // плафоны гаснут вместе с сетью
     G.toast(G.flags.blackout ? 'Свет погас во всём отеле. Остались только окна и солнце.' : 'Свет вернулся. Лампы гудят чуть громче, чем раньше.');
   });
   PR.solid(eg, 1.4, 0.3, 2.3, 0, 0.15); mount(eg, 'floor');
@@ -1208,8 +1253,12 @@ function buildStairs() {
     surface(LB[0], SLAND, LB[1], SZ1, (x, z) => yb + 2 + 2 * (z - SLAND) / (SZ1 - SLAND), 'wood');
     block(LA[1], yb, SLAND, LB[0], yb + FH, SZ1, rail);
     pic(['02_weirdcore_liminal', '01_japan_underground'], 'z', TX0, 1, -5.5, yb + 3.0, 0.55, { frame: 'black' });
-    zone(LA[0], SZ0, LB[1], SZ1, 'ЛЕСТНИЦА', { reverb: 0.6, amb: 1.2 });
-    sconceAt('z', LB[1] + 0.1, -1, -5.6, yb + 3.2);
+    zone(LA[0], SZ0, LB[1], SZ1, 'ЛЕСТНИЦА', { reverb: 0.6, amb: 0.9 });
+    // пролёты: тёплое бра над площадкой, второе над верхним маршем и холодный светильник у начала нижнего —
+    // свет пятнами, а не ровной заливкой
+    const s1 = sconceAt('z', LB[1] + 0.1, -1, -5.6, yb + 3.2); s1.intensity = 2.6; s1.distance = 5.5;
+    const s2 = sconceAt('z', LB[1] + 0.1, -1, -2.9, yb + 3.35); s2.intensity = 1.8; s2.distance = 4.5;
+    const ls = PR.sconce(LA[0] + 0.003, yb + 1.9, -2.2, P / 2); ls.color.setHex(0xc8d8ff); ls.intensity = 1.5;
   }
   setLevel(3);
   block(LA[1], 3 * FH, SLAND, LB[0], 3 * FH + 1.0, SZ1, rail);

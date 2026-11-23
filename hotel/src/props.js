@@ -28,6 +28,18 @@ const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, dept
 export function hitBox(g, w, h, d, y = 0) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hitMat); m.position.y = y + h / 2; m.userData.hit = true; g.add(m); return m; }
 export function wp(g, x, y, z) { return new THREE.Vector3(x, y, z).applyEuler(g.rotation).add(g.position); }
 const floor = g => mount(g, 'floor');
+// источник звука с радиусом слышимости (громкость считается в main.js по расстоянию)
+export function soundSpot(kind, pos, gain, range = 7) {
+  const snd = { id: kind + Math.random(), kind, pos: pos.clone(), level: W.level, range, gain, active: false };
+  (W.sounds = W.sounds || []).push(snd); return snd;
+}
+// видимое состояние лампы: светится, только если включена и в отеле есть ток
+export function lampVis(a, meshes, onMat, offMat, extra = null) {
+  for (const m of meshes) m.userData.noMerge = true;
+  a.refresh = () => { const lit = a.on && !(W.flags.blackout && a.grid); for (const m of meshes) m.material = lit ? onMat : offMat; if (extra) extra(lit); };
+  a.setOn = v => { a.on = v; a.refresh(); };
+  a.refresh(); return a;
+}
 const onTable = g => mount(g, 'table');
 const onWall = (g, w = 0.3, h = 0.3) => mount(g, 'wall', { w, h });
 
@@ -144,8 +156,7 @@ export function tableLamp(x, y, z, { shade = 0x9a7a3a, on = true } = {}) {
   C(g, 0.08, 0.1, 0.04, 10, col(0x2a2018), 0, 0, 0); C(g, 0.015, 0.015, 0.3, 6, col(0x9a8040), 0, 0.04, 0);
   const sh = C(g, 0.1, 0.17, 0.2, 10, lamShade(shade), 0, 0.3, 0); sh.userData.noMerge = true;
   const a = anchor(x, y + 0.42, z, { color: 0xffa860, intensity: 2.2, distance: 4.5, on });
-  const set = v => { a.on = v; sh.material = lamShade(shade, v); };
-  set(on);
+  lampVis(a, [sh], lamShade(shade, true), lamShade(shade, false)); const set = a.setOn;
   hitBox(g, 0.36, 0.5, 0.36);
   interact(g, () => a.on ? 'Выключить лампу' : 'Включить лампу', () => { set(!a.on); S.sfxClick(); });
   onTable(g); return g;
@@ -155,8 +166,7 @@ export function floorLamp(x, z, { on = true } = {}) {
   C(g, 0.16, 0.18, 0.04, 10, col(0x1a1410), 0, 0, 0); C(g, 0.02, 0.02, 1.5, 6, col(0x7a6a3a), 0, 0.04, 0);
   const sh = C(g, 0.16, 0.26, 0.32, 10, lamShade(0xa8844a), 0, 1.45, 0); sh.userData.noMerge = true;
   const a = anchor(x, Y() + 1.55, z, { intensity: 3, distance: 6, on });
-  const set = v => { a.on = v; sh.material = lamShade(0xa8844a, v); };
-  set(on);
+  lampVis(a, [sh], lamShade(0xa8844a, true), lamShade(0xa8844a, false)); const set = a.setOn;
   interact(g, () => a.on ? 'Выключить торшер' : 'Включить торшер', () => { set(!a.on); S.sfxClick(); });
   solid(g, 0.35, 0.35, 1.8); floor(g); return g;
 }
@@ -172,10 +182,8 @@ export function ceilingLamp(x, z, { y = Y() + 3.7, color = 0xffb878, intensity =
   if (kind === 'tube') a.hum = true;
   // лампа под выключателем: светящиеся части не сливаются с остальной геометрией, чтобы их можно было погасить
   const bulbs = g.children.slice(n0).filter(m => m.material === bulb);
-  for (const m of bulbs) m.userData.noMerge = true;
-  a.ceiling = true;
-  a.setOn = v => { a.on = v; for (const m of bulbs) m.material = v ? bulb : bulbOff; };
-  if (!on) a.setOn(false);
+  a.ceiling = true; a.switchable = true;
+  lampVis(a, bulbs, bulb, bulbOff);
   mount(g, 'ceiling');
   return a;
 }
@@ -184,20 +192,24 @@ export function chandelier(x, z, y) {
   C(g, 0.015, 0.015, 1.2, 4, col(0x222222), 0, -1.2, 0);
   const brass = col(0x8a6a2a, { emissive: 0x1a1000 }); const bulb = emis(0xffc070, 1.2);
   C(g, 0.5, 0.35, 0.08, 10, brass, 0, -1.4, 0);
-  for (let i = 0; i < 8; i++) { const a = i / 8 * P * 2; C(g, 0.04, 0.04, 0.12, 6, bulb, Math.cos(a) * 0.48, -1.38, Math.sin(a) * 0.48); }
+  const bulbs = []; for (let i = 0; i < 8; i++) { const a = i / 8 * P * 2; bulbs.push(C(g, 0.04, 0.04, 0.12, 6, bulb, Math.cos(a) * 0.48, -1.38, Math.sin(a) * 0.48)); }
   for (let i = 0; i < 12; i++) { const a = i / 12 * P * 2; C(g, 0.01, 0.025, 0.25, 5, col(0xe0d0b0, { emissive: 0x504030 }), Math.cos(a) * 0.38, -1.7, Math.sin(a) * 0.38); }
   mount(g, 'ceiling');
-  return anchor(x, y - 1.5, z, { color: 0xffb060, intensity: 14, distance: 16 });
+  const an = anchor(x, y - 1.5, z, { color: 0xffb060, intensity: 14, distance: 16 }); an.switchable = true;
+  return lampVis(an, bulbs, bulb, col(0x6a5a40));
 }
 // Бра на стене: (x,z) — точка на поверхности стены, ry — нормаль стены
 export function sconce(x, y, z, ry) {
   const g = grp(x, z, ry, y);
   B(g, 0.12, 0.2, 0.04, col(0x8a6a2a), 0, -0.1, 0.02);
   B(g, 0.03, 0.03, 0.1, col(0x8a6a2a), 0, -0.02, 0.07);
-  C(g, 0.06, 0.1, 0.16, 8, col(0xd8b080, { emissive: 0xffa050, emissiveIntensity: 0.8 }), 0, -0.06, 0.13);
-  glow(x + Math.sin(ry) * 0.01, y + 0.05, z + Math.cos(ry) * 0.01, 1.3, 0xffa050, 0.25, { rx: 0, ry });
+  const onM = col(0xd8b080, { emissive: 0xffa050, emissiveIntensity: 0.8 }), offM = col(0x8a7a60);
+  const shade = C(g, 0.06, 0.1, 0.16, 8, onM, 0, -0.06, 0.13);
+  const gl = glow(x + Math.sin(ry) * 0.01, y + 0.05, z + Math.cos(ry) * 0.01, 1.3, 0xffa050, 0.25, { rx: 0, ry });
+  gl.userData.noMerge = true;
   onWall(g, 0.12, 0.2);
-  return anchor(x + Math.sin(ry) * 0.3, y, z + Math.cos(ry) * 0.3, { color: 0xffa050, intensity: 1.6, distance: 4 });
+  const an = anchor(x + Math.sin(ry) * 0.3, y, z + Math.cos(ry) * 0.3, { color: 0xffa050, intensity: 1.6, distance: 4 }); an.switchable = true;
+  return lampVis(an, [shade], onM, offM, lit => { if (gl) gl.visible = lit; });
 }
 
 // ---------- мелочи на столах ----------
@@ -253,8 +265,9 @@ export function tv(x, y, z, ry, { on = false, big = false, screen = null } = {})
   const onMat = screen ? basic('scr' + screen.uuid, { map: screen }) : basic('static', { map: TX.staticTex() });
   const sc = plane(0.48 * s, 0.36 * s, on ? onMat : offMat, 0, 0.24 * s, 0.2 * s + 0.015, 0, 0, { parent: g }); sc.userData.noMerge = true;
   const a = anchor(0, 0, 0, { color: 0x9ab8ff, intensity: 1.2, distance: 3, on }); a.pos.copy(wp(g, 0, 0.25, 0.6));
-  let isOn = on; const id = 'tv' + Math.random();
-  const set = v => { isOn = v; sc.material = v ? onMat : offMat; a.on = v; if (v && !screen) S.loopStart(id, 'static'); else S.loopStop(id); };
+  let isOn = on; const snd = screen ? null : soundSpot('static', wp(g, 0, 0.3, 0.3), 0.06, 6);
+  if (snd) snd.active = on;
+  const set = v => { isOn = v; sc.material = v ? onMat : offMat; a.on = v; if (snd) snd.active = v; };
   interact(g, () => isOn ? 'Выключить телевизор' : 'Включить телевизор', () => { S.sfxClick(); set(!isOn); });
   g.userData.setOn = set; g.userData.top = 0.48 * s;
   mount(g, 'support'); return g;
@@ -544,8 +557,8 @@ export function sink(x, z, ry, { mirror = true } = {}) {
   B(g, 0.6, 0.15, 0.45, por, 0, 0.75, 0); C(g, 0.06, 0.08, 0.75, 8, por, 0, 0, -0.05);
   B(g, 0.03, 0.15, 0.03, col(0xb8b8b8), 0, 0.9, -0.18);
   if (mirror) { const mr = plane(0.6, 0.8, col(0x50606a, { emissive: 0x101c20 }), 0, 1.6, -0.198, 0, 0, { parent: g }); mr.userData.noMerge = true; B(g, 0.66, 0.86, 0.02, col(0x8a7a5a), 0, 1.17, -0.225); }
-  const id = 'water' + Math.random(); let on = false;
-  interact(g, () => on ? 'Закрыть кран' : 'Открыть кран', () => { on = !on; S.sfxClick(); on ? S.loopStart(id, 'water') : S.loopStop(id); });
+  const snd = soundSpot('water', wp(g, 0, 0.9, 0), 0.12, 6); let on = false;
+  interact(g, () => on ? 'Закрыть кран' : 'Открыть кран', () => { on = !on; S.sfxClick(); snd.active = on; });
   if (mirror) { const mp = wp(g, 0, 0, -0.2); const mh = grp(mp.x, mp.z, ry, Y() + 1.2); hitBox(mh, 0.6, 0.8, 0.05); interact(mh, 'Посмотреть в зеркало', () => G.toast(pick(['В зеркале — пустая уборная. Тебя там нет.', 'Отражение моргнуло позже тебя.', 'За твоей спиной в отражении — окно. Здесь нет окна.', 'Всё нормально. Просто ты.']))); }
   solid(g, 0.6, 0.45, 0.9); floor(g); return g;
 }
@@ -558,7 +571,8 @@ export function toilet(x, z, ry) {
 export function bathtub(x, z, ry) {
   const g = grp(x, z, ry); const por = col(0xd8d4c8);
   B(g, 0.8, 0.55, 1.7, por, 0, 0, 0); B(g, 0.62, 0.02, 1.5, col(0x4a7a8a, { emissive: 0x0a2028 }), 0, 0.5, 0);
-  interact(g, 'Открыть воду', () => { S.loopStart('tub', 'water'); setTimeout(() => S.loopStop('tub'), 3000); G.toast('Вода тёплая. Пахнет хлоркой и чем-то сладким.'); });
+  const snd = soundSpot('water', wp(g, 0, 0.6, 0), 0.12, 6);
+  interact(g, 'Открыть воду', () => { snd.active = true; setTimeout(() => { snd.active = false; }, 3000); G.toast('Вода тёплая. Пахнет хлоркой и чем-то сладким.'); });
   solid(g, 0.8, 1.7, 0.55); floor(g); return g;
 }
 export function washer(x, z, ry) {

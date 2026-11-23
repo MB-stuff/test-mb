@@ -102,6 +102,35 @@ const hemi = new THREE.HemisphereLight(0xc08a5a, 0x2a1008, 1.0); scene.add(hemi)
 const amb = new THREE.AmbientLight(0x5a3a28, 0.32); scene.add(amb);
 const sun = new THREE.DirectionalLight(0xffc080, 0); sun.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sun);
 const POOL = [];
+// Свет ламп не проходит сквозь стены: каждая лампа освещает только коробку своей комнаты (зоны).
+// Границы зон проходят по осям стен, поэтому внутренняя грань стены освещается, а соседняя комната — нет.
+const LB_N = 10, LBU = { min: { value: [] }, max: { value: [] } };
+for (let i = 0; i < LB_N; i++) { LBU.min.value.push(new THREE.Vector3(-1e5, -1e5, -1e5)); LBU.max.value.push(new THREE.Vector3(1e5, 1e5, 1e5)); }
+THREE.ShaderChunk.lights_pars_begin += `
+float lbMask( vec3 p, vec3 a, vec3 b ) { vec3 s = step( a, p ) * step( p, b ); return s.x * s.y * s.z; }
+#if NUM_POINT_LIGHTS > 0
+uniform vec3 uLBMin[ NUM_POINT_LIGHTS ]; uniform vec3 uLBMax[ NUM_POINT_LIGHTS ];
+#endif
+`;
+THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin
+  .replace('vec3 geometryPosition = - vViewPosition;', 'vec3 geometryPosition = - vViewPosition;\nvec3 lbWorld = transpose( mat3( viewMatrix ) ) * ( geometryPosition - viewMatrix[ 3 ].xyz );')
+  .replace('getPointLightInfo( pointLight, geometryPosition, directLight );', 'getPointLightInfo( pointLight, geometryPosition, directLight );\n\t\tdirectLight.color *= lbMask( lbWorld, uLBMin[ i ], uLBMax[ i ] );');
+THREE.Material.prototype.onBeforeCompile = function (sh) {
+  if (sh.fragmentShader.includes('lights_pars_begin')) { sh.uniforms.uLBMin = LBU.min; sh.uniforms.uLBMax = LBU.max; }
+};
+const zoneBoxCache = new Map();
+function lightBox(a) {
+  if (zoneBoxCache.has(a)) return zoneBoxCache.get(a);
+  let best = null;
+  for (const z of W.zones) if (z.level === a.level && a.pos.x >= z.minX && a.pos.x <= z.maxX && a.pos.z >= z.minZ && a.pos.z <= z.maxZ) { const ar = (z.maxX - z.minX) * (z.maxZ - z.minZ); if (!best || ar < best[0]) best = [ar, z]; }
+  let box = null;
+  if (best && a.level < 4) {
+    const z = best[1], { TZ0, TZ1, LH, PH } = LAYOUT, y0 = z.level * FH;
+    const H = z.level !== 0 ? FH : z.maxX <= 0.01 ? LH : (z.minZ >= TZ1 - 0.01 || z.maxZ <= TZ0 + 0.01) ? PH : FH;
+    box = [new THREE.Vector3(z.minX - 0.02, y0 - 0.05, z.minZ - 0.02), new THREE.Vector3(z.maxX + 0.02, y0 + H - 0.02, z.maxZ + 0.02)];
+  }
+  zoneBoxCache.set(a, box); return box;
+}
 for (let i = 0; i < 10; i++) { const l = new THREE.PointLight(0xffaa66, 0, 8, 1.6); l.userData = { a: null, fade: 0 }; scene.add(l); POOL.push(l); }
 const flash = new THREE.SpotLight(0xfff0d0, 0, 18, 0.45, 0.5, 1.4); camera.add(flash); flash.position.set(0.15, -0.1, 0); flash.target.position.set(0, 0, -1); camera.add(flash.target);
 
@@ -118,15 +147,31 @@ const proxies = {};
 buildProxies();
 // мелкие предметы дальше ~25 м не рисуются (туман их всё равно почти скрывает)
 const cullables = [];
-for (const lv of Object.values(W.levels)) for (const o of lv.children) if (o.isGroup) {
+for (const [lk, lv] of Object.entries(W.levels)) for (const o of lv.children) if (o.isGroup || (o.isMesh && o.userData.noMerge)) {
   const bb = new THREE.Box3().setFromObject(o); if (bb.isEmpty()) continue;
-  o.userData.cullC = bb.getCenter(new THREE.Vector3()); o.userData.cullR = bb.getSize(new THREE.Vector3()).length() / 2; cullables.push(o);
+  o.userData.cullC = bb.getCenter(new THREE.Vector3()); o.userData.cullR = bb.getSize(new THREE.Vector3()).length() / 2; o.userData.cullL = +lk; cullables.push(o);
 }
+// Предметы соседних этажей видны только сквозь лестничный проём, шахту лифта и атриум вестибюля.
+// В остальных местах их закрывают перекрытия, и рисовать их незачем.
+const SEE_THROUGH = /ЛЕСТНИЦА|ЛИФТ|ВЕСТИБЮЛЬ|КРЫША/;
+// Номер с закрытой дверью не виден снаружи: его вещи не рисуются, пока ты не войдёшь или дверь не откроется.
+const zoneAt = (lv, x, z) => { let b = null, ba = Infinity; for (const zn of W.zones) if (zn.level === lv && x >= zn.minX && x <= zn.maxX && z >= zn.minZ && z <= zn.maxZ) { const a = (zn.maxX - zn.minX) * (zn.maxZ - zn.minZ); if (a < ba) { ba = a; b = zn; } } return b; };
+for (const o of cullables) { const zn = zoneAt(o.userData.cullL, o.userData.cullC.x, o.userData.cullC.z); if (zn && /^НОМЕР \d/.test(zn.name)) o.userData.cullZ = zn; }
+for (const d of W.doors || []) for (const sd of [-1, 1]) {
+  const zn = zoneAt(d.level, d.axis === 'x' ? d.at : d.c + sd * 0.8, d.axis === 'x' ? d.c + sd * 0.8 : d.at);
+  if (zn && /^НОМЕР \d/.test(zn.name)) (zn.doors = zn.doors || []).push(d);
+}
+const roomClosed = zn => zn.doors && zn.doors.length && zn.doors.every(d => !d.open && Math.abs(d.angle) < 0.01);
 let cullT = 0;
 function updateCull(dt) {
-  cullT -= dt; if (cullT > 0) return; cullT = 0.2;
+  cullT -= dt; if (cullT > 0) return; cullT = 0.1;
   const all = state.title || params.has('qa');
-  for (const o of cullables) o.visible = !o.userData.gone && (all || camera.position.distanceTo(o.userData.cullC) - o.userData.cullR < 25);
+  const L = player.level, open = state.zone && SEE_THROUGH.test(state.zone.name);
+  for (const o of cullables) {
+    const d = camera.position.distanceTo(o.userData.cullC) - o.userData.cullR;
+    const hidden = o.userData.cullZ && o.userData.cullZ !== state.zone && roomClosed(o.userData.cullZ);
+    o.visible = !o.userData.gone && (all || (!hidden && (o.userData.cullL === L ? d < 25 : open && d < 12)));
+  }
 }
 sky.onGlitch = () => { if (state.started) { S.sfxGlitch(); glitch(0.5); } };
 
@@ -371,11 +416,11 @@ G.secret = (id, name) => {
   toast(`✦ Секрет найден: ${name} (${state.secrets.size}/${SECRETS_TOTAL})`, 5000);
   if (state.secrets.size >= 4 && !W.flags.phoneRang) {
     W.flags.phoneRang = true;
-    setTimeout(() => { W.flags.phoneRinging = true; S.loopStart('lobbyPhone', 'ring'); subtitle('Где-то внизу, на стойке регистрации, звонит телефон.'); }, 15000);
+    setTimeout(() => { W.flags.phoneRinging = true; ringSnd.active = true; subtitle('Где-то внизу, на стойке регистрации, звонит телефон.'); }, 15000);
   }
 };
 G.answerPhone = () => {
-  W.flags.phoneRinging = false; S.loopStop('lobbyPhone');
+  W.flags.phoneRinging = false; ringSnd.active = false;
   return `«Вы нашли ${state.secrets.size} из ${SECRETS_TOTAL}. Управляющий ждёт вас там, где солнце видно целиком. Возьмите карту в подвале. Лифт поймёт».`;
 };
 function renderInv() {
@@ -409,6 +454,9 @@ G.teleport = (x, y, z, yaw, msg) => {
 };
 function fadeTo(v, ms, cb) { const f = $('fade'); f.style.transition = `opacity ${ms}ms`; f.style.opacity = v; setTimeout(() => cb && cb(), ms + 30); }
 let glitchT = 0;
+// телефон на стойке регистрации слышно по всему отелю, но тише с каждым этажом
+const ringSnd = { id: 'lobbyPhone', kind: 'ring', pos: new THREE.Vector3(-6.0, 1.2, -8.3), level: 0, anyLevel: true, range: 45, gain: 0.07, active: false };
+(W.sounds = W.sounds || []).push(ringSnd);
 function glitch(s) { glitchT = Math.max(glitchT, s); }
 
 // ---------- лифт ----------
@@ -587,6 +635,10 @@ function updateLights(t, dt) {
       l.userData.a = a; l.userData.fade = 0; l.userData.dying = false; l.position.copy(a.pos); l.color.copy(a.color); l.distance = a.distance;
     }
   }
+  POOL.forEach((l, i) => {
+    const b = l.userData.a && lightBox(l.userData.a);
+    if (b) { LBU.min.value[i].copy(b[0]); LBU.max.value[i].copy(b[1]); } else { LBU.min.value[i].setScalar(-1e5); LBU.max.value[i].setScalar(1e5); }
+  });
   for (const l of POOL) {
     const a = l.userData.a;
     if (!a) { l.intensity = 0; continue; }
@@ -606,8 +658,10 @@ function updateLights(t, dt) {
     if (!blackout) for (const a of W.anchors) if (a.hum && a.on && a.level === player.level) { const d = a.pos.distanceTo(camera.position); const v = Math.max(0, 1 - d / 7); hum = Math.max(hum, v * v * (a.flicker ? 0.05 : 0.03)); }
     S.setHum(hum);
     for (const snd of (W.sounds || [])) {
-      const d = snd.level === player.level ? snd.pos.distanceTo(camera.position) : 999;
-      const v = Math.max(0, 1 - d / snd.range) ** 1.5 * snd.gain;
+      const d = snd.active === false ? 999 : snd.anyLevel ? snd.pos.distanceTo(camera.position) + Math.abs(snd.level - player.level) * 6 : snd.level === player.level ? snd.pos.distanceTo(camera.position) : 999;
+      if (snd.zone === undefined) snd.zone = W.zones.filter(z => z.level === snd.level && snd.pos.x >= z.minX && snd.pos.x <= z.maxX && snd.pos.z >= z.minZ && snd.pos.z <= z.maxZ).sort((a, b) => (a.maxX - a.minX) * (a.maxZ - a.minZ) - (b.maxX - b.minX) * (b.maxZ - b.minZ))[0] || null;
+      const wallK = snd.zone && state.zone && snd.zone !== state.zone ? 0.3 : 1; // из другой комнаты звук глуше
+      const v = Math.max(0, 1 - d / snd.range) ** 1.5 * snd.gain * wallK;
       if (v > 0.001) { S.loopStart(snd.id, snd.kind); S.loopGain(snd.id, v); } else S.loopStop(snd.id);
     }
   }
@@ -668,7 +722,7 @@ function frame() {
   updateWorld();
   updateCull(dt);
   updateLights(t, dt);
-  for (const f of W.animated) f(dt, t);
+  for (const f of W.animated) { if (f.__lvl !== undefined && W.levels[f.__lvl] && !W.levels[f.__lvl].visible) continue; f(dt, t); }
   sky.update(t, dt);
   staticT -= dt; if (staticT < 0) { staticT = 0.07; updateStatic(t); }
   rayTimer -= dt; if (rayTimer < 0) { rayTimer = 0.08; if (state.started && !state.modal) updateFocus(); }
