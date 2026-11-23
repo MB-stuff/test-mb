@@ -180,16 +180,6 @@
 "url": ""
 },
 {
-"id": "p018",
-"group": "portrait",
-"w": 288,
-"h": 400,
-"title": "images",
-"author": "",
-"license": "",
-"url": ""
-},
-{
 "id": "p019",
 "group": "portrait",
 "w": 274,
@@ -215,36 +205,6 @@
 "w": 400,
 "h": 218,
 "title": "photo_2026-02-11_03-19-52",
-"author": "",
-"license": "",
-"url": ""
-},
-{
-"id": "p022",
-"group": "art",
-"w": 400,
-"h": 399,
-"title": "photo_2026-05-08_20-07-36",
-"author": "",
-"license": "",
-"url": ""
-},
-{
-"id": "p023",
-"group": "art",
-"w": 400,
-"h": 333,
-"title": "photo_2026-07-21_17-48-12",
-"author": "",
-"license": "",
-"url": ""
-},
-{
-"id": "p024",
-"group": "art",
-"w": 400,
-"h": 377,
-"title": "photo_2026-07-26_21-01-20",
 "author": "",
 "license": "",
 "url": ""
@@ -870,16 +830,6 @@
 "url": "https://www.flickr.com/photos/98627683@N00/5099954994"
 },
 {
-"id": "p087",
-"group": "04_retro_consoles",
-"w": 400,
-"h": 225,
-"title": "super-famicom-wallpaper",
-"author": "Wei-Ting Wu",
-"license": "CC PDM 1.0",
-"url": "https://www.flickr.com/photos/32020942@N04/25578530516"
-},
-{
 "id": "p088",
 "group": "04_retro_consoles",
 "w": 400,
@@ -918,16 +868,6 @@
 "author": "bbum",
 "license": "CC BY-NC-ND 2.0",
 "url": "https://www.flickr.com/photos/49503114554@N01/1940841076"
-},
-{
-"id": "p092",
-"group": "04_retro_consoles",
-"w": 400,
-"h": 400,
-"title": "NEC_-_VideoLogic@250nm@PowerVR_Series2@CLX2@Dreamcast@315-6225_9852PX430___DSCx4_polysilicon@5x",
-"author": "FritzchensFritz",
-"license": "CC CC0 1.0",
-"url": "https://www.flickr.com/photos/130561288@N04/30917631508"
 },
 {
 "id": "p093",
@@ -1068,26 +1008,6 @@
 "author": "Hal Hex",
 "license": "CC BY-NC-ND 2.0",
 "url": "https://www.flickr.com/photos/39714624@N05/5986318648"
-},
-{
-"id": "p107",
-"group": "05_retro_games_arcade",
-"w": 400,
-"h": 298,
-"title": "Upright Arcade Cabinet",
-"author": "Sascha Grant",
-"license": "CC BY-NC-ND 2.0",
-"url": "https://www.flickr.com/photos/55706193@N00/5480468838"
-},
-{
-"id": "p108",
-"group": "05_retro_games_arcade",
-"w": 400,
-"h": 284,
-"title": "Trogdor paper arcade cabinet",
-"author": "kidmissile",
-"license": "CC BY-NC 2.0",
-"url": "https://www.flickr.com/photos/48169980@N00/376255823"
 },
 {
 "id": "p109",
@@ -1248,55 +1168,5 @@
 "author": "Tobyotter",
 "license": "CC BY 2.0",
 "url": "https://www.flickr.com/photos/78428166@N00/4366113247"
-},
-{
-"id": "p125",
-"group": "plans",
-"w": 720,
-"h": 472,
-"title": "План первого этажа, 1954",
-"author": "",
-"license": "",
-"url": ""
-},
-{
-"id": "p126",
-"group": "plans",
-"w": 720,
-"h": 472,
-"title": "План подвала, 1954",
-"author": "",
-"license": "",
-"url": ""
-},
-{
-"id": "p127",
-"group": "plans",
-"w": 720,
-"h": 472,
-"title": "План жилого этажа, 1952",
-"author": "",
-"license": "",
-"url": ""
-},
-{
-"id": "p128",
-"group": "plans",
-"w": 720,
-"h": 472,
-"title": "Проект атриума, 1968",
-"author": "",
-"license": "",
-"url": ""
-},
-{
-"id": "p129",
-"group": "plans",
-"w": 720,
-"h": 472,
-"title": "Неосуществлённый проект: отель-кольцо",
-"author": "",
-"license": "",
-"url": ""
 }
 ]

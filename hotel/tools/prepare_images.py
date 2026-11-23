@@ -39,17 +39,10 @@ def main():
             items.append(dict(id=fid, group=g, w=im.width, h=im.height,
                               title=c.get('title') or os.path.splitext(os.path.basename(n))[0],
                               author=c.get('author', ''), license=c.get('license', ''), url=c.get('url', '')))
-    # чертежи из референс-пака — висят как «планы отеля» в архиве и кабинете
-    kit = zipfile.ZipFile(os.path.join(ROOT, 'Hotel_Noir_Retrofuture_Kit.zip'))
-    plans = [('01_Riviera_1954_Ground_Floor.png', 'План первого этажа, 1954'), ('02_Riviera_1954_Basement.png', 'План подвала, 1954'),
-             ('03_Plaza_1952_Guest_Floor.png', 'План жилого этажа, 1952'), ('02_International_1968_Ground_Floor.png', 'Проект атриума, 1968'),
-             ('03_Radial_Hotel_Concept.png', 'Неосуществлённый проект: отель-кольцо')]
-    for fn, title in plans:
-        n = next(x for x in kit.namelist() if x.endswith(fn))
-        im = Image.open(io.BytesIO(kit.read(n))).convert('RGB'); im.thumbnail((720, 720), Image.LANCZOS)
-        fid = 'p%03d' % len(items)
-        im.save(os.path.join(OUT, fid + '.jpg'), 'JPEG', quality=80, optimize=True)
-        items.append(dict(id=fid, group='plans', w=im.width, h=im.height, title=title, author='', license='', url=''))
+    # мемы и схемы в отеле не висят: их места занимают процедурные орнаменты (src/textures.js, ornamentImage)
+    MEMES = {'p018', 'p022', 'p023', 'p024', 'p087', 'p092', 'p107', 'p108'}
+    for it in [i for i in items if i['id'] in MEMES]:
+        os.remove(os.path.join(OUT, it['id'] + '.jpg')); items.remove(it)
     json.dump(items, open(MAN, 'w'), ensure_ascii=False, indent=0)
     from collections import Counter
     print(len(items), Counter(i['group'] for i in items))

@@ -34,6 +34,10 @@ function mats() {
   M.tileFloor = texMat('tileF', TX.tiles('#3a3436', '#2a2426', '#141012', 4), 0xffffff, {}, 1);
   M.pinkTile = texMat('pinkT', TX.tiles('#b8708a', '#aa6480', '#6a3a4a', 8), 0xffffff, { emissive: 0x2a0a14 }, 1.2);
   M.poolTile = texMat('poolT', TX.tiles('#3a8a9a', '#348292', '#14444c', 8), 0xffffff, {}, 1.2);
+  // бассейн в духе вейпорвейва: розовая плитка, бирюзово-розовая шахматка, дно с розовой сеткой
+  M.vaporWall = texMat('vapW', TX.tiles('#e8a0c4', '#e098bc', '#a05080', 8), 0xffffff, {}, 1.0);
+  M.vaporDeck = texMat('vapD', TX.tiles('#f0b0d0', '#7ad0d8', '#3a2040', 2), 0xffffff, {}, 1.2);
+  M.vaporBottom = texMat('vapB', TX.tiles('#2aa0bc', '#2898b2', '#ff7ac0', 6), 0xffffff, {}, 1.0);
   M.parquet = texMat('parq', TX.parquet(), 0xffffff, {}, 1.4);
   M.restWall = texMat('restWall', TX.wallpaper('#5a1a1c', '#74282a', 'damask', 21), 0xffffff, {}, 1.3);
   M.casinoWall = texMat('casWall', TX.wallpaper('#173a34', '#a8843a', 'trellis', 22), 0xffffff, {}, 1.2);
@@ -88,8 +92,9 @@ function sconceAt(axis, c, side, along, y) { const p = onWall(axis, c, side, alo
 function hangSign(text, x, yy, z, ry, { w = 1.0, h = 0.22, bg, fg } = {}) {
   const g = PR.grp(x, z, ry, yy);
   box(w + 0.04, h + 0.04, 0.03, col(0x140c08), 0, -h / 2 - 0.02, 0, { parent: g });
-  const tex = TX.signTex(text, { aspect: w / h, bg: bg || '#1a120c', fg: fg || '#e0c890' });
-  const m = texMat('hs' + text + w, tex, 0xffffff, { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.25 }, 0);
+  const t3 = PR.tri(text); if (t3) { text = t3.join('\n'); h *= 1.5; }
+  const tex = TX.signTex(text, { aspect: w / h, bg: bg || '#1a120c', fg: fg || '#e0c890', sub: !!t3 });
+  const m = texMat('hs' + text.replace(/\n/g, '|') + w, tex, 0xffffff, { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.25 }, 0);
   for (const s of [1, -1]) { const p = plane(w, h, m, 0, 0, s * 0.03, 0, s > 0 ? 0 : P, { parent: g }); p.userData.noMerge = true; }
   box(0.015, 0.4, 0.015, col(0x111111), -w * 0.4, h / 2, 0, { parent: g }); box(0.015, 0.4, 0.015, col(0x111111), w * 0.4, h / 2, 0, { parent: g });
   mount(g, 'hang');
@@ -175,7 +180,7 @@ function corridorWalls(L, rooms, { corrMat, doorOpts, partitionOps = {} }) {
       wall('x', c, r.x0, r.x1, y, FH, side > 0 ? { neg: corrMat, pos: r.mat } : { neg: r.mat, pos: corrMat }, ops);
       if (o) {
         r.door = new Door('x', c, r.x0 + 1.1, { swing: side, hinge: -1, ...o });
-        if (o.plate !== false) { const pw = Math.max(0.3, (o.plate || '').length * 0.07); sgn(o.plate || String(r.num), 'x', c, -side, r.x0 + 1.82 + pw / 2, y + 1.6, { w: pw, h: 0.15, bg: '#1e140a', fg: '#e0c070' }); }
+        if (o.plate !== false) { const pw = Math.max(PR.tri(o.plate || '') ? 0.95 : 0.3, (o.plate || '').length * 0.07); sgn(o.plate || String(r.num), 'x', c, -side, r.x0 + 1.82 + pw / 2, y + 1.6, { w: pw, h: 0.15, bg: '#1e140a', fg: '#e0c070' }); }
       }
     }
     const z0 = side > 0 ? CZ1 : TZ0, z1 = side > 0 ? TZ1 : CZ0;
@@ -203,7 +208,7 @@ function liftLobbyDecor(L, fname) {
   sgn(fname, 'z', TX0, 1, -0.95, y + 2.0, { w: 0.7, h: 0.25 });
   hangSign('ВЫХОД · ЛЕСТНИЦА', 0.95, y + 3.35, -1.45, 0, { w: 1.2, h: 0.2, bg: '#0a2a14', fg: '#6aff9a' });
   const p = onWall('x', EZ0, -1, 1.55); PR.fireExt(p.x, p.z, p.ry);
-  PR.plant(0.6, 5.8, { s: 0.8 });
+  PR.plant(0.62, 5.72, { s: 0.75 });
 }
 
 // ======================================================================
@@ -235,8 +240,14 @@ function buildGuestFloor(L) {
     a.wins = [21, 27].map(x => ({ at: x, w: 2.2, type: 'window', sill: 0.75, h: 2.1, light: 0.24 }));
     rooms = rooms.filter(r => r !== b);
   }
+  if (L === 2) {
+    // бассейн занимает два номера: 306 (бывший запертый) и 308
+    const a = rooms.find(r => r.idx === 8), b = rooms.find(r => r.idx === 6);
+    a.x0 = 18; a.wins = [21, 27].map(x => ({ at: x, w: 2.2, type: 'window', sill: 0.75, h: 2.1, light: 0.3 }));
+    rooms = rooms.filter(r => r !== b);
+  }
   const pool = rooms.find(r => r.kind === 'pool');
-  if (pool) { pool.num = 313; pool.mat = M.poolTile; pool.floor = M.poolTile; pool.sound = 'tile'; pool.secretDoorAt = pool.x0 + 3; }
+  if (pool) { pool.num = 313; pool.mat = M.vaporWall; pool.floor = M.vaporDeck; pool.sound = 'tile'; pool.secretDoorAt = pool.x1 - 3; }
   towerFloorsAndCeiling(L, rooms, { corrMat: M.carpet, corrSound: 'carpet', coreMat: M.carpet, coreSound: 'carpet' });
   towerOuter(L, rooms, { coreMat: M.corrWall });
   corridorWalls(L, rooms, {
@@ -410,7 +421,7 @@ function furnishRoom(r, L) {
     }
     case 'flooded': {
       const wm = new THREE.MeshLambertMaterial({ map: TX.waterTex().clone(), transparent: true, opacity: 0.7, emissive: 0x0a3038, color: 0x88c8d0, depthWrite: false });
-      wm.map.needsUpdate = true; wm.map.repeat.set(3, 2.5);
+      wm.map.needsUpdate = true; wm.map.repeat.set(5, 4); wm.opacity = 0.55;
       const [wx, wz] = at(F.W / 2, F.D / 2);
       plane(F.W - 0.2, F.D - 0.2, wm, wx, y + 0.1, wz, -P / 2, 0).userData.noRay = true;
       W.animated.push((dt, t) => { wm.map.offset.set(t * 0.02, Math.sin(t * 0.3) * 0.05); });
@@ -515,30 +526,50 @@ function poolRoom(r) {
   };
   interact(panel, 'Постучать по стене', () => { S.sfxKnock(2); G.toast('Звук гулкий. За стеной пустота.'); });
   sgn('3̶1̶3̶', 'x', c, 1, at + 0.85, y + 1.6, { w: 0.3, h: 0.15, bg: '#1e140a', fg: '#e0c070' });
-  const DK = 0.32, x0 = r.x0 + 0.8, x1 = r.x1 - 0.8, z0 = TZ0 + 0.8, z1 = CZ0 - 1.5;
-  const fm = M.poolTile;
+  const DK = 0.32, x0 = r.x0 + 1.6, x1 = r.x1 - 1.6, z0 = TZ0 + 1.0, z1 = CZ0 - 1.6;
   for (const rr of rectMinus([r.x0, TZ0, r.x1, CZ0], [x0, z0, x1, z1])) {
-    floorRect(rr[0], rr[1], rr[2], rr[3], y + DK, fm, 'tile');
-    block(rr[0], y + 0.003, rr[1], rr[2], y + DK - 0.003, rr[3], fm, { collide: false });
+    floorRect(rr[0], rr[1], rr[2], rr[3], y + DK, M.vaporDeck, 'tile');
+    block(rr[0], y + 0.003, rr[1], rr[2], y + DK - 0.02, rr[3], M.vaporBottom, { collide: false });
   }
-  floorRect(x0, z0, x1, z1, y + 0.02, texMat('poolBottom', TX.tiles('#1e5a6a', '#1c5462', '#0a2a32', 8), 0xffffff, {}, 1.2), 'water');
-  const wm = new THREE.MeshBasicMaterial({ map: TX.waterTex(), transparent: true, opacity: 0.55, color: 0x9ae8f0, depthWrite: false });
+  floorRect(x0, z0, x1, z1, y + 0.02, M.vaporBottom, 'water');
+  const wt = TX.waterTex().clone(); wt.needsUpdate = true; wt.repeat.set(4, 1.4);
+  const wm = new THREE.MeshBasicMaterial({ map: wt, transparent: true, opacity: 0.5, color: 0xb0f4ff, depthWrite: false });
   plane(x1 - x0, z1 - z0, wm, (x0 + x1) / 2, y + DK - 0.08, (z0 + z1) / 2, -P / 2, 0).userData.noRay = true;
-  W.animated.push((dt, t) => { wm.map.offset.set(t * 0.03, Math.sin(t * 0.4) * 0.04); });
-  anchor((x0 + x1) / 2, y + 0.6, (z0 + z1) / 2, { color: 0x40e0ff, intensity: 5, distance: 7 });
-  glow((x0 + x1) / 2, y + CEIL - 0.01, (z0 + z1) / 2, 4, 0x40d0ff, 0.22, { rx: P / 2 });
-  const lounger = PR.grp(r.x1 - 0.45, -2.6, 0, y + DK);
-  box(0.6, 0.35, 1.8, col(0xe0d8c8), 0, 0, 0, { parent: lounger }); box(0.6, 0.5, 0.08, col(0xe0d8c8), 0, 0.35, -0.86, { parent: lounger }); PR.solid(lounger, 0.6, 1.8, 0.4); mount(lounger, 'floor');
-  interact(lounger, 'Прилечь на шезлонг', () => G.sit({ x: r.x1 - 0.45, y: y + DK + 0.8, z: -2.9, yaw: P, lie: true }));
-  const uni = PR.grp(r.x1 - 0.45, -2.0, 0, y + DK + 0.35);
+  // надувной круг покачивается на воде
+  const ring = new THREE.Group(); ring.position.set(23.6, y + DK - 0.06, -4.0); W.group.add(ring);
+  for (let i = 0; i < 8; i++) { const seg = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.13, 6, 4, P / 4 + 0.01), col(i % 2 ? 0xfff0f4 : 0xff5aa8)); seg.rotation.set(P / 2, 0, i * P / 4); ring.add(seg); }
+  ring.children.forEach(m => { m.userData.noMerge = true; m.userData.noRay = true; });
+  W.animated.push((dt, t) => { wt.offset.set(t * 0.025, Math.sin(t * 0.35) * 0.05); ring.position.y = y + DK - 0.06 + Math.sin(t * 1.3) * 0.02; ring.rotation.y = t * 0.05; ring.position.x = 23.6 + Math.sin(t * 0.11) * 1.4; });
+  anchor((x0 + x1) / 2 - 2, y + 0.6, (z0 + z1) / 2, { color: 0x40e0ff, intensity: 5, distance: 7 });
+  anchor((x0 + x1) / 2 + 2.5, y + 2.6, (z0 + z1) / 2, { color: 0xff5ac0, intensity: 4, distance: 8 });
+  glow((x0 + x1) / 2, y + CEIL - 0.01, (z0 + z1) / 2, 6, 0x40d0ff, 0.2, { rx: P / 2 });
+  // колонны с розовым мрамором по углам чаши
+  const pm = texMat('vapCol', TX.marble('#f0c8dc', '#c8a0d8'), 0xffffff, {}, 0);
+  for (const [cx, cz] of [[x0 - 0.35, z0 - 0.4], [x1 + 0.35, z0 - 0.4]]) PR.column(cx, cz, CEIL - DK, { r: 0.2, mat: pm, y: y + DK });
+  const lounger = (lx, lz) => {
+    const g = PR.grp(lx, lz, 0, y + DK);
+    box(0.6, 0.35, 1.8, col(0xf0e8f0), 0, 0, 0, { parent: g }); box(0.6, 0.5, 0.08, col(0xf0e8f0), 0, 0.35, -0.86, { parent: g });
+    box(0.5, 0.04, 1.2, col(0x7ad8e0), 0, 0.35, 0.2, { parent: g }); PR.solid(g, 0.6, 1.8, 0.4); mount(g, 'floor');
+    interact(g, 'Прилечь на шезлонг', () => G.sit({ x: lx, y: y + DK + 0.8, z: lz - 0.3, yaw: P, lie: true }));
+    return g;
+  };
+  lounger(r.x1 - 0.6, -3.3); lounger(r.x0 + 0.6, -3.9);
+  const uni = PR.grp(r.x1 - 0.6, -2.95, 0, y + DK + 0.395);
   box(0.35, 0.06, 0.3, col(0x3a3a5a), 0, 0, 0, { parent: uni }); box(0.25, 0.04, 0.2, col(0xe8e0d0), 0, 0.06, 0, { parent: uni });
   PR.hitBox(uni, 0.4, 0.15, 0.4); interact(uni, 'Сложенная униформа', () => { S.sfxPaper(); G.note(...TXT.maidPool); }); mount(uni, 'table');
-  pic(['02_weirdcore_liminal'], 'z', r.x0, 1, -3.8, y + DK + 1.6, 1.0, { frame: 'white' });
-  pic(['02_weirdcore_liminal'], 'z', r.x1, -1, -4.4, y + DK + 1.6, 0.8, { frame: 'white' });
-  PR.book(r.x0 + 2.2, y + DK, -2.0, 0.3, 'libHeraclitus', { color: 0x1a5a6a });
-  PR.note(r.x0 + 0.5, y + DK, CZ0 - 0.45, 0.2, 'Табличка у бассейна', 'БАССЕЙН ЗАКРЫТ НА СЕЗОН.\n\nСезон: всегда.\nСпасатель: на обеде с 1999 года.');
+  PR.bust(r.x0 + 0.7, -2.2, P / 2, 'Осмотреть статую', [
+    'Гипсовый Аполлон в солнечных очках, которые кто-то нарисовал маркером. Очки не стираются.',
+    'Табличка: «Копия копии. Вода в бассейне — тоже копия: настоящую выпили в 1999-м».',
+  ], { color: 0xf0d0e0, y: y + DK });
+  PR.plant(r.x1 - 0.55, -1.95, { y: y + DK, s: 0.9 });
+  sgn('PISCINE', 'x', TZ0, 1, (r.x0 + r.x1) / 2, y + DK + 2.3, { w: 2.2, h: 0.5, bg: '#14081e', fg: '#ff6ad0', glowing: true });
+  glow((r.x0 + r.x1) / 2, y + DK + 2.3, TZ0 + T / 2 + 0.04, 3.2, 0xff40c0, 0.22, { rx: 0 });
+  PR.sunRelief(r.x1 - T / 2 - 0.005, y + DK + 2.2, -4.2, -P / 2, 0.85);
+  pic(['02_weirdcore_liminal'], 'z', r.x0, 1, -4.6, y + DK + 1.7, 0.9, { frame: 'pink' });
+  PR.book(r.x0 + 2.4, y + DK, -2.0, 0.3, 'libHeraclitus', { color: 0x1a5a6a });
+  PR.note(r.x0 + 1.2, y + DK, CZ0 - 0.45, 0.2, 'Табличка у бассейна', 'БАССЕЙН ЗАКРЫТ НА СЕЗОН.\nPISCINE FERMÉE · POOL CLOSED\n\nСезон: всегда.\nСпасатель: на обеде с 1999 года.');
   trigger(r.x0, TZ0, r.x1, CZ0, () => G.secret('pool', 'Номер 313 · бассейн'));
-  zone(r.x0, TZ0, r.x1, CZ0, 'НОМЕР 313', { reverb: 0.7, muffle: 1300 });
+  zone(r.x0, TZ0, r.x1, CZ0, 'PISCINE · НОМЕР 313', { reverb: 0.75, muffle: 1300, amb: 1.35 });
 }
 
 // ======================================================================
@@ -859,7 +890,7 @@ function buildLobby() {
   PR.tableLamp(-6.0, y + 1.15, -7.7, { shade: 0x2a5a3a });
   PR.tableLamp(-6.0, y + 1.15, -2.9, { shade: 0x2a5a3a });
   PR.note(-6.0, y + 1.15, -6.4, 0.4, 'Книга регистрации', 'Гость: —     Номер: 101 … выезд: —\nГость: —     Номер: 204 … выезд: —\nГость: ты     Номер: ∞ … заезд: сейчас\n\nНа полях: «лифт знает больше этажей, чем кнопок».');
-  PR.computer(-6.0, y + 1.15, -4.1, -P / 2, 'ресепшен', [
+  PR.computer(-6.0, y + 1.15, -4.1, P / 2, 'ресепшен', [
     { name: 'регистрация/гости_1999.txt', story: 'manager', title: TXT.registry[0], text: TXT.registry[1] },
     { name: 'журнал/ночь.txt', story: 'guard', title: TXT.guardNight[0], text: TXT.guardNight[1] },
   ]);
@@ -1014,7 +1045,7 @@ function buildBasement() {
     partitionOps: { [24]: [{ at: 3.2, w: 1.4, type: 'open', h: 2.3 }] },
   });
   coreWalls(L, { coreMat: M.concWall, serviceName: 'кладовка' });
-  for (const z of [-0.9, 0.9]) PR.pipe(0.5, y + 3.45, z, 29.8, y + 3.45, z, 0.08, z > 0 ? 0x4a5a4a : 0x6a4a3a);
+  for (const z of [-0.9, 0.9]) PR.ceilingPipe(TX0, TX1, y + 3.45, z, y + CEIL, 0.08, z > 0 ? 0x4a5a4a : 0x6a4a3a);
   for (const x of [4, 9, 14, 19, 24, 29]) PR.ceilingLamp(x, 0, { y: y + CEIL, kind: 'tube', color: 0xe8f0d0, intensity: 2.4, distance: 7, flicker: x === 14 || x === 24 ? 0.6 : 0.05 });
   zone(6, CZ0, TX1, CZ1, 'ПОДВАЛ', { reverb: 0.55, buzz: 0.03, muffle: 1100, wind: 0 });
   zone(0, -1.5, 6, TZ1, 'ПОДВАЛ · ЛЕСТНИЦА', { reverb: 0.5, buzz: 0.02, muffle: 1100, wind: 0 });
@@ -1104,8 +1135,8 @@ function buildBasement() {
     else interact(g, 'Осмотреть багаж', () => { S.sfxPaper(); G.toast(['Бирка: «Номер 401». Внутри — шуба. Летняя.', 'Бирка: «Орлов Л.». Внутри — ноты и галстук-бабочка.', 'Бирки нет. Чемодан тёплый.', 'Бирка: «до востребования». Востребовать некому.'][i % 4]); });
     PR.solid(g, 0.7, 0.28, 0.5); mount(g, 'floor');
   });
-  PR.counter(24 + T / 2, -2.5, 25.0, CZ0 - T / 2, 1.0, { top: 0x2a2a2a, front: '#4a4a4a' });
-  PR.bell(24.6, y + 1.0, -2.0);
+  PR.counter(26.4, -3.35, TX1 - T / 2, -2.85, 1.0, { top: 0x2a2a2a, front: '#4a4a4a' });
+  PR.bell(27.2, y + 1.0, -3.1);
   sgn('КАМЕРА ХРАНЕНИЯ', 'z', TX1, -1, -2.2, y + 2.4, { w: 1.2, h: 0.22 });
   PR.ceilingLamp(27, -4, { y: y + CEIL, kind: 'tube', color: 0xe8f0d0, intensity: 2, distance: 6, flicker: 0.3 });
   zone(24, TZ0, TX1, CZ0, 'КАМЕРА ХРАНЕНИЯ', { reverb: 0.3, muffle: 900, wind: 0 });

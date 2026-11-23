@@ -263,8 +263,8 @@ export const windowPatchTex = () => cached('wpatch', () => {
 });
 
 // Табличка: холст в пропорциях таблички, шрифт подбирается, чтобы текст влез
-export function signTex(text, { aspect = 3, bg = '#14100c', fg = '#d8c08a', family = 'Georgia, serif', weight = 'bold', border = true, glowText = false } = {}) {
-  return cached(`sign${text}${aspect.toFixed(2)}${bg}${fg}${family}${border}`, () => {
+export function signTex(text, { aspect = 3, bg = '#14100c', fg = '#d8c08a', family = 'Georgia, serif', weight = 'bold', border = true, glowText = false, sub = false } = {}) {
+  return cached(`sign${text}${aspect.toFixed(2)}${bg}${fg}${family}${border}${sub}`, () => {
     const H = 128, Wd = Math.min(1024, Math.max(64, Math.round(H * aspect)));
     const [c, g] = canvas(Wd, H);
     g.fillStyle = bg; g.fillRect(0, 0, Wd, H);
@@ -277,6 +277,18 @@ export function signTex(text, { aspect = 3, bg = '#14100c', fg = '#d8c08a', fami
     while (fit() > Wd - pad * 2 && size > 8) size *= 0.92;
     if (glowText) { g.shadowColor = fg; g.shadowBlur = 14; }
     g.fillStyle = fg;
+    if (sub && lines.length > 1) {
+      // крупная главная строка и мелкие переводы под ней
+      let s1 = (H - pad * 2) * 0.5, s2 = (H - pad * 2) * 0.24;
+      g.font = `${weight} ${s1}px ${family}`; while (g.measureText(lines[0]).width > Wd - pad * 2 && s1 > 8) { s1 *= 0.92; g.font = `${weight} ${s1}px ${family}`; }
+      g.font = `${s2}px ${family}`; while (Math.max(...lines.slice(1).map(l => g.measureText(l).width)) > Wd - pad * 2 && s2 > 6) { s2 *= 0.92; g.font = `${s2}px ${family}`; }
+      const total = s1 * 1.05 + (lines.length - 1) * s2 * 1.2, y0 = H / 2 - total / 2;
+      g.font = `${weight} ${s1}px ${family}`; g.fillText(lines[0], Wd / 2, y0 + s1 * 0.52);
+      g.globalAlpha = 0.8; g.font = `${s2}px ${family}`;
+      lines.slice(1).forEach((ln, i) => g.fillText(ln, Wd / 2, y0 + s1 * 1.05 + s2 * (0.6 + i * 1.2)));
+      g.globalAlpha = 1;
+      return toTex(c, { repeat: false });
+    }
     const lh = size * 1.12;
     lines.forEach((ln, i) => g.fillText(ln, Wd / 2, H / 2 + (i - (lines.length - 1) / 2) * lh));
     return toTex(c, { repeat: false });
@@ -329,11 +341,23 @@ export function screenTex(lines, { bg = '#06180e', fg = '#8dffbe' } = {}) {
     return toTex(c, { repeat: false });
   });
 }
+// вода: мягкая каустика — светлые прожилки по краям ячеек Вороного, без «колец»
 export const waterTex = () => cached('water', () => {
   const S = 128, [c, g] = canvas(S); const r = rnd(31);
-  g.fillStyle = '#1a6a7a'; g.fillRect(0, 0, S, S);
-  g.strokeStyle = 'rgba(180,255,250,0.35)'; g.lineWidth = 2;
-  for (let i = 0; i < 18; i++) { const x = r() * S, y = r() * S, a = 10 + r() * 14, b = 3 + r() * 5, ro = r() * 3; wrap(S, (dx, dy) => { g.beginPath(); g.ellipse(x + dx, y + dy, a, b, ro, 0, 5); g.stroke(); }); }
+  const pts = []; for (let i = 0; i < 22; i++) pts.push([r() * S, r() * S]);
+  const img = g.createImageData(S, S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    let d1 = 1e9, d2 = 1e9;
+    for (const [px, py] of pts) {
+      let dx = Math.abs(x - px), dy = Math.abs(y - py); dx = Math.min(dx, S - dx); dy = Math.min(dy, S - dy);
+      const d = dx * dx + dy * dy; if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+    }
+    const e = Math.sqrt(d2) - Math.sqrt(d1); // 0 на границе ячеек
+    const k = Math.exp(-e * 0.55) * 0.85 + Math.exp(-e * 0.15) * 0.15;
+    const i = (y * S + x) * 4;
+    img.data[i] = 22 + k * 150; img.data[i + 1] = 92 + k * 150; img.data[i + 2] = 108 + k * 130; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
   return toTex(c);
 });
 // Барабан слот-машины: символы по вертикали
@@ -417,3 +441,98 @@ export function sunTex() {
   for (let i = 0; i < 7; i++) { const y = S * 0.52 + i * i * 2.6 + i * 9, h = 2 + i * 1.6; g.fillRect(0, y, S, h); }
   return toTex(c, { repeat: false });
 }
+
+// ---------- самодельные орнаменты для рам: ар-деко, вейпорвейв, эйдосы, пустыня ----------
+const ORN = [
+  ['Восход ар-деко', 'Солнце поднимается из-за стойки регистрации. Оно поднимается так с открытия отеля и всё никак не поднимется.'],
+  ['Закат над сеткой', 'Солнце над решёткой, у которой нет горизонта. Подпись на обороте: «вид из номера, которого нет».'],
+  ['Эйдос №12', 'Додекаэдр, вписанный в круг. По Платону, из этого сделано небо. Здесь из этого сделан потолок.'],
+  ['Малиновая пустыня', 'Тот же пейзаж, что за окнами. Художник рисовал с натуры — и натура ему позировала.'],
+  ['Зигзаг', 'Чёрно-белые полосы, как на полу во сне. Если смотреть долго, рисунок начинает идти навстречу.'],
+  ['Розетта', 'Двенадцать вложенных многоугольников. В центре — точка, вокруг которой всё вращается и которую никто не видел.'],
+  ['Коридор', 'Коридор, нарисованный по линейке до самого конца. Конца нет, а линейка кончилась.'],
+  ['Веер', 'Орнамент с обоев вестибюля, увеличенный в сто раз. Узор оказался буквами, но язык никто не узнал.'],
+];
+export function ornamentImage(n) {
+  const k = n % ORN.length, land = n % 2 === 1, Wd = land ? 480 : 384, Hd = land ? 360 : 480;
+  const [c, g] = canvas(Wd, Hd); const r = rnd(101 + n * 17);
+  const gold = '#d8a850', crimson = '#3a0a14', W2 = Wd / 2, H2 = Hd / 2;
+  const lin = (a, b, cs) => { const gr = g.createLinearGradient(0, a, 0, b); cs.forEach((cc, i) => gr.addColorStop(i / (cs.length - 1), cc)); return gr; };
+  switch (k) {
+    case 0: { // ар-деко: лучи веером снизу, ступенчатые дуги
+      g.fillStyle = '#140a0c'; g.fillRect(0, 0, Wd, Hd);
+      for (let i = 0; i <= 24; i++) { const a = P0 + i / 24 * Math.PI; g.strokeStyle = i % 2 ? gold : '#8a5a2a'; g.lineWidth = i % 2 ? 3 : 1.5; g.beginPath(); g.moveTo(W2, Hd * 0.86); g.lineTo(W2 - Math.cos(a) * Wd, Hd * 0.86 - Math.sin(a) * Wd); g.stroke(); }
+      for (let i = 5; i > 0; i--) { g.fillStyle = i % 2 ? '#2a1008' : '#d8a850'; g.beginPath(); g.arc(W2, Hd * 0.86, i * Wd * 0.07, Math.PI, 0); g.fill(); }
+      g.fillStyle = '#140a0c'; g.fillRect(0, Hd * 0.86, Wd, Hd);
+      for (let i = 0; i < 4; i++) { g.strokeStyle = gold; g.lineWidth = 2; g.strokeRect(12 + i * 8, 12 + i * 8, Wd - 24 - i * 16, Hd - 24 - i * 16); }
+      break;
+    }
+    case 1: { // вейпорвейв: полосатое солнце над розовой сеткой
+      g.fillStyle = lin(0, Hd * 0.62, ['#2a0a3a', '#a02a6a', '#ffb070']); g.fillRect(0, 0, Wd, Hd);
+      const sy = Hd * 0.42, sr = Hd * 0.22; g.fillStyle = lin(sy - sr, sy + sr, ['#ffe070', '#ff7a3a', '#e0306a']); g.beginPath(); g.arc(W2, sy, sr, 0, 7); g.fill();
+      g.fillStyle = '#a02a6a'; for (let i = 0; i < 6; i++) g.fillRect(0, sy + i * i * 2.2 + i * 6, Wd, 2 + i);
+      const hz = Hd * 0.62; g.fillStyle = '#140820'; g.fillRect(0, hz, Wd, Hd - hz);
+      g.strokeStyle = '#ff5ab0'; g.lineWidth = 1.5;
+      for (let i = -12; i <= 12; i++) { g.beginPath(); g.moveTo(W2 + i * 8, hz); g.lineTo(W2 + i * 90, Hd); g.stroke(); }
+      for (let i = 1; i < 12; i++) { const y = hz + (Hd - hz) * Math.pow(i / 11, 2.2); g.beginPath(); g.moveTo(0, y); g.lineTo(Wd, y); g.stroke(); }
+      break;
+    }
+    case 2: { // эйдос: каркас додекаэдра в круге
+      g.fillStyle = '#0c0a18'; g.fillRect(0, 0, Wd, Hd);
+      for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(255,220,160,${0.2 + r() * 0.5})`; g.fillRect(r() * Wd, r() * Hd, 1.5, 1.5); }
+      const R = Math.min(Wd, Hd) * 0.36; g.strokeStyle = gold; g.lineWidth = 2; g.beginPath(); g.arc(W2, H2, R * 1.12, 0, 7); g.stroke();
+      const ph = (1 + Math.sqrt(5)) / 2, V = [];
+      for (const a of [-1, 1]) for (const b of [-1, 1]) for (const cc of [-1, 1]) V.push([a, b, cc]);
+      for (const a of [-1, 1]) for (const b of [-1, 1]) { V.push([0, a / ph, b * ph]); V.push([a / ph, b * ph, 0]); V.push([a * ph, 0, b / ph]); }
+      const rx = 0.5, ry = 0.7, pr = v => { let [x, y, z] = v; [y, z] = [y * Math.cos(rx) - z * Math.sin(rx), y * Math.sin(rx) + z * Math.cos(rx)]; [x, z] = [x * Math.cos(ry) + z * Math.sin(ry), -x * Math.sin(ry) + z * Math.cos(ry)]; return [W2 + x * R / 1.8, H2 + y * R / 1.8, z]; };
+      const Pp = V.map(pr); g.lineWidth = 1.6;
+      for (let i = 0; i < V.length; i++) for (let j = i + 1; j < V.length; j++) { const d = Math.hypot(V[i][0] - V[j][0], V[i][1] - V[j][1], V[i][2] - V[j][2]); if (Math.abs(d - 2 / ph) < 0.01) { g.strokeStyle = (Pp[i][2] + Pp[j][2]) > 0 ? '#ffd890' : 'rgba(216,168,80,0.35)'; g.beginPath(); g.moveTo(Pp[i][0], Pp[i][1]); g.lineTo(Pp[j][0], Pp[j][1]); g.stroke(); } }
+      g.fillStyle = gold; g.font = '20px Georgia, serif'; g.textAlign = 'center'; g.fillText('ΑΙΘΗΡ', W2, Hd - 22);
+      break;
+    }
+    case 3: { // пустыня: малиновые дюны, жёлтое небо, маленькое солнце, дверь
+      g.fillStyle = lin(0, Hd * 0.6, ['#ffe9a0', '#ffc860', '#ff9a50']); g.fillRect(0, 0, Wd, Hd);
+      g.fillStyle = '#ff6a20'; g.beginPath(); g.arc(Wd * 0.72, Hd * 0.3, Hd * 0.04, 0, 7); g.fill();
+      const cols = ['#9a2a30', '#7a1a24', '#5a1018', '#3a0810'];
+      cols.forEach((cc, i) => { g.fillStyle = cc; g.beginPath(); const base = Hd * (0.55 + i * 0.12); g.moveTo(0, Hd); g.lineTo(0, base);
+        for (let x = 0; x <= Wd; x += 8) g.lineTo(x, base - Math.sin(x * 0.012 + i * 2 + n) * 14 - Math.sin(x * 0.031 + i) * 6); g.lineTo(Wd, Hd); g.fill(); });
+      g.fillStyle = '#1a0608'; g.fillRect(Wd * 0.3, Hd * 0.58, Wd * 0.07, Hd * 0.16); g.fillStyle = '#ffd890'; g.fillRect(Wd * 0.31, Hd * 0.595, Wd * 0.05, Hd * 0.145);
+      break;
+    }
+    case 4: { // зигзаг
+      g.fillStyle = '#141010'; g.fillRect(0, 0, Wd, Hd); g.fillStyle = '#d8d0c0';
+      for (let y = -40; y < Hd + 40; y += 40) { g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= Wd; x += 40) g.lineTo(x, y + ((x / 40) % 2 ? 20 : 0)); for (let x = Wd; x >= 0; x -= 40) g.lineTo(x, y + 14 + ((x / 40) % 2 ? 20 : 0)); g.fill(); }
+      g.fillStyle = '#6a0a14'; g.fillRect(W2 - 50, H2 - 70, 100, 140); g.strokeStyle = gold; g.lineWidth = 3; g.strokeRect(W2 - 50, H2 - 70, 100, 140);
+      g.fillStyle = '#ffd070'; g.beginPath(); g.arc(W2, H2, 14, 0, 7); g.fill();
+      break;
+    }
+    case 5: { // розетта
+      g.fillStyle = crimson; g.fillRect(0, 0, Wd, Hd);
+      for (let i = 12; i > 0; i--) { const n2 = 3 + (i % 6), R = i * Math.min(Wd, Hd) * 0.035; g.strokeStyle = i % 2 ? gold : '#ff8a6a'; g.lineWidth = 1.6; g.beginPath();
+        for (let j = 0; j <= n2; j++) { const a = j / n2 * Math.PI * 2 + i * 0.3; const x = W2 + Math.cos(a) * R, y = H2 + Math.sin(a) * R; j ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+      g.fillStyle = '#ffd070'; g.beginPath(); g.arc(W2, H2, 3, 0, 7); g.fill();
+      break;
+    }
+    case 6: { // бесконечный коридор
+      g.fillStyle = '#2a1a0c'; g.fillRect(0, 0, Wd, Hd);
+      const vx = W2, vy = Hd * 0.46;
+      for (let i = 0; i < 14; i++) { const t = Math.pow(0.78, i), w = Wd * 0.48 * t, h = Hd * 0.5 * t; g.strokeStyle = `rgba(255,210,140,${0.25 + 0.6 * t})`; g.lineWidth = 1 + 2 * t; g.strokeRect(vx - w, vy - h, w * 2, h * 2);
+        if (i % 2 === 0) { g.fillStyle = `rgba(30,12,6,${0.9})`; g.fillRect(vx - w + w * 0.08, vy - h * 0.2, w * 0.14, h * 1.15); g.fillRect(vx + w - w * 0.22, vy - h * 0.2, w * 0.14, h * 1.15); } }
+      g.strokeStyle = 'rgba(255,210,140,0.5)'; g.lineWidth = 1; for (const [x, y] of [[0, 0], [Wd, 0], [0, Hd], [Wd, Hd]]) { g.beginPath(); g.moveTo(x, y); g.lineTo(vx, vy); g.stroke(); }
+      g.fillStyle = '#fff0c0'; g.fillRect(vx - 2, vy - 3, 4, 6);
+      break;
+    }
+    default: { // веер из обоев
+      g.fillStyle = '#4a1a18'; g.fillRect(0, 0, Wd, Hd);
+      for (let y = 0; y < Hd + 60; y += 60) for (let x = (y / 60) % 2 ? 30 : 0; x < Wd + 60; x += 60) {
+        for (let i = 6; i > 0; i--) { g.fillStyle = i % 2 ? '#7a3024' : '#c08a4a'; g.beginPath(); g.moveTo(x, y); g.arc(x, y, i * 5, Math.PI, 0); g.fill(); }
+      }
+    }
+  }
+  // повторы в других тонах: фиолетовый и бирюзовый варианты
+  const cyc = Math.floor(n / ORN.length) % 3;
+  if (cyc) { g.globalCompositeOperation = 'color'; g.globalAlpha = 0.45; g.fillStyle = cyc === 1 ? '#9a6ad8' : '#3ab0a8'; g.fillRect(0, 0, Wd, Hd); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; }
+  g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 6; g.strokeRect(0, 0, Wd, Hd);
+  return { url: c.toDataURL('image/jpeg', 0.9), w: Wd, h: Hd, title: ORN[k][0] + (cyc ? ['', ' (лиловый вариант)', ' (бирюзовый вариант)'][cyc] : ''), text: ORN[k][1] };
+}
+const P0 = 0;

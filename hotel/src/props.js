@@ -369,7 +369,25 @@ export function curtains(axis, c, s0, s1, y0, inside, color = 0x6a1a24) {
   const rod = axis === 'x' ? box(s1 - s0 + 0.5, 0.04, 0.04, col(0x5a4020), (s0 + s1) / 2, y0 + 2.96, c + inside * 0.22) : box(0.04, 0.04, s1 - s0 + 0.5, col(0x5a4020), c + inside * 0.22, y0 + 2.96, (s0 + s1) / 2);
   for (const e of [s0 - 0.25, s1 + 0.25]) axis === 'x' ? box(0.04, 0.04, 0.22, col(0x5a4020), e, y0 + 2.96, c + inside * 0.11) : box(0.22, 0.04, 0.04, col(0x5a4020), c + inside * 0.11, y0 + 2.96, e);
   let closed = false; const span = (s1 - s0) / 2 + 0.15;
-  const set = () => { for (const g of panels) g.scale.x = closed ? span / 0.5 : 1; };
+  // задёрнутые шторы гасят солнечное пятно на полу и затемняют комнату
+  const lvl = W.level, mid = (s0 + s1) / 2;
+  const me = { closed: false, zone: null };
+  (W.curtainList = W.curtainList || []).push(me);
+  const resolve = () => {
+    if (me.patches) return;
+    me.patches = (W.windowPatches || []).filter(p => p.level === lvl && (axis === 'x'
+      ? Math.abs(p.cz - c) < 0.4 && p.cx > s0 - 0.1 && p.cx < s1 + 0.1
+      : Math.abs(p.cx - c) < 0.4 && p.cz > s0 - 0.1 && p.cz < s1 + 0.1));
+    const px = axis === 'x' ? mid : c + inside * 1.0, pz = axis === 'x' ? c + inside * 1.0 : mid;
+    me.zone = W.zones.find(z => z.level === lvl && px > z.minX && px < z.maxX && pz > z.minZ && pz < z.maxZ) || null;
+  };
+  const set = () => {
+    for (const g of panels) g.scale.x = closed ? span / 0.5 : 1;
+    resolve(); me.closed = closed;
+    for (const p of me.patches) p.mesh.visible = !closed;
+    if (me.zone) { const all = W.curtainList.filter(o => { if (!o.patches && o.resolve) o.resolve(); return o.zone === me.zone; }); me.zone.dark = all.filter(o => o.closed).length / all.length; }
+  };
+  me.resolve = resolve;
   for (const g of panels) interact(g, () => closed ? 'Раздвинуть шторы' : 'Задёрнуть шторы', () => { closed = !closed; set(); S.sfxCurtain(); });
   return panels;
 }
@@ -399,9 +417,55 @@ export function clock(x, y, z, ry, { r = 0.3 } = {}) {
   onWall(g, r * 2, r * 2); return g;
 }
 // Табличка на стене: (x,y,z) — точка на поверхности, ry — нормаль
+// Таблички дублируются: главная строка (у заведений — по-французски) и мелкая строка с переводами
+export const TRI = {
+  'ВЫХОД': ['ВЫХОД', 'EXIT · SORTIE'],
+  'ВЫХОД · ЛЕСТНИЦА': ['ВЫХОД · ЛЕСТНИЦА', 'EXIT · STAIRS  ·  SORTIE · ESCALIER'],
+  '←  ВЕСТИБЮЛЬ': ['←  ВЕСТИБЮЛЬ', 'LOBBY · HALL D’ACCUEIL'],
+  'ПОДВАЛ ↓   ЭТАЖИ ↑': ['ПОДВАЛ ↓   ЭТАЖИ ↑', 'BASEMENT · SOUS-SOL ↓   FLOORS · ÉTAGES ↑'],
+  'П О Л Д Е Н Ь': ['Bar « Le Midi »', 'БАР «ПОЛДЕНЬ» · NOON BAR'],
+  'ГАРДЕРОБ': ['Vestiaire', 'ГАРДЕРОБ · CLOAKROOM'],
+  '«МИРАЖ»': ['Restaurant « Le Mirage »', 'РЕСТОРАН «МИРАЖ» · RESTAURANT'],
+  'КАССА': ['Caisse', 'КАССА · CASHIER'],
+  'КАЗИНО «ОАЗИС» →': ['Casino « L’Oasis » →', 'КАЗИНО «ОАЗИС» · CASINO'],
+  'ОАЗИС': ['L’Oasis', 'КАЗИНО «ОАЗИС» · CASINO'],
+  'ВХОД · ENTRANCE': ['ВХОД', 'ENTRANCE · ENTRÉE'],
+  'ГАРДЕРОБ · РЕСТОРАН →': ['Vestiaire · Restaurant →', 'ГАРДЕРОБ · РЕСТОРАН  ·  CLOAKROOM · RESTAURANT'],
+  'КАЗИНО →': ['Casino →', 'КАЗИНО · CASINO'],
+  'УПРАВЛЯЮЩИЙ': ['УПРАВЛЯЮЩИЙ', 'MANAGER · DIRECTION'],
+  'ОПАСНО': ['ОПАСНО', 'DANGER · DANGER DE MORT'],
+  'КАМЕРА ХРАНЕНИЯ': ['КАМЕРА ХРАНЕНИЯ', 'LUGGAGE ROOM · CONSIGNE'],
+  'FUMOIR · КУРИТЕЛЬНАЯ': ['Fumoir', 'КУРИТЕЛЬНАЯ · SMOKING ROOM'],
+  'BIBLIOTHÈQUE': ['Bibliothèque', 'БИБЛИОТЕКА · LIBRARY'],
+  'SALLE DE BAL': ['Salle de bal', 'БАЛЬНЫЙ ЗАЛ · BALLROOM'],
+  'PISCINE': ['Piscine', 'БАССЕЙН · SWIMMING POOL'],
+  'ЭЙДОСЫ': ['ЭЙДОСЫ', 'IDEAS · IDÉES'],
+  'АРХИВ': ['АРХИВ', 'ARCHIVE · ARCHIVES'],
+  'ПОДСОБКА': ['ПОДСОБКА', 'STOREROOM · DÉBARRAS'],
+  'КУХНЯ': ['КУХНЯ', 'KITCHEN · CUISINE'],
+  'БАР': ['Bar « Le Midi »', 'БАР «ПОЛДЕНЬ» · BAR'],
+  'М': ['М', 'MEN · HOMMES'],
+  'Ж': ['Ж', 'WOMEN · FEMMES'],
+  'ПЕРСОНАЛ': ['ПЕРСОНАЛ', 'STAFF ONLY · PERSONNEL'],
+  'ИГРЫ': ['Salle de jeux', 'ИГРОВОЙ ЗАЛ · ARCADE'],
+  'НАБЛЮДЕНИЕ': ['НАБЛЮДЕНИЕ', 'SECURITY · SURVEILLANCE'],
+  'КАМЕРА ХРАНЕНИЯ ': ['КАМЕРА ХРАНЕНИЯ', 'LUGGAGE ROOM · CONSIGNE'],
+  'КОТЕЛЬНАЯ': ['КОТЕЛЬНАЯ', 'BOILER ROOM · CHAUFFERIE'],
+  'ПРАЧЕЧНАЯ': ['ПРАЧЕЧНАЯ', 'LAUNDRY · BLANCHISSERIE'],
+  'СКЛАД МЕБЕЛИ': ['СКЛАД МЕБЕЛИ', 'FURNITURE STORE · GARDE-MEUBLE'],
+  'ЭЛЕКТРОЩИТОВАЯ': ['ЭЛЕКТРОЩИТОВАЯ', 'ELECTRICAL · LOCAL ÉLECTRIQUE'],
+  'ВИННЫЙ ПОГРЕБ': ['ВИННЫЙ ПОГРЕБ', 'WINE CELLAR · CAVE À VIN'],
+};
+export function tri(text) {
+  if (TRI[text]) return TRI[text];
+  let m = /^ЭТАЖ (\d+)$/.exec(text); if (m) return [text, `FLOOR ${m[1]} · ÉTAGE ${m[1]}`];
+  m = /^(\d)01 – \d08  →$/.exec(text); if (m) return [text, 'ROOMS · CHAMBRES'];
+  return null;
+}
 export function sign(text, x, y, z, ry, { w = 0.6, h = 0.22, bg = '#1a120c', fg = '#e0c890', glowing = false, family, border = true, qa = true } = {}) {
-  const tex = TX.signTex(text, { aspect: w / h, bg, fg, family: family || 'Georgia, serif', border, glowText: glowing });
-  const m = glowing ? basic('sign' + text + fg + w, { map: tex }) : texMat('sign' + text + bg + fg + w, tex, 0xffffff, { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.2 }, 0);
+  const t3 = tri(text); if (t3) { text = t3.join('\n'); h *= 1.5; }
+  const tex = TX.signTex(text, { aspect: w / h, bg, fg, family: family || 'Georgia, serif', border, glowText: glowing, sub: !!t3 });
+  const m = glowing ? basic('sign' + text.replace(/\n/g, '|') + fg + w, { map: tex }) : texMat('sign' + text.replace(/\n/g, '|') + bg + fg + w, tex, 0xffffff, { emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.2 }, 0);
   const g = grp(x, z, ry, y);
   B(g, w + 0.03, h + 0.03, 0.016, col(0x140c08), 0, -h / 2 - 0.015, 0.008);
   const p = plane(w, h, m, 0, 0, 0.03, 0, 0, { parent: g }); p.userData.noMerge = true;
@@ -534,6 +598,17 @@ export function pipe(x0, y0, z0, x1, y1, z1, r = 0.08, color = 0x4a5a4a) {
   const a = new THREE.Vector3(x0, y0, z0), b = new THREE.Vector3(x1, y1, z1);
   const len = a.distanceTo(b); const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), col(color));
   m.position.copy(a).add(b).multiplyScalar(0.5); m.lookAt(b); m.rotateX(P / 2); W.group.add(m); return m;
+}
+// горизонтальная труба под потолком: подвесы-хомуты через каждые step метров
+export function ceilingPipe(x0, x1, y, z, ceilY, r = 0.08, color = 0x4a5a4a, step = 2.5) {
+  const m = pipe(x0, y, z, x1, y, z, r, color);
+  const hm = col(0x2a2a2a);
+  for (let x = Math.min(x0, x1) + 0.6; x < Math.max(x0, x1) - 0.3; x += step) {
+    box(0.03, ceilY - y, 0.03, hm, x, y, z);
+    box(0.05, 0.05, r * 2 + 0.04, hm, x, y - r - 0.02, z);
+    box(0.16, 0.012, 0.16, hm, x, ceilY - 0.012, z);
+  }
+  return m;
 }
 export function arcade(x, z, ry, imgGroups = ['05_retro_games_arcade']) {
   const g = grp(x, z, ry);
@@ -705,16 +780,17 @@ export function roulette(x, z, ry) {
   const felt = texMat('felt', TX.felt('#1a5a3a'), 0xffffff, {}, 0);
   B(g, 2.6, 0.8, 1.2, woodM('#3a1a10'), 0, 0, 0); B(g, 2.5, 0.04, 1.1, felt, 0, 0.8, 0);
   // разметка поля
-  for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) B(g, 0.11, 0.004, 0.2, col((i * 3 + j) % 2 ? 0xa01818 : 0x141010), 0.05 + i * 0.12, 0.852, -0.3 + j * 0.22);
-  const bowl = C(g, 0.48, 0.42, 0.14, 24, woodM('#4a2210'), -0.85, 0.8, 0);
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) B(g, 0.085, 0.004, 0.2, col((i * 3 + j) % 2 ? 0xa01818 : 0x141010), 0.0 + i * 0.095, 0.842, -0.25 + j * 0.22);
+  B(g, 0.2, 0.004, 0.64, col(0x0a6a3a), -0.15, 0.842, -0.03);
+  const WX = -0.68; const bowl = C(g, 0.46, 0.4, 0.14, 24, woodM('#4a2210'), WX, 0.8, 0);
   const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.03, 37), [col(0x3a2210), texMat('rlt', TX.rouletteTex(), 0xffffff, {}, 0), col(0x3a2210)]);
-  wheel.position.set(-0.85, 0.95, 0); g.add(wheel); wheel.userData.noMerge = true;
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), col(0xf0f0f0, { emissive: 0x333333 })); ball.position.set(-0.85, 0.98, 0.32); g.add(ball); ball.userData.noMerge = true;
+  wheel.position.set(WX, 0.95, 0); g.add(wheel); wheel.userData.noMerge = true;
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), col(0xf0f0f0, { emissive: 0x333333 })); ball.position.set(WX, 0.98, 0.32); g.add(ball); ball.userData.noMerge = true;
   let v = 0, ba = 0, bv = 0;
   W.animated.push(dt => {
     wheel.rotation.y += v * dt; v *= 0.992; ba -= bv * dt; bv *= 0.985;
     const r = 0.32 - Math.max(0, 0.08 - bv * 0.01);
-    ball.position.set(-0.85 + Math.cos(ba) * r, 0.98, Math.sin(ba) * r);
+    ball.position.set(WX + Math.cos(ba) * r, 0.98, Math.sin(ba) * r);
   });
   interact(g, 'Крутить рулетку', () => {
     v = 7; bv = 14; S.sfxSlide();
@@ -862,8 +938,8 @@ export function platonicSolids(x, z, y, r = 3.0) {
   return g;
 }
 // бюст на постаменте
-export function bust(x, z, ry, label, lines, { color = 0xc8c0b0, faceless = false } = {}) {
-  const g = grp(x, z, ry);
+export function bust(x, z, ry, label, lines, { color = 0xc8c0b0, faceless = false, y = Y() } = {}) {
+  const g = grp(x, z, ry, y);
   const stone = texMat('pedestal', TX.marble('#2a2a2c', '#3a3a3a'), 0xffffff, {}, 0);
   B(g, 0.5, 0.08, 0.5, stone, 0, 0, 0); B(g, 0.38, 1.02, 0.38, stone, 0, 0.08, 0); B(g, 0.5, 0.06, 0.5, stone, 0, 1.1, 0);
   const m = col(color, { flatShading: true });
@@ -921,7 +997,7 @@ export function plaqueStand(x, z, ry, title, text) {
   C(g, 0.16, 0.18, 0.04, 12, brass, 0, 0, 0); C(g, 0.02, 0.02, 0.95, 6, brass, 0, 0.04, 0);
   const pl = new THREE.Group(); pl.position.set(0, 1.0, 0); pl.rotation.x = -0.6; g.add(pl);
   B(pl, 0.4, 0.26, 0.02, brass, 0, -0.13, 0);
-  const sg = plane(0.36, 0.22, texMat('plq' + title, TX.signTex(title, { aspect: 0.36 / 0.22, bg: '#1a1008', fg: '#d8b060' }), 0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.15 }, 0), 0, 0, 0.012, 0, 0, { parent: pl }); sg.userData.noMerge = true;
+  const sg = plane(0.36, 0.22, texMat('plq' + title, TX.signTex(tri(title) ? tri(title).join('\n') : title, { aspect: 0.36 / 0.22, bg: '#1a1008', fg: '#d8b060', sub: !!tri(title) }), 0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.15 }, 0), 0, 0, 0.012, 0, 0, { parent: pl }); sg.userData.noMerge = true;
   hitBox(g, 0.4, 1.2, 0.4);
   interact(g, 'Читать табличку', () => { S.sfxPaper(); G.note(title, text); });
   floor(g); return g;

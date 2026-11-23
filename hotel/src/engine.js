@@ -105,6 +105,7 @@ function windowLightPatch(cx, cz, y, w, inwardX, inwardZ, depth = 2.6, strength 
   m.rotation.order = 'YXZ'; m.rotation.set(-Math.PI / 2, ang + Math.PI, 0);
   m.position.set(cx + inwardX * depth / 2, y + 0.02, cz + inwardZ * depth / 2);
   W.group.add(m);
+  (W.windowPatches = W.windowPatches || []).push({ mesh: m, cx, cz, w, y, level: W.level });
 }
 
 // Стена. openings: [{at, w, type:'door'|'open'|'window'|'blocks'|'hole', sill, h, light, mull}]
@@ -321,16 +322,24 @@ function pictureTexture(id) {
   const t = texLoader.load(W.imageUrls[id]); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return (picTex[id] = t);
 }
+// вместо мемов и чертежей — самодельные орнаменты
+let ornN = 0;
+export function ornament() {
+  const o = TX.ornamentImage(ornN); const id = 'orn' + (ornN++);
+  W.imageUrls[id] = o.url;
+  return { id, group: 'ornament', w: o.w, h: o.h, title: o.title, author: '', cap: { title: o.title, text: o.text } };
+}
 export function takeImage(groups = []) {
+  if (groups.includes('plans') || groups.includes('ornament')) return ornament();
   for (const g of groups) {
     const im = W.images.find(i => i.group === g && !W.usedImages.has(i.id));
     if (im) { W.usedImages.add(im.id); return im; }
   }
   const im = W.images.find(i => !W.usedImages.has(i.id) && i.group !== 'plans');
   if (im) { W.usedImages.add(im.id); return im; }
-  return null;
+  return ornament();
 }
-export function caption(im) { return CAPTIONS[im.id] || null; }
+export function caption(im) { return im.cap || CAPTIONS[im.id] || null; }
 // Картина в раме: (x,y,z) — центр на поверхности стены; ry — куда смотрит картина
 export function picture(groups, x, y, z, ry, size = 0.9, { frame = 'dark', parent = null, lean = 0, qa = true } = {}) {
   const im = Array.isArray(groups) ? takeImage(groups) : groups; if (!im) return null;

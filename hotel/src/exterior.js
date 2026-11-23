@@ -147,8 +147,8 @@ export function buildExterior() {
   box(0.5, 9, 0.5, dark, px, 0, pz); box(0.5, 9, 0.5, dark, px, 0, pz + 3.6);
   box(0.4, 3.2, 4.6, col(0x3a1420), px, 6.6, pz + 1.8);
   neon('SIMULACRE', px - 0.22, 8.9, pz + 1.8, -P / 2, 4.4, 1.1, '#ff6aa0');
-  neon('GRAND HÔTEL · КАЗИНО', px - 0.22, 7.9, pz + 1.8, -P / 2, 4.4, 0.45, '#ffc070');
-  neon('СВОБОДНЫЕ НОМЕРА: ∞', px - 0.22, 7.15, pz + 1.8, -P / 2, 4.4, 0.45, '#80ffc0');
+  neon('GRAND HÔTEL · CASINO', px - 0.22, 7.9, pz + 1.8, -P / 2, 4.4, 0.45, '#ffc070');
+  neon('СВОБОДНО · VACANCY · LIBRE : ∞', px - 0.22, 7.15, pz + 1.8, -P / 2, 4.4, 0.45, '#80ffc0');
   neon('SIMULACRE', px + 0.22, 8.9, pz + 1.8, P / 2, 4.4, 1.1, '#ff6aa0');
 
   // ---------- неоновая вывеска на крыше башни ----------

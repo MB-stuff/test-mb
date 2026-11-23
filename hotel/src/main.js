@@ -611,7 +611,9 @@ function updateLights(t, dt) {
       if (v > 0.001) { S.loopStart(snd.id, snd.kind); S.loopGain(snd.id, v); } else S.loopStop(snd.id);
     }
   }
-  hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb * 0.78);
+  const curtainDark = !roof && state.zone && state.zone.dark || 0;
+  hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb * 0.78) * (1 - 0.62 * curtainDark);
+  amb.intensity = 0.32 * (1 - 0.5 * curtainDark);
   hemi.color.setHex(roof ? 0xffd090 : 0xc08a5a);
   sun.intensity = roof ? 2.4 : 0;
 }
