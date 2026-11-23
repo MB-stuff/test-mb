@@ -168,6 +168,7 @@ export function ceilingLamp(x, z, { y = Y() + 3.7, color = 0xffb878, intensity =
   else { C(g, 0.25, 0.3, 0.1, 12, bulb, 0, -0.1, 0); C(g, 0.32, 0.32, 0.02, 12, col(0x6a5020), 0, -0.02, 0); }
   const yy = kind === 'pendant' ? y - 1 : y - 0.25;
   const a = anchor(x, yy, z, { color, intensity, distance, flicker, on });
+  if (kind === 'tube') a.hum = true;
   mount(g, 'ceiling');
   return a;
 }
@@ -262,13 +263,13 @@ export function phoneProp(x, y, z, ry, msg) {
   });
   onTable(g); return g;
 }
-// Компьютер: файлы читаются в окне «ПОЛДЕНЬ-OS»
+// Компьютер: файлы читаются в окне «SIMULACRE-OS»
 export function computer(x, y, z, ry, name, files, { on = true } = {}) {
   const g = grp(x, z, ry, y);
   B(g, 0.42, 0.36, 0.4, col(0xc8bca0), 0, 0.06, -0.02);
   B(g, 0.3, 0.06, 0.3, col(0xb8ac90), 0, 0, -0.02);
   B(g, 0.44, 0.03, 0.15, col(0xb8ac90), 0, 0, 0.3);
-  const scr = plane(0.32, 0.25, on ? basic('pcOn', { map: TX.screenTex(['ПОЛДЕНЬ-OS 98', '', '> ' + name.toUpperCase(), '', 'нажми E']) }) : col(0x0a120e), 0, 0.25, 0.196, 0, 0, { parent: g });
+  const scr = plane(0.32, 0.25, on ? basic('pcOn', { map: TX.screenTex(['SIMULACRE-OS 98', '', '> ' + name.toUpperCase(), '', 'нажми E']) }) : col(0x0a120e), 0, 0.25, 0.196, 0, 0, { parent: g });
   scr.userData.noMerge = true;
   anchor(0, 0, 0, { color: 0x80ffb0, intensity: 0.8, distance: 2.4, grid: false }).pos.copy(wp(g, 0, 0.3, 0.5));
   hitBox(g, 0.5, 0.45, 0.6);
@@ -511,11 +512,12 @@ export function shelf(x, z, ry, { w = 1.8, h = 2.2, d = 0.45, fill = 'boxes', co
       const cx = -w / 2 + (k + 0.5) * w / 3;
       if (fill === 'boxes') B(g, w / 3 - 0.12, 0.28, d * 0.8, col([0x7a5a34, 0x6a4c2c, 0x8a6a44][k]), cx, yy + 0.03, 0);
       else if (fill === 'towels') for (let t = 0; t < 3; t++) B(g, w / 3 - 0.14, 0.08, d * 0.8, col(0xe0dacc), cx, yy + 0.03 + t * 0.085, 0);
-      else if (fill === 'files' || fill === 'books') for (let t = 0; t < 6; t++) B(g, 0.06, 0.26 + rr() * 0.08, d * 0.75, col([0x3a4a6a, 0x6a2a2a, 0x4a5a2a, 0x7a6a3a, 0x2a2a2a][(t + k) % 5]), cx - 0.18 + t * 0.07, yy + 0.03, 0);
+      else if (fill === 'files') for (let t = 0; t < 6; t++) B(g, 0.06, 0.26 + rr() * 0.08, d * 0.75, col([0x3a4a6a, 0x6a2a2a, 0x4a5a2a, 0x7a6a3a, 0x2a2a2a][(t + k) % 5]), cx - 0.18 + t * 0.07, yy + 0.03, 0);
+      else if (fill === 'books') { const nb = Math.floor((w / 3 - 0.1) / 0.062); for (let t = 0; t < nb; t++) B(g, 0.055, 0.24 + rr() * 0.12, d * 0.8, col([0x8a2a2a, 0x2a4a8a, 0x9a7a2a, 0x3a7a3a, 0x9a4a2a, 0x6a2a6a, 0xc8b890][(t * 3 + k + i) % 7], { emissive: 0x0a0806 }), cx - (w / 3 - 0.1) / 2 + 0.03 + t * 0.062, yy + 0.03, 0); }
       else if (fill === 'wine') for (let t = 0; t < 5; t++) { const b = C(g, 0.035, 0.035, d * 0.8, 8, col([0x2a0a10, 0x1a3a1a][t % 2]), cx - 0.16 + t * 0.08, yy + 0.07, 0); b.rotation.x = P / 2; b.position.y = yy + 0.07; }
     }
   }
-  if (books || fill === 'books') interact(g, 'Взять книгу', () => { S.sfxPaper(); G.toast('«' + pick(BOOKS) + '»'); });
+  if (books || fill === 'books') interact(g, 'Взять книгу с полки', () => { S.sfxPaper(); if (G.library && Math.random() < 0.75) G.library(); else G.toast('«' + pick(BOOKS) + '»'); });
   solid(g, w, d, h); floor(g); return g;
 }
 const BOOKS = ['Путеводитель по пустыне. Издание 0', 'Как выписаться из отеля (страницы вырваны)', 'Сборник рецептов ресторана «Мираж»', 'Теория вероятностей для начинающих игроков', 'Символы и знаки — Р. Генон (с пометками на полях)', 'Справочник постояльца, 1999', 'Роман без последней главы', 'Атлас звёздного неба (звёзд нет)', 'Ноты: «Полдень навсегда», Л. Орлов'];
@@ -740,4 +742,97 @@ export function pokerTable(x, z, { ry = 0, cards = true } = {}) {
   });
   for (let i = 0; i < 4; i++) { const a = i * P / 2; const p = wp(g, Math.cos(a) * 1.55, 0, Math.sin(a) * 1.05); chair(p.x, p.z, -a - P / 2 + ry, { color: 0x3a1a10, seatColor: 0x2a5a3a }); }
   addCollider(x - 1.15, Y(), z - 0.75, x + 1.15, Y() + 0.8, z + 0.75); floor(g); return g;
+}
+
+// ---------- мелочи: сигары, пепельницы, книги, сувениры ----------
+let smokeMat;
+export function ashtray(x, y, z, { cigar = true, ry = Math.random() * 6 } = {}) {
+  const g = grp(x, z, ry, y);
+  C(g, 0.08, 0.07, 0.03, 12, col(0x2a3a3a, { emissive: 0x050808 }), 0, 0, 0);
+  C(g, 0.06, 0.06, 0.004, 12, col(0x7a7a72), 0, 0.034, 0);
+  let smoke = null;
+  if (cigar) {
+    const c = C(g, 0.011, 0.011, 0.13, 8, col(0x6a3a1a), 0.03, 0.035, 0); c.rotation.z = P / 2 - 0.12; c.position.set(0.03, 0.04, 0);
+    B(g, 0.014, 0.022, 0.022, col(0xc8a040, { emissive: 0x201000 }), 0.0, 0.03, 0);
+    const tip = C(g, 0.012, 0.012, 0.01, 8, emis(0xff5010, 1.2), 0.095, 0.045, 0); tip.rotation.z = P / 2; tip.userData.noMerge = true;
+    smokeMat = smokeMat || new THREE.MeshBasicMaterial({ color: 0xc8c0b8, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide });
+    smoke = new THREE.Group(); smoke.position.set(0.095, 0.05, 0); g.add(smoke);
+    for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.22), smokeMat); p.position.y = 0.12 + i * 0.05; p.rotation.y = i * 1.1; p.userData.noRay = true; p.userData.noMerge = true; smoke.add(p); }
+    W.animated.push((dt, t) => { if (smoke.visible) { smoke.rotation.y += dt * 0.6; smoke.children.forEach((p, i) => { p.position.x = Math.sin(t * 1.3 + i) * 0.02; p.scale.x = 1 + Math.sin(t * 2 + i) * 0.3; }); } });
+  }
+  hitBox(g, 0.2, 0.08, 0.2);
+  const lines = ['Сигара ещё тлеет. Пахнет вишней и пылью. Бирка: «Havana · 1999».', 'Пепел не осыпается: он держит форму сигары.', 'Кто-то только что отошёл. Кресло ещё тёплое.', 'На ободке пепельницы — гравировка: «Grand Simulacre».'];
+  interact(g, cigar ? 'Взять сигару' : 'Пепельница', () => { S.sfxClink(1.9); G.toast(pick(lines)); });
+  onTable(g); return g;
+}
+export function cigarBox(x, y, z, ry = 0) {
+  const g = grp(x, z, ry, y);
+  B(g, 0.32, 0.08, 0.2, woodM('#6a3a1a'), 0, 0, 0);
+  const lid = new THREE.Group(); lid.position.set(0, 0.08, -0.1); lid.rotation.x = -1.2; g.add(lid); B(lid, 0.32, 0.015, 0.2, woodM('#6a3a1a'), 0, 0, 0.1);
+  for (let i = 0; i < 6; i++) { const c = C(g, 0.011, 0.011, 0.17, 8, col(0x6a3a1a), -0.12 + i * 0.045, 0.06, 0); c.rotation.x = P / 2; c.position.y = 0.06; }
+  hitBox(g, 0.36, 0.2, 0.26);
+  interact(g, 'Хьюмидор с сигарами', () => { S.sfxCurtain(); G.toast(pick(['Внутри — шесть сигар. Сосчитал ещё раз: шесть. Одну ты только что взял.', 'Гигрометр показывает 70%. В пустыне.', 'На крышке: «Pour les invités qui ne partent pas» — «для гостей, которые не уезжают».'])); });
+  onTable(g); return g;
+}
+export function book(x, y, z, ry, key, { color = 0x7a2a2a, open = false } = {}) {
+  const g = grp(x, z, ry, y);
+  if (open) { B(g, 0.36, 0.012, 0.25, col(color), 0, 0, 0); const l = B(g, 0.17, 0.022, 0.24, col(0xe8e0c8), -0.087, 0.012, 0); l.rotation.z = 0.05; const r = B(g, 0.17, 0.022, 0.24, col(0xe8e0c8), 0.087, 0.012, 0); r.rotation.z = -0.05; }
+  else { B(g, 0.17, 0.04, 0.24, col(color), 0, 0, 0); B(g, 0.16, 0.034, 0.23, col(0xe8e0c8), 0.006, 0.003, 0); }
+  hitBox(g, 0.4, 0.1, 0.3);
+  interact(g, open ? 'Читать раскрытую книгу' : 'Прочитать книгу', () => { S.sfxPaper(); G.noteKey(key); });
+  onTable(g); return g;
+}
+export function matchbook(x, y, z, ry = 0) {
+  const g = grp(x, z, ry, y);
+  B(g, 0.05, 0.012, 0.035, col(0x8a1a2a, { emissive: 0x100000 }), 0, 0, 0); B(g, 0.04, 0.013, 0.008, col(0xd8b060), 0, 0, 0.012);
+  hitBox(g, 0.14, 0.06, 0.12);
+  interact(g, 'Спичечный коробок', () => { S.sfxSwitch(); G.noteKey('matchbook'); });
+  onTable(g); return g;
+}
+export function postcard(x, y, z, ry, key) {
+  const g = grp(x, z, ry, y);
+  const p = plane(0.15, 0.1, col(0xe8c890, { emissive: 0x2a2010 }), 0, 0.003, 0, -P / 2, 0, { parent: g }); p.userData.noMerge = true;
+  plane(0.06, 0.05, col(0x9a3a4a), -0.03, 0.004, 0.0, -P / 2, 0, { parent: g }).userData.noMerge = true;
+  hitBox(g, 0.22, 0.05, 0.16);
+  interact(g, 'Открытка', () => { S.sfxPaper(); G.noteKey(key); });
+  onTable(g); return g;
+}
+export function snowGlobe(x, y, z) {
+  const g = grp(x, z, 0, y);
+  C(g, 0.06, 0.07, 0.04, 12, woodM('#3a2010'), 0, 0, 0);
+  const s = new THREE.Mesh(new THREE.SphereGeometry(0.065, 14, 10), col(0xd0e8f0, { transparent: true, opacity: 0.35, emissive: 0x101820 })); s.position.y = 0.1; g.add(s);
+  B(g, 0.03, 0.05, 0.025, col(0x9a5a4a), 0, 0.045, 0); B(g, 0.07, 0.006, 0.07, col(0x6a1a2a), 0, 0.04, 0);
+  hitBox(g, 0.16, 0.2, 0.16);
+  interact(g, 'Встряхнуть снежный шар', () => { S.sfxSlide(); G.toast('Внутри — этот отель и малиновая пустыня. Ты трясёшь шар, но снег не идёт: в пустыне не бывает снега.'); });
+  onTable(g); return g;
+}
+export function hourglass(x, y, z) {
+  const g = grp(x, z, 0, y);
+  for (const yy of [0, 0.22]) C(g, 0.06, 0.06, 0.015, 10, woodM('#4a2a14'), 0, yy, 0);
+  const gl = col(0xd8e8e8, { transparent: true, opacity: 0.35 });
+  C(g, 0.045, 0.006, 0.1, 10, gl, 0, 0.115, 0); C(g, 0.006, 0.045, 0.1, 10, gl, 0, 0.015, 0);
+  C(g, 0.02, 0.04, 0.035, 10, col(0xd8a860), 0, 0.15, 0);
+  hitBox(g, 0.14, 0.26, 0.14);
+  interact(g, 'Перевернуть песочные часы', () => { S.sfxSlide(); G.toast('Ты переворачиваешь часы. Песок остаётся наверху и не сыплется.'); });
+  onTable(g); return g;
+}
+export function chessboard(x, y, z, ry = 0) {
+  const g = grp(x, z, ry, y);
+  const c = document.createElement('canvas'); c.width = c.height = 64; const cx = c.getContext('2d');
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { cx.fillStyle = (i + j) % 2 ? '#2a1a10' : '#d8c8a0'; cx.fillRect(i * 8, j * 8, 8, 8); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
+  B(g, 0.42, 0.03, 0.42, woodM('#3a2010'), 0, 0, 0);
+  plane(0.38, 0.38, new THREE.MeshLambertMaterial({ map: t }), 0, 0.032, 0, -P / 2, 0, { parent: g }).userData.noMerge = true;
+  const pcs = [[-0.16, -0.12, 1], [0.0, 0.04, 0], [0.12, -0.02, 1], [-0.04, 0.16, 0], [0.08, 0.12, 1], [-0.12, 0.0, 0]];
+  for (const [a, b, wcol] of pcs) { C(g, 0.016, 0.02, 0.05, 8, col(wcol ? 0xe8e0d0 : 0x1a1210), a, 0.035, b); C(g, 0.012, 0.012, 0.02, 8, col(wcol ? 0xe8e0d0 : 0x1a1210), a, 0.085, b); }
+  hitBox(g, 0.46, 0.14, 0.46);
+  interact(g, 'Сделать ход', () => { S.sfxClick(); G.toast(pick(['Ты двигаешь пешку. Через секунду чёрный конь сдвигается сам.', 'Отложенная партия. На бланке: «ход белых, 1999 год».', 'Король стоит на клетке, которой нет на доске.'])); });
+  onTable(g); return g;
+}
+export function mirrorBall(x, z, y) {
+  const g = grp(x, z, 0, y);
+  C(g, 0.01, 0.01, 1.0, 4, col(0x222222), 0, -1.0, 0);
+  const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 1), col(0xb8c0c8, { flatShading: true, emissive: 0x404858 })); b.position.y = -1.4; b.userData.noMerge = true; g.add(b);
+  W.animated.push(dt => { b.rotation.y += dt * 0.4; });
+  mount(g, 'ceiling'); return g;
 }

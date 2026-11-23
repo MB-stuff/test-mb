@@ -105,9 +105,12 @@ export function buildExterior(scene) {
   geo.computeVertexNormals();
   scene.add(new THREE.Mesh(geo, gMat));
   // ближняя ровная земля 180×180 с вырезом под здание
-  const F = [-26.3, -14.3, 30.3, 14.3], E = 90;
-  for (const [x0, z0, x1, z1] of [[-E, -E, E, F[1]], [-E, F[3], E, E], [-E, F[1], F[0], F[3]], [F[2], F[1], E, F[3]]]) {
-    const pg = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.ceil((x1 - x0) / 10), Math.ceil((z1 - z0) / 10)); pg.rotateX(-Math.PI / 2);
+  // ближняя земля: квадрат 180×180 минус фундамент (основной корпус и крыло за вестибюлем)
+  const E = 90, holes = [[-26.3, -14.3, 30.3, 14.3], [-26.3, 14.2, 0.3, 32.3]];
+  const cut = (r, h) => { const [x0, z0, x1, z1] = r, [a, b, c, d] = h; if (c <= x0 || a >= x1 || d <= z0 || b >= z1) return [r]; const o = []; if (b > z0) o.push([x0, z0, x1, b]); if (d < z1) o.push([x0, d, x1, z1]); const zz0 = Math.max(z0, b), zz1 = Math.min(z1, d); if (a > x0) o.push([x0, zz0, a, zz1]); if (c < x1) o.push([c, zz0, x1, zz1]); return o; };
+  let rects = [[-E, -E, E, E]]; for (const h of holes) rects = rects.flatMap(r => cut(r, h));
+  for (const [x0, z0, x1, z1] of rects) {
+    const pg = new THREE.PlaneGeometry(x1 - x0, z1 - z0, Math.max(1, Math.ceil((x1 - x0) / 10)), Math.max(1, Math.ceil((z1 - z0) / 10))); pg.rotateX(-Math.PI / 2);
     const m = new THREE.Mesh(pg, gMat); m.position.set((x0 + x1) / 2, -0.05, (z0 + z1) / 2); scene.add(m);
   }
 

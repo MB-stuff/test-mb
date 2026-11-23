@@ -291,6 +291,13 @@ export function loopStart(id, kind) {
     const hum = ctx.createOscillator(); hum.frequency.value = 15734 / 2; const hg = ctx.createGain(); hg.gain.value = 0.01;
     hum.connect(hg); hg.connect(out); hum.start(); nodes.push(hum);
     out.gain.linearRampToValueAtTime(0.06, t + 0.1);
+  } else if (kind === 'fountain') {
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.35;
+    const f2 = ctx.createBiquadFilter(); f2.type = 'highpass'; f2.frequency.value = 2500;
+    const s2 = ctx.createBufferSource(); s2.buffer = noiseBuf; s2.loop = true; s2.playbackRate.value = 0.7;
+    const g2 = ctx.createGain(); g2.gain.value = 0.25;
+    s.connect(f); f.connect(out); s2.connect(f2); f2.connect(g2); g2.connect(out); s.start(); s2.start(0.7); nodes.push(s, s2);
   } else if (kind === 'water') {
     const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
     const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 0.4;
@@ -339,6 +346,19 @@ function startAmbience() {
   buzzGain = ctx.createGain(); buzzGain.gain.value = 0;
   o.connect(bf); bf.connect(buzzGain); buzzGain.connect(master); o.start();
 }
+// Гул люминесцентных ламп: 100 Гц с обертонами, слегка «дрожит»
+let humGain = null;
+function startHum() {
+  const out = ctx.createGain(); out.gain.value = 0; out.connect(sfxBus); humGain = out;
+  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 220; f.Q.value = 1.2; f.connect(out);
+  for (const [fr, g] of [[100, 0.6], [200, 0.35], [300, 0.12], [1200, 0.02]]) {
+    const o = ctx.createOscillator(); o.type = fr > 1000 ? 'sine' : 'sawtooth'; o.frequency.value = fr; const og = ctx.createGain(); og.gain.value = g; o.connect(og); og.connect(fr > 1000 ? out : f); o.start();
+  }
+  const lfo = ctx.createOscillator(); lfo.frequency.value = 0.37; const lg = ctx.createGain(); lg.gain.value = 0.25; lfo.connect(lg);
+  const trem = ctx.createGain(); trem.gain.value = 1; lg.connect(trem.gain); lfo.start();
+}
+export function setHum(v) { if (!ctx) return; if (!humGain) startHum(); humGain.gain.setTargetAtTime(v, ctx.currentTime, 0.25); }
+export function loopGain(id, v) { const l = loops[id]; if (l) l.out.gain.setTargetAtTime(v, ctx.currentTime, 0.3); }
 export function setAmbience(wind, buzz) {
   if (!ctx) return;
   windGain.gain.setTargetAtTime(wind, ctx.currentTime, 0.8);

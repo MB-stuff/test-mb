@@ -5,7 +5,7 @@ import { buildExterior as buildSky, SUN_DIR } from './sky.js';
 import { buildExterior as buildFacade } from './exterior.js';
 import * as S from './audio.js';
 import { updateStatic, stucco } from './textures.js';
-import { STORIES, T as STORY_TEXTS } from './stories.js';
+import { STORIES, T as STORY_TEXTS, LIBRARY_KEYS } from './stories.js';
 import { caption } from './engine.js';
 import IMAGES from './images.json';
 
@@ -132,6 +132,7 @@ function buildProxies() {
   mk(0, LX0 - 0.11, LZ0 - 0.11, TX1 + 0.11, LZ1 + 0.11, 0, PH - 0.02);
   mk(0, LX0 - 0.11, LZ0 - 0.11, TX0, LZ1 + 0.11, PH - 0.02, LH);
   mk(0, TX0, TZ0 - 0.11, TX1 + 0.11, TZ1 + 0.11, PH - 0.02, FH);
+  mk(0, LX0 - 0.11, LZ1, TX0 + 0.11, LAYOUT.WZ1 + 0.11, 0, LH);
 }
 
 // ---------- состояние игрока ----------
@@ -256,7 +257,7 @@ function start() {
   if (!state.started) {
     state.started = true; state.title = false;
     fadeTo(1, 10); setTimeout(() => fadeTo(0, 900), 60);
-    setTimeout(() => toast('Отель «Полдень». Добро пожаловать. Снова.'), 900);
+    setTimeout(() => toast('Grand Simulacre. Добро пожаловать. Снова.'), 900);
     $('help').classList.add('show'); setTimeout(() => $('help').classList.remove('show'), 12000);
     document.body.classList.add('playing');
   }
@@ -320,9 +321,17 @@ G.note = (title, text, story) => {
   openModal('note', `<div class="paper"><h3>${esc(title)}</h3><p>${nl(text)}</p><small>E / клик — закрыть</small></div>`);
   remember(st, title, text);
 };
+G.noteKey = key => { const t = STORY_TEXTS[key]; if (t) G.note(t[0], t[1], t[2]); };
+// с полки берётся случайный ещё не прочитанный отрывок
+G.library = () => {
+  const read = state.journal.library || {};
+  const fresh = LIBRARY_KEYS.filter(k => !read[STORY_TEXTS[k][0]]);
+  const k = (fresh.length ? fresh : LIBRARY_KEYS)[Math.floor(Math.random() * (fresh.length || LIBRARY_KEYS.length))];
+  G.noteKey(k);
+};
 G.computer = (name, files) => {
   const list = files.map((f, i) => `<button data-keep data-f="${i}">📄 ${esc(f.name)}</button>`).join('');
-  openModal('pc', `<div class="pc" data-keep><div class="pcbar">ПОЛДЕНЬ-OS 98 — ${esc(name)}<span>✕</span></div><div class="pcbody"><div class="pcfiles">${list}</div><pre class="pctext" id="pctext">Выбери файл.\n\n> _</pre></div><small>Esc — выключить</small></div>`);
+  openModal('pc', `<div class="pc" data-keep><div class="pcbar">SIMULACRE-OS 98 — ${esc(name)}<span>✕</span></div><div class="pcbody"><div class="pcfiles">${list}</div><pre class="pctext" id="pctext">Выбери файл.\n\n> _</pre></div><small>Esc — выключить</small></div>`);
   $('modalBody').querySelectorAll('button[data-f]').forEach(b => b.addEventListener('click', () => {
     const f = files[+b.dataset.f]; S.sfxTypewriter(4);
     $('pctext').textContent = f.text;
@@ -421,7 +430,7 @@ G.ending = () => {
   setTimeout(() => {
     const total = Object.values(STORY_TOTAL).reduce((a, b) => a + b, 0);
     const notes = Object.values(state.journal).reduce((a, j) => a + Object.keys(j).length, 0);
-    openModal('ending', `<div class="end"><h2>Солнце не садится</h2><p>Ты сидишь на крыше отеля «Полдень». Внизу — малиновая пустыня, над тобой — тёплое жёлтое небо. Никуда не нужно идти.</p><p class="big">Секретов: ${state.secrets.size} из ${SECRETS_TOTAL} · Историй: ${notes} из ${total}</p><button id="stay">Остаться ещё немного</button></div>`);
+    openModal('ending', `<div class="end"><h2>Солнце не садится</h2><p>Ты сидишь на крыше отеля Grand Simulacre. Внизу — малиновая пустыня, над тобой — тёплое жёлтое небо. Никуда не нужно идти.</p><p class="big">Секретов: ${state.secrets.size} из ${SECRETS_TOTAL} · Историй: ${notes} из ${total}</p><button id="stay">Остаться ещё немного</button></div>`);
   }, 1500);
 };
 
@@ -543,7 +552,7 @@ function updatePlayer(dt) {
 }
 
 // ---------- свет: пул ближайших источников с плавным появлением ----------
-let lightTimer = 0;
+let lightTimer = 0, soundT = 0;
 function updateLights(t, dt) {
   lightTimer -= dt;
   const blackout = W.flags.blackout;
@@ -576,6 +585,19 @@ function updateLights(t, dt) {
   }
   const zoneAmb = state.zone && state.zone.amb || 1.15;
   const roof = player.level === 4 || state.title;
+  // гул ближайшей люминесцентной лампы и звуки мест (фонтан)
+  soundT -= dt;
+  if (soundT <= 0 && S.audio.ready) {
+    soundT = 0.2;
+    let hum = 0;
+    if (!blackout) for (const a of W.anchors) if (a.hum && a.on && a.level === player.level) { const d = a.pos.distanceTo(camera.position); const v = Math.max(0, 1 - d / 7); hum = Math.max(hum, v * v * (a.flicker ? 0.05 : 0.03)); }
+    S.setHum(hum);
+    for (const snd of (W.sounds || [])) {
+      const d = snd.level === player.level ? snd.pos.distanceTo(camera.position) : 999;
+      const v = Math.max(0, 1 - d / snd.range) ** 1.5 * snd.gain;
+      if (v > 0.001) { S.loopStart(snd.id, snd.kind); S.loopGain(snd.id, v); } else S.loopStop(snd.id);
+    }
+  }
   hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb);
   hemi.color.setHex(roof ? 0xffd090 : 0xc08a5a);
   sun.intensity = roof ? 2.4 : 0;

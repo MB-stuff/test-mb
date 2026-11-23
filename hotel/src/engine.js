@@ -326,7 +326,7 @@ export function takeImage(groups = []) {
     const im = W.images.find(i => i.group === g && !W.usedImages.has(i.id));
     if (im) { W.usedImages.add(im.id); return im; }
   }
-  const im = W.images.find(i => !W.usedImages.has(i.id));
+  const im = W.images.find(i => !W.usedImages.has(i.id) && i.group !== 'plans');
   if (im) { W.usedImages.add(im.id); return im; }
   return null;
 }
