@@ -836,3 +836,115 @@ export function mirrorBall(x, z, y) {
   W.animated.push(dt => { b.rotation.y += dt * 0.4; });
   mount(g, 'ceiling'); return g;
 }
+
+// ---------- антураж вестибюля: мир идей ----------
+// пять платоновых тел («Тимей»): огонь, земля, воздух, вода, эфир. Висят над фонтаном, ни на чём не держатся.
+export function platonicSolids(x, z, y, r = 3.0) {
+  const g = grp(x, z, 0, y);
+  const defs = [
+    [new THREE.TetrahedronGeometry(0.34), 0xff7a3a],
+    [new THREE.BoxGeometry(0.42, 0.42, 0.42), 0x8a5a3a],
+    [new THREE.OctahedronGeometry(0.34), 0xd8d0b0],
+    [new THREE.IcosahedronGeometry(0.34), 0x4a9aa8],
+    [new THREE.DodecahedronGeometry(0.36), 0xd0a8ff],
+  ];
+  const ms = defs.map(([geo, c], i) => {
+    const m = new THREE.Mesh(geo, col(c, { flatShading: true, emissive: c, emissiveIntensity: 0.22 }));
+    m.userData.noMerge = true; m.userData.noRay = true; g.add(m); return m;
+  });
+  W.animated.push((dt, t) => {
+    ms.forEach((m, i) => {
+      const a = t * 0.07 + i * (P * 2 / 5);
+      m.position.set(Math.cos(a) * r, Math.sin(t * 0.4 + i * 1.3) * 0.25 + (i % 2) * 0.5, Math.sin(a) * r);
+      m.rotation.x += dt * (0.15 + i * 0.03); m.rotation.y += dt * 0.2;
+    });
+  });
+  return g;
+}
+// бюст на постаменте
+export function bust(x, z, ry, label, lines, { color = 0xc8c0b0, faceless = false } = {}) {
+  const g = grp(x, z, ry);
+  const stone = texMat('pedestal', TX.marble('#2a2a2c', '#3a3a3a'), 0xffffff, {}, 0);
+  B(g, 0.5, 0.08, 0.5, stone, 0, 0, 0); B(g, 0.38, 1.02, 0.38, stone, 0, 0.08, 0); B(g, 0.5, 0.06, 0.5, stone, 0, 1.1, 0);
+  const m = col(color, { flatShading: true });
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 0.26, 7), m); sh.position.y = 1.29; sh.scale.z = 0.6; g.add(sh);
+  C(g, 0.06, 0.07, 0.1, 6, m, 0, 1.45, 0);
+  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, faceless ? 1 : 0), m); head.position.y = 1.62; head.scale.set(0.85, 1.15, 0.95); g.add(head);
+  if (!faceless) { B(g, 0.035, 0.05, 0.05, m, 0, 1.58, 0.11); const bd = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.16, 6), m); bd.position.set(0, 1.47, 0.07); bd.rotation.x = P; g.add(bd); }
+  B(g, 0.26, 0.07, 0.01, col(0xb08a3a, { emissive: 0x201004 }), 0, 0.9, 0.195);
+  solid(g, 0.5, 0.5, 1.8);
+  interact(g, label, () => { S.sfxPaper(); G.toast(pick(lines)); });
+  floor(g); return g;
+}
+// полосатое закатное солнце — рельеф над входом
+export function sunRelief(x, y, z, ry, r = 1.1) {
+  const g = grp(x, z, ry, y);
+  B(g, r * 2 + 0.2, 0.06, 0.02, col(0x3a1a14), 0, -r - 0.18, 0.01);
+  const p = plane(r * 2, r * 2, basic('sunrelief', { map: TX.sunTex(), transparent: true, alphaTest: 0.5, color: 0xd8b090 }), 0, 0, 0.03, 0, 0, { parent: g }); p.userData.noMerge = true;
+  glow(0, 0, 0.05, r * 3.2, 0xff8a40, 0.1, { rx: 0, parent: g });
+  onWall(g, r * 1.4, r * 1.4); return g;
+}
+// портье без лица за стойкой
+export function mannequin(x, z, ry) {
+  const g = grp(x, z, ry);
+  const jacket = col(0x7a1a22), pants = col(0x1a1414), skin = col(0xd8ccc0, { flatShading: true }), gold = col(0xc8a040, { emissive: 0x201000 });
+  B(g, 0.12, 0.85, 0.14, pants, -0.08, 0, 0); B(g, 0.12, 0.85, 0.14, pants, 0.08, 0, 0);
+  B(g, 0.38, 0.6, 0.22, jacket, 0, 0.85, 0);
+  for (let i = 0; i < 4; i++) B(g, 0.025, 0.025, 0.01, gold, 0, 0.95 + i * 0.12, 0.112);
+  B(g, 0.09, 0.55, 0.11, jacket, -0.24, 0.92, 0); B(g, 0.09, 0.55, 0.11, jacket, 0.24, 0.92, 0);
+  C(g, 0.05, 0.06, 0.08, 6, skin, 0, 1.48, 0);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), skin); h.position.y = 1.64; h.scale.set(0.9, 1.15, 0.95); g.add(h);
+  C(g, 0.09, 0.09, 0.07, 10, col(0x7a1a22), 0, 1.75, 0); C(g, 0.092, 0.092, 0.012, 10, gold, 0, 1.75, 0);
+  solid(g, 0.5, 0.4, 1.8);
+  const lines = [
+    'Портье не оборачивается. У него нет лица, но тебе кажется, что он улыбается.',
+    '«Ваш номер ещё не готов. Он не будет готов никогда. В этом и состоит номер».',
+    '«Гости, которых нет, приходят первыми. Вы — следующий в очереди».',
+    'Ты касаешься его плеча. Пластик тёплый, как будто его только что выключили.',
+    '«Мы закрыты с тех пор, как открылись», — говорит кто-то за твоей спиной.',
+  ];
+  interact(g, 'Позвать портье', () => { S.sfxBell(); G.toast(pick(lines)); });
+  floor(g); return g;
+}
+// заплатка «нулевого уровня»: под обоями вестибюля — другие обои
+export function backroomsPatch(x, y, z, ry, w = 1.2, h = 2.4) {
+  const g = grp(x, z, ry, y);
+  const ed = col(0x2a1a10);
+  B(g, w + 0.08, h + 0.08, 0.01, ed, 0, 0, 0.005);
+  const tex = TX.backroomsTex(); tex.repeat.set(w / 0.8, h / 0.8);
+  plane(w, h, col(0xffffff, { map: tex, emissive: 0x2a2208 }), 0, h / 2 + 0.04, 0.016, 0, 0, { parent: g }).userData.noMerge = true;
+  // свёрнутый лоскут отклеившихся обоев
+  const curl = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, w * 0.7, 8, 1, true, 0, P * 1.4), col(0x5e3026, { side: THREE.DoubleSide }));
+  curl.rotation.z = P / 2; curl.position.set(-0.08, h + 0.08, 0.07); g.add(curl);
+  const tube = B(g, w * 0.8, 0.04, 0.06, emis(0xfff0c0, 1.3), 0, h + 0.35, 0.04); tube.userData.noMerge = true;
+  B(g, w * 0.84, 0.06, 0.04, col(0x9a9a90), 0, h + 0.33, 0.02);
+  let k = 0; W.animated.push((dt, t) => { if (!tube.visible) return; k -= dt; if (k < 0) { k = 0.05 + Math.random() * 0.3; tube.material.emissiveIntensity = Math.random() < 0.12 ? 0.2 : 1.3; } });
+  interact(g, 'Провести рукой по обоям', () => {
+    S.sfxPaper(); G.toast(pick([
+      'Под бархатными обоями вестибюля — другие: жёлтые, влажные, бесконечные. Пахнет старым ковролином.',
+      'Обои гудят вместе с лампой. Если отклеить ещё кусок, под ним будут те же обои — и так до самого низа.',
+      'Карандашом по жёлтому: «тут копия без оригинала. уровень 0». Почерк твой.',
+    ]));
+  });
+  mount(g, 'wall', { w, h, dy: h / 2 + 0.04 }); return g;
+}
+// напольный телевизор с помехами, канал ничего
+export function floorTV(x, z, ry) {
+  const g = tv(x, Y(), z, ry, { on: true });
+  floor(g);
+  const lines = ['Канал 0. Помехи складываются в коридор, который уходит дальше, чем помещается в экран.', 'Сквозь шум — диктор: «…копия заменяет оригинал, оригинал благодарит копию…»', 'В помехах на секунду мелькает этот вестибюль. Сверху. В нём кто-то стоит. Это ты.'];
+  interact(g, 'Смотреть помехи', () => { S.sfxClick(); G.toast(pick(lines)); });
+  return g;
+}
+// табличка на латунной стойке
+export function plaqueStand(x, z, ry, title, text) {
+  const g = grp(x, z, ry);
+  const brass = col(0xb08a3a, { emissive: 0x1a0c02 });
+  C(g, 0.16, 0.18, 0.04, 12, brass, 0, 0, 0); C(g, 0.02, 0.02, 0.95, 6, brass, 0, 0.04, 0);
+  const pl = new THREE.Group(); pl.position.set(0, 1.0, 0); pl.rotation.x = -0.6; g.add(pl);
+  B(pl, 0.4, 0.26, 0.02, brass, 0, -0.13, 0);
+  const sg = plane(0.36, 0.22, texMat('plq' + title, TX.signTex(title, { aspect: 0.36 / 0.22, bg: '#1a1008', fg: '#d8b060' }), 0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.15 }, 0), 0, 0, 0.012, 0, 0, { parent: pl }); sg.userData.noMerge = true;
+  hitBox(g, 0.4, 1.2, 0.4);
+  interact(g, 'Читать табличку', () => { S.sfxPaper(); G.note(title, text); });
+  floor(g); return g;
+}

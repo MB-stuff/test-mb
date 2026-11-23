@@ -16,50 +16,42 @@ const TOUCH = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in windo
 const SECRETS_TOTAL = 8;
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
 
-// ---------- рендер: сцена рисуется в буфер, потом VHS-постобработка ----------
+// ---------- рендер: сцена рисуется в буфер, потом постобработка (пиксели) ----------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: params.has('shot') });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.setPixelRatio(1);
 $('game').appendChild(renderer.domElement);
-let vhs = store.get('hotel.vhs') !== '0';
-const rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: +(params.get('msaa') ?? 2) });
-const postU = { tDiffuse: { value: rt.texture }, uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uVhs: { value: 1 }, uExposure: { value: 1.35 }, uGlitch: { value: 0 } };
+// пиксельный режим: сцена рисуется в маленький буфер и растягивается без сглаживания
+let pixel = store.get('hotel.pixel') !== '0';
+let rt = null;
+const postU = { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uPixel: { value: 1 }, uExposure: { value: 1.35 } };
+function makeRT() {
+  if (rt) rt.dispose();
+  rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: pixel ? 0 : +(params.get('msaa') ?? 2),
+    magFilter: pixel ? THREE.NearestFilter : THREE.LinearFilter, minFilter: pixel ? THREE.NearestFilter : THREE.LinearFilter });
+  postU.tDiffuse.value = rt.texture;
+}
+makeRT();
 const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: postU, depthTest: false, depthWrite: false,
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: `
-  uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uTime, uVhs, uExposure, uGlitch;
+  uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uPixel, uExposure;
   varying vec2 vUv;
-  float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
   vec3 tone(vec3 c){ c *= uExposure; vec3 k = vec3(0.8); vec3 o = max(c - k, 0.0); return min(c, k) + (1.0 - k) * (1.0 - exp(-o / (1.0 - k))); }
   vec3 srgb(vec3 c){ c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
-  vec3 samp(vec2 uv){ return srgb(tone(texture2D(tDiffuse, uv).rgb)); }
+  float bayer(vec2 p){ vec2 q = mod(floor(p), 4.0); int i = int(q.x + q.y * 4.0);
+    float m[16]; m[0]=0.;m[1]=8.;m[2]=2.;m[3]=10.;m[4]=12.;m[5]=4.;m[6]=14.;m[7]=6.;m[8]=3.;m[9]=11.;m[10]=1.;m[11]=9.;m[12]=15.;m[13]=7.;m[14]=13.;m[15]=5.;
+    for (int k = 0; k < 16; k++) if (k == i) return m[k] / 16.0 - 0.5; return 0.0; }
   void main(){
-    vec2 uv = vUv;
-    if (uVhs < 0.5) { gl_FragColor = vec4(samp(uv), 1.0); return; }
-    float line = floor(uv.y * uRes.y / 2.0);
-    float t = uTime;
-    // плёночное дрожание строк и «полоса трекинга», медленно ползущая вверх
-    float jit = (hash(vec2(line, floor(t * 6.0))) - 0.5) * 0.0004;
-    float bandPos = fract(t * 0.045);
-    float band = smoothstep(0.018, 0.0, abs(uv.y - bandPos)) * smoothstep(0.55, 0.95, sin(t * 0.21));
-    uv.x += jit + band * 0.006 * sin(t * 50.0 + uv.y * 300.0) + uGlitch * 0.03 * (hash(vec2(line, floor(t * 20.0))) - 0.5);
-    uv.y += uGlitch * 0.01 * sin(t * 80.0);
-    float px = 1.0 / uRes.x;
-    float ca = 0.0018 + uGlitch * 0.008 + band * 0.002;
-    vec3 c0 = samp(uv), cl = samp(uv - vec2(1.6 * px, 0.0)), cr = samp(uv + vec2(1.6 * px, 0.0));
-    vec3 c = c0 * 0.5 + (cl + cr) * 0.25;
-    float r = samp(uv + vec2(ca, 0.0)).r, b = samp(uv - vec2(ca * 1.2, 0.0)).b;
-    vec3 col = vec3(mix(c.r, r, 0.65), c.g, mix(c.b, b, 0.65));
-    float l = dot(col, vec3(0.299, 0.587, 0.114));
-    col = mix(vec3(l), col, 0.92) * vec3(1.05, 1.0, 0.93);
-    col *= 0.94 + 0.06 * sin(gl_FragCoord.y * 3.14159);
-    col += (hash(uv * uRes + t * 61.0) - 0.5) * 0.035;
-    col += band * (hash(vec2(uv.x * 400.0, t * 40.0)) - 0.5) * 0.12;
-    float bb = smoothstep(0.03, 0.0, vUv.y);
-    col = mix(col, vec3(hash(vec2(floor(vUv.x * 200.0), floor(t * 25.0)))), bb * 0.6);
-    vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.85;
+    vec3 col = srgb(tone(texture2D(tDiffuse, vUv).rgb));
+    if (uPixel > 0.5) {
+      // как на старой приставке: 5 бит на канал с упорядоченным дизерингом по пикселям буфера
+      vec2 px = floor(vUv * uRes);
+      col = floor(col * 31.0 + 0.5 + bayer(px) * 0.9) / 31.0;
+    }
+    vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.45;
     gl_FragColor = vec4(col, 1.0);
   }`,
 }));
@@ -69,12 +61,12 @@ const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  const scale = vhs ? Math.min(1, 720 / window.innerHeight) : dpr;
+  const scale = pixel ? Math.min(1, 360 / window.innerHeight) : dpr;
   const w = Math.round(window.innerWidth * scale), h = Math.round(window.innerHeight * scale);
-  rt.setSize(w, h); postU.uRes.value.set(w, h); postU.uVhs.value = vhs ? 1 : 0;
+  rt.setSize(w, h); postU.uRes.value.set(w, h); postU.uPixel.value = pixel ? 1 : 0;
   camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
-  $('osd').classList.toggle('hidden', !vhs);
 }
+function setPixel(v) { pixel = v; store.set('hotel.pixel', v ? '1' : '0'); makeRT(); resize(); }
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a0e08);
 scene.fog = new THREE.Fog(0x1e120a, 8, 46);
@@ -164,7 +156,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyF') toggleFlash();
   if (e.code === 'KeyJ') openJournal();
   if (e.code === 'KeyM') { const v = S.audio.musicVolume > 0 ? 0 : 0.55; S.setMusicVolume(v); $('vol').value = v; toast(v ? 'Музыка включена' : 'Музыка выключена'); }
-  if (e.code === 'KeyP') { vhs = !vhs; store.set('hotel.vhs', vhs ? '1' : '0'); $('vhs').checked = vhs; resize(); toast(vhs ? 'VHS: включено' : 'VHS: выключено'); }
+  if (e.code === 'KeyP') { setPixel(!pixel); $('pixel').checked = pixel; toast(pixel ? 'Пиксели: включены' : 'Пиксели: выключены'); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 function toggleFlash() { flash.intensity = flash.intensity > 0 ? 0 : 14; S.sfxClick(); }
@@ -250,7 +242,7 @@ function showPause() { $('start').classList.remove('hidden'); $('startBtn').text
 $('startBtn').addEventListener('click', start);
 $('vol').addEventListener('input', e => S.setMusicVolume(+e.target.value));
 $('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
-$('vhs').checked = vhs; $('vhs').addEventListener('change', e => { vhs = e.target.checked; store.set('hotel.vhs', vhs ? '1' : '0'); resize(); });
+$('pixel').checked = pixel; $('pixel').addEventListener('change', e => setPixel(e.target.checked));
 $('journalBtn').addEventListener('click', () => openJournal());
 function start() {
   S.initAudio(); S.setMusicVolume(+$('vol').value);
@@ -412,13 +404,11 @@ function ride(from, to) {
   elevatorDoors(from, false); S.sfxClick();
   setTimeout(() => {
     S.sfxElevatorRide(2.6 + Math.abs(to - from) * 0.3);
-    $('osdMode').textContent = to > from ? '▲▲ FF' : '▼▼ REW';
     fadeTo(0.92, 600, () => {
       player.pos.y += (to - from) * FH; player.vy = 0;
       for (const k of Object.keys(ELEV.doors)) if (+k !== to) elevatorDoors(+k, false);
       setTimeout(() => {
         fadeTo(0, 600, () => {
-          $('osdMode').textContent = '▶ PLAY';
           S.sfxElevatorDing(); elevatorDoors(to, true); state.busy = false;
           if (to === 4) toast('Этаж ∞. Двери открываются прямо в небо.');
         });
@@ -634,16 +624,6 @@ function updateWorld() {
   }
 }
 
-// ---------- экранная индикация VHS ----------
-let osdClock = 3 * 3600 + 33 * 60;
-function updateOsd(dt) {
-  osdClock += dt;
-  const s = Math.floor(osdClock), hh = Math.floor(s / 3600) % 24, mm = Math.floor(s / 60) % 60, ss = s % 60;
-  $('osdTime').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-  if (state.paused && state.started) $('osdMode').textContent = '❚❚ PAUSE';
-  else if ($('osdMode').textContent === '❚❚ PAUSE') $('osdMode').textContent = '▶ PLAY';
-}
-
 // ---------- цикл ----------
 const clock = new THREE.Clock();
 let staticT = 0, fpsT0 = performance.now(), fpsN = 0;
@@ -668,8 +648,6 @@ function frame() {
   staticT -= dt; if (staticT < 0) { staticT = 0.07; updateStatic(t); }
   rayTimer -= dt; if (rayTimer < 0) { rayTimer = 0.08; if (state.started && !state.modal) updateFocus(); }
   glitchT = Math.max(0, glitchT - dt);
-  postU.uTime.value = t; postU.uGlitch.value = glitchT;
-  updateOsd(dt);
   renderer.setRenderTarget(rt); renderer.render(scene, camera); window.__calls = renderer.info.render.calls;
   renderer.setRenderTarget(null); renderer.render(postScene, postCam);
   fpsN++; { const nw = performance.now(); if (nw - fpsT0 > 1000) { window.__fps = fpsN * 1000 / (nw - fpsT0); fpsT0 = nw; fpsN = 0; } }

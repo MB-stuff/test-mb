@@ -386,3 +386,34 @@ export const fireTex = () => cached('fire', () => {
   }
   return toTex(c);
 });
+
+// зигзаг из чёрных и белых полос — пол из снов
+export function chevronTex(a = '#141010', b = '#d8d0c0') {
+  const S = 128, [c, g] = canvas(S);
+  g.fillStyle = a; g.fillRect(0, 0, S, S); g.fillStyle = b;
+  for (let k = -2; k < 4; k++) {
+    g.beginPath(); const y0 = k * 32;
+    g.moveTo(0, y0); g.lineTo(64, y0 + 32); g.lineTo(128, y0); g.lineTo(128, y0 + 16); g.lineTo(64, y0 + 48); g.lineTo(0, y0 + 16); g.closePath(); g.fill();
+  }
+  return toTex(c);
+}
+// влажные жёлтые обои «нулевого уровня»
+export function backroomsTex() {
+  const S = 128, [c, g] = canvas(S), r = rnd(77);
+  g.fillStyle = '#b8a250'; g.fillRect(0, 0, S, S);
+  g.strokeStyle = 'rgba(120,96,30,0.35)'; g.lineWidth = 2;
+  for (let x = 0; x < S; x += 16) { g.beginPath(); g.moveTo(x + 4, 0); g.lineTo(x + 4, S); g.stroke(); }
+  g.fillStyle = 'rgba(140,110,40,0.4)';
+  for (let y = 8; y < S; y += 32) for (let x = 12; x < S; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + 3, y + 5); g.lineTo(x, y + 10); g.lineTo(x - 3, y + 5); g.closePath(); g.fill(); }
+  for (let i = 0; i < 6; i++) { g.fillStyle = `rgba(90,70,20,${0.05 + r() * 0.08})`; g.beginPath(); g.ellipse(r() * S, r() * S, 10 + r() * 20, 6 + r() * 14, 0, 0, 7); g.fill(); }
+  return toTex(c);
+}
+// рельеф закатного солнца с прорезями
+export function sunTex() {
+  const S = 256, [c, g] = canvas(S);
+  const gr = g.createLinearGradient(0, 0, 0, S); gr.addColorStop(0, '#ffd070'); gr.addColorStop(0.55, '#ff7a3a'); gr.addColorStop(1, '#a02a50');
+  g.fillStyle = gr; g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, 7); g.fill();
+  g.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 7; i++) { const y = S * 0.52 + i * i * 2.6 + i * 9, h = 2 + i * 1.6; g.fillRect(0, y, S, h); }
+  return toTex(c, { repeat: false });
+}
