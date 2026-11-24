@@ -404,7 +404,8 @@ export function curtains(axis, c, s0, s1, y0, inside, color = 0x6a1a24) {
   const set = () => {
     for (const g of panels) g.scale.x = closed ? span / 0.5 : 1;
     resolve(); me.closed = closed;
-    for (const p of me.patches) p.mesh.visible = !closed;
+    for (const p of me.patches) { p.curtained = closed; p.mesh.visible = !closed && !W.realSun; }
+    W.shadowDirty = true;
     if (me.zone) { const all = W.curtainList.filter(o => { if (!o.patches && o.resolve) o.resolve(); return o.zone === me.zone; }); me.zone.dark = all.filter(o => o.closed).length / all.length; }
   };
   me.resolve = resolve;

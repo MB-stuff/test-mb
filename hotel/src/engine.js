@@ -312,7 +312,7 @@ export class Door {
   }
   update(dt) {
     const d = this.target - this.angle;
-    if (Math.abs(d) > 0.001) { this.angle += d * Math.min(1, dt * 4); this.pivot.rotation.y = (this.axis === 'z' ? -Math.PI / 2 : 0) + this.angle; }
+    if (Math.abs(d) > 0.001) { this.angle += d * Math.min(1, dt * 4); this.pivot.rotation.y = (this.axis === 'z' ? -Math.PI / 2 : 0) + this.angle; W.shadowDirty = true; }
   }
 }
 export const cap = s => s.charAt(0).toUpperCase() + s.slice(1);

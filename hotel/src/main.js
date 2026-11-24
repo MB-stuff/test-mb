@@ -100,7 +100,16 @@ window.addEventListener('resize', resize);
 
 const hemi = new THREE.HemisphereLight(0xc08a5a, 0x2a1008, 1.0); scene.add(hemi);
 const amb = new THREE.AmbientLight(0x5a3a28, 0.32); scene.add(amb);
-const sun = new THREE.DirectionalLight(0xffc080, 0); sun.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sun);
+const sun = new THREE.DirectionalLight(0xffc080, 0); sun.position.copy(SUN_DIR).multiplyScalar(100); scene.add(sun); scene.add(sun.target);
+// Солнечный свет в помещениях — настоящий: направленный свет с картой теней. Стены, рамы, шторы и мебель
+// отбрасывают тень, поэтому пятна света на полу и стенах честно обрываются о предметы.
+// Свет падает чуть круче видимого солнца (22° вместо 9°), иначе на полу почти не видно пятен.
+const LIGHT_DIR = new THREE.Vector3(SUN_DIR.x, 0, SUN_DIR.z).normalize().multiplyScalar(Math.cos(0.384)).setY(Math.sin(0.384));
+let SUN_IN = +(params.get('sun') || 13);
+let shadowsOn = store.get('hotel.shadows') !== null ? store.get('hotel.shadows') === '1' : !TOUCH;
+if (params.has('shadows')) shadowsOn = params.get('shadows') !== '0';
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
+sun.shadow.mapSize.set(4096, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
 const POOL = [];
 // Свет ламп не проходит сквозь стены: каждая лампа освещает только коробку своей комнаты (зоны).
 // Границы зон проходят по осям стен, поэтому внутренняя грань стены освещается, а соседняя комната — нет.
@@ -156,6 +165,31 @@ for (const [lk, lv] of Object.entries(W.levels)) for (const o of lv.children) if
 // Предметы соседних этажей видны только сквозь лестничный проём, шахту лифта и атриум вестибюля.
 // В остальных местах их закрывают перекрытия, и рисовать их незачем.
 const SEE_THROUGH = /ЛЕСТНИЦА|ЛИФТ|ВЕСТИБЮЛЬ|КРЫША/;
+// --- тени: кто отбрасывает и кто принимает ---
+for (const root of [...Object.values(W.levels), W.exterior].filter(Boolean)) root.traverse(o => {
+  if (!o.isMesh) return;
+  const mats = Array.isArray(o.material) ? o.material : [o.material];
+  const opaque = mats.every(m => m && !m.transparent && m.blending === THREE.NormalBlending && !m.isShaderMaterial);
+  o.castShadow = opaque && !o.userData.hit;
+  o.receiveShadow = mats.every(m => m && (m.isMeshLambertMaterial || m.isMeshStandardMaterial || m.isMeshPhongMaterial));
+});
+// камера тени охватывает весь отель целиком: тени не «съезжают» при ходьбе, а карту можно обновлять редко
+{
+  const C = new THREE.Vector3(2, 8, 9);
+  sun.position.copy(C).addScaledVector(LIGHT_DIR, 150); sun.target.position.copy(C); sun.updateMatrixWorld(); sun.target.updateMatrixWorld();
+  const cam = new THREE.PerspectiveCamera(); cam.position.copy(sun.position); cam.lookAt(C); cam.updateMatrixWorld();
+  const bb = new THREE.Box3(); const v = new THREE.Vector3();
+  for (const x of [-28, 32]) for (const y of [-5, 22]) for (const z of [-16, 34]) bb.expandByPoint(v.set(x, y, z).applyMatrix4(cam.matrixWorldInverse));
+  const sc = sun.shadow.camera; sc.left = bb.min.x; sc.right = bb.max.x; sc.bottom = bb.min.y; sc.top = bb.max.y; sc.near = -bb.max.z - 2; sc.far = -bb.min.z + 2; sc.updateProjectionMatrix();
+}
+W.shadowDirty = true; let shadowT = 0;
+function setShadows(v) {
+  shadowsOn = v; store.set('hotel.shadows', v ? '1' : '0'); sun.castShadow = v; W.realSun = v; W.shadowDirty = true;
+  // плоские «пятна света» под окнами нужны только без настоящих теней
+  for (const p of W.windowPatches || []) p.mesh.visible = !v && !p.curtained;
+  const cb = document.getElementById('shadows'); if (cb) cb.checked = v;
+}
+setShadows(shadowsOn);
 // Номер с закрытой дверью не виден снаружи: его вещи не рисуются, пока ты не войдёшь или дверь не откроется.
 const zoneAt = (lv, x, z) => { let b = null, ba = Infinity; for (const zn of W.zones) if (zn.level === lv && x >= zn.minX && x <= zn.maxX && z >= zn.minZ && z <= zn.maxZ) { const a = (zn.maxX - zn.minX) * (zn.maxZ - zn.minZ); if (a < ba) { ba = a; b = zn; } } return b; };
 // двери и всё, что висит на стене коридора (центр почти на границе зон), к номеру не относим
@@ -367,6 +401,7 @@ $('vol').addEventListener('input', e => { S.setMusicVolume(+e.target.value); sto
 $('sfx').addEventListener('input', e => { S.setSfxVolume(+e.target.value); store.set('hotel.sfx', e.target.value); S.sfxClick(); });
 $('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
 $('pixel').checked = pixel; $('pixel').addEventListener('change', e => setPixel(e.target.checked));
+$('shadows').checked = shadowsOn; $('shadows').addEventListener('change', e => setShadows(e.target.checked));
 // интерфейс: счётчики, название комнаты, прицел. Подсказки действий, сообщения и субтитры остаются всегда.
 let showUI = store.get('hotel.ui') !== '0';
 function setUI(v) { showUI = v; store.set('hotel.ui', v ? '1' : '0'); document.body.classList.toggle('noui', !v); $('ui').checked = v; }
@@ -756,7 +791,9 @@ function updateLights(t, dt) {
   hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb * 0.78) * (1 - 0.62 * curtainDark) * (1 - 0.4 * lampsOff);
   amb.intensity = 0.32 * (1 - 0.5 * curtainDark) * (1 - 0.35 * lampsOff);
   hemi.color.setHex(roof ? 0xffd090 : 0xc08a5a);
-  sun.intensity = roof ? 2.4 : 0;
+  const dream = state.zone && state.zone.name === 'ЗА ШТОРОЙ';
+  if (roof) { sun.intensity = 2.4; }
+  else sun.intensity = shadowsOn && !dream ? SUN_IN : 0;
 }
 
 // ---------- зоны, триггеры, видимость ----------
@@ -764,6 +801,7 @@ function updateWorld() {
   const p = player.pos;
   const L = Math.max(-1, Math.min(4, Math.floor((p.y + 1.2) / FH)));
   player.level = L;
+  if (L !== player.lastL) { player.lastL = L; W.shadowDirty = true; }
   for (const [k, g] of Object.entries(W.levels)) {
     const vis = state.title || params.has('qa') || Math.abs(+k - L) <= 1;
     g.visible = vis;
@@ -814,6 +852,8 @@ function frame() {
   staticT -= dt; if (staticT < 0) { staticT = 0.07; updateStatic(t); }
   rayTimer -= dt; if (rayTimer < 0) { rayTimer = 0.08; if (state.started && !state.modal) updateFocus(); }
   glitchT = Math.max(0, glitchT - dt);
+  shadowT -= dt;
+  if (sun.castShadow && sun.intensity > 0 && (W.shadowDirty || shadowT <= 0)) { renderer.shadowMap.needsUpdate = true; W.shadowDirty = false; shadowT = 0.5; }
   renderer.setRenderTarget(rt); renderer.render(scene, camera); window.__calls = renderer.info.render.calls;
   postU.uInvProj.value.copy(camera.projectionMatrixInverse); postU.uProjY.value = camera.projectionMatrix.elements[5];
   renderer.setRenderTarget(null); renderer.render(postScene, postCam);

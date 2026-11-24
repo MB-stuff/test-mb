@@ -330,9 +330,11 @@ function coreWalls(L, { coreMat, serviceDoor = true, serviceName = 'служеб
   wall('z', EX1, EZ0, TZ1, y, h, { neg: shaft, pos: coreMat });
   wall('x', EZ0, EX0 - T / 2, EX1 + T / 2, y, h, { neg: coreMat, pos: shaft }, [{ at: (EX0 + EX1) / 2, w: 1.4, type: 'open', h: 2.3 }]);
   const sm = serviceMat || col(0x6a6058);
-  wall('z', SX0, TZ0, SZ1, y, h, { neg: M.concWall, pos: sm });
+  // стена служебной комнаты со стороны лестницы заканчивается у угла, а поперечная стена закрывает её торец:
+  // со стороны лестницы — сплошной бетон, со стороны лифтового холла — обои, без полоски плитки на ребре
+  wall('z', SX0, TZ0, SZ1 - T / 2, y, h, { neg: M.concWall, pos: sm });
   const sx = (SX0 + 6) / 2;
-  wall('x', SZ1, SX0, 6 - T / 2, y, h, { neg: sm, pos: coreMat }, serviceDoor ? [{ at: sx, w: 1.0, type: 'door' }] : []);
+  wall('x', SZ1, SX0 - T / 2, 6 - T / 2, y, h, { neg: sm, pos: coreMat, edge: M.concWall }, serviceDoor ? [{ at: sx, w: 1.0, type: 'door' }] : []);
   if (serviceDoor) return new Door('x', SZ1, sx, { name: serviceName, swing: -1, locked: serviceLocked, lockedMsg: lockedMsg || 'Заперто.' });
 }
 function liftLobbyDecor(L, fname) {
