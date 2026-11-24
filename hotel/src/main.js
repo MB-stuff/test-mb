@@ -128,6 +128,12 @@ THREE.Material.prototype.onBeforeCompile = function (sh) {
   if (sh.fragmentShader.includes('lights_pars_begin')) { sh.uniforms.uLBMin = LBU.min; sh.uniforms.uLBMax = LBU.max; }
 };
 const zoneBoxCache = new Map();
+function lightZoneName(a) {
+  if (a._zn !== undefined) return a._zn;
+  let best = null;
+  for (const z of W.zones) if (z.level === a.level && a.pos.x >= z.minX && a.pos.x <= z.maxX && a.pos.z >= z.minZ && a.pos.z <= z.maxZ) { const ar = (z.maxX - z.minX) * (z.maxZ - z.minZ); if (!best || ar < best[0]) best = [ar, z]; }
+  return (a._zn = best ? best[1].name : null);
+}
 function lightBox(a) {
   if (zoneBoxCache.has(a)) return zoneBoxCache.get(a);
   let best = null;
@@ -164,6 +170,7 @@ for (const [lk, lv] of Object.entries(W.levels)) for (const o of lv.children) if
 }
 // Предметы соседних этажей видны только сквозь лестничный проём, шахту лифта и атриум вестибюля.
 // В остальных местах их закрывают перекрытия, и рисовать их незачем.
+// откуда видны другие этажи: лестница, лифт, вестибюль-атриум и холл 2-го этажа с окнами в атриум
 const SEE_THROUGH = /ЛЕСТНИЦА|ЛИФТ|ВЕСТИБЮЛЬ|КРЫША/;
 // --- тени: кто отбрасывает и кто принимает ---
 for (const root of [...Object.values(W.levels), W.exterior].filter(Boolean)) root.traverse(o => {
@@ -204,15 +211,28 @@ for (const d of W.doors || []) for (const sd of [-1, 1]) {
 }
 const roomClosed = zn => zn.doors && zn.doors.length && zn.doors.every(d => !d.open && Math.abs(d.angle) < 0.01);
 let cullT = 0;
+// Дальность прорисовки предметов (настройка «прорисовка»):
+//   0 — ближняя: только рядом, соседние этажи — лишь с лестницы и из атриума; быстрее всего
+//   1 — дальняя: весь этаж целиком, соседние этажи видны отовсюду, откуда их видно (окна в атриум)
+//   2 — вся: ничего не прячется, даже вещи в закрытых номерах
+const DRAW = [
+  { same: 25, other: 12, otherAlways: false, closed: true },
+  { same: 45, other: 40, otherAlways: false, closed: true },
+  { same: Infinity, other: Infinity, otherAlways: true, closed: false },
+];
+let drawLevel = +(store.get('hotel.draw') ?? (TOUCH ? 0 : 1)); if (!(drawLevel >= 0 && drawLevel <= 2)) drawLevel = TOUCH ? 0 : 1;
+if (params.has('draw')) drawLevel = +params.get('draw');
+function setDraw(v) { drawLevel = v; store.set('hotel.draw', String(v)); cullT = 0; W.shadowDirty = true; const el = document.getElementById('draw'); if (el) el.value = String(v); }
 function updateCull(dt) {
   cullT -= dt; if (cullT > 0) return; cullT = 0.1;
   const all = state.title || params.has('qa');
-  const L = player.level, open = state.zone && SEE_THROUGH.test(state.zone.name);
+  const D = DRAW[drawLevel] || DRAW[1];
+  const L = player.level, open = D.otherAlways || (state.zone && SEE_THROUGH.test(state.zone.name));
   for (const o of cullables) {
     const d = camera.position.distanceTo(o.userData.cullC) - o.userData.cullR;
-    const hidden = o.userData.cullZ && o.userData.cullZ !== state.zone && roomClosed(o.userData.cullZ);
+    const hidden = D.closed && o.userData.cullZ && o.userData.cullZ !== state.zone && roomClosed(o.userData.cullZ);
     // userData.off — предмет выключен игрой (погасшее бра, ещё не открытый лаз): отсечение не должно его «включать»
-    o.visible = !o.userData.gone && !o.userData.off && (all || (!hidden && (o.userData.cullL === L ? d < 25 : open && d < 12)));
+    o.visible = !o.userData.gone && !o.userData.off && (all || (!hidden && (o.userData.cullL === L ? d < D.same : open && d < D.other)));
   }
 }
 sky.onGlitch = () => { if (state.started) { S.sfxGlitch(); glitch(0.5); } };
@@ -402,6 +422,7 @@ $('sfx').addEventListener('input', e => { S.setSfxVolume(+e.target.value); store
 $('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
 $('pixel').checked = pixel; $('pixel').addEventListener('change', e => setPixel(e.target.checked));
 $('shadows').checked = shadowsOn; $('shadows').addEventListener('change', e => setShadows(e.target.checked));
+$('draw').value = String(drawLevel); $('draw').addEventListener('change', e => setDraw(+e.target.value));
 // интерфейс: счётчики, название комнаты, прицел. Подсказки действий, сообщения и субтитры остаются всегда.
 let showUI = store.get('hotel.ui') !== '0';
 function setUI(v) { showUI = v; store.set('hotel.ui', v ? '1' : '0'); document.body.classList.toggle('noui', !v); $('ui').checked = v; }
@@ -729,8 +750,11 @@ function updateLights(t, dt) {
   if (lightTimer <= 0) {
     lightTimer = 0.25;
     const cands = [];
+    const atriumView = player.level === 1 && state.zone && /ЭТАЖ 2 · ЛИФТОВОЙ ХОЛЛ/.test(state.zone.name);
     for (const a of W.anchors) {
-      if (!a.on || (blackout && a.grid) || a.level !== player.level) continue;
+      if (!a.on || (blackout && a.grid)) continue;
+      // из лифтового холла второго этажа через окна виден двусветный вестибюль: его люстры тоже светят
+      if (a.level !== player.level && !(atriumView && a.level === 0 && lightZoneName(a) === 'ВЕСТИБЮЛЬ')) continue;
       const d = a.pos.distanceTo(camera.position);
       if (d > a.distance + 10) continue;
       cands.push([d - a.intensity * 0.25, a]);
@@ -861,6 +885,12 @@ function frame() {
   requestAnimationFrame(frame);
 }
 resize();
+{
+  const saved = [];
+  scene.traverse(o => { if (o.isGroup || o.isMesh) { saved.push([o, o.visible]); o.visible = true; } });
+  try { renderer.setRenderTarget(rt); renderer.compile(scene, camera); renderer.setRenderTarget(null); } catch (e) { }
+  for (const [o, v] of saved) o.visible = v;
+}
 requestAnimationFrame(frame);
 $('loading').classList.add('hidden');
 if (params.has('autostart')) { state.started = true; state.paused = false; state.title = false; $('start').classList.add('hidden'); document.body.classList.add('playing'); }

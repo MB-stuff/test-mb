@@ -474,10 +474,15 @@ function furnishRoom(r, L) {
       break;
     }
     case 'empty': {
-      PR.chair(...at(3, 3.7), RY('win'));
-      PR.book(at(3.7, 3.55)[0], y, at(3.7, 3.55)[1], 0.7, 'libGuenonIllusion', { color: 0x2a2a2a });
+      // Окна этого номера выходят на север: солнца в них не видно, только его свет на дюнах.
+      // Гость поставил напротив окна зеркало и смотрит на солнце в отражении.
+      PR.chair(...at(2.6, 3.2), RY('win') + 0.5);
+      PR.book(at(3.3, 3.45)[0], y, at(3.3, 3.45)[1], 0.7, 'libGuenonIllusion', { color: 0x2a2a2a });
+      PR.sunMirror(...at(F.W - 1.0, 4.1), RY('west') - 0.55);
+      PR.glass(...at(2.05, 3.55).slice(0, 1), y, at(2.05, 3.55)[1]);
+      PR.ashtray(...at(3.2, 2.85).slice(0, 1), y, at(3.2, 2.85)[1], { cigar: false });
       P_(['02_weirdcore_liminal', ...groups], 'east', 2.45, 1.8, 1.2); P_(['02_weirdcore_liminal', ...groups], 'west', 2.45, 1.8, 0.7);
-      PR.note(...at(3.5, 3.1).slice(0, 1), y, at(3.5, 3.1)[1], 0.4, 'Записка на полу', 'Я сижу здесь и смотрю на солнце уже третий день.\nОно не садится.\nОно никогда не садится.');
+      PR.note(...at(2.9, 2.55).slice(0, 1), y, at(2.9, 2.55)[1], 0.4, 'Записка на полу', 'Окна здесь на север. Солнца не видно — только его свет на дюнах, рыжий, как будто пустыня горит изнутри.\n\nЯ попросил у горничной зеркало и поставил его так, чтобы поймать солнце.\nТретий день смотрю в зеркало. Отражение не садится.\n\nСегодня заметил: в окне солнца нет, а в зеркале оно есть. Значит, настоящее — то, что в зеркале?');
       break;
     }
     case 'pianist': case 'writer': {
@@ -963,20 +968,21 @@ function buildPodium() {
   const cashM = texMat('cashier', TX.wood('#4a2418'), 0xffffff, {}, 1);
   wall('z', 2.95, LZ0, LZ0 + T / 2 + 2.05, y, 2.5, { neg: cashM, pos: cashM }, [{ at: -12.85, w: 0.8, type: 'door', h: 2.1 }], { ceil: y + 2.48 });
   new Door('z', 2.95, -12.85, { name: 'касса', w: 0.8, h: 2.1, swing: 1, hinge: 1, mat: texMat('doorCash', TX.wood('#3a1a10'), 0xffffff, {}, 1) });
-  const cd = PR.desk(1.3, LZ0 + T / 2 + 0.42, P);
-  PR.stool(1.3, -12.8, { color: 0x6a1a24 });
+  // рабочее место кассира: стол стоит у задней стены, кассир сидит лицом к стене, спиной к окошку
+  const cd = PR.desk(1.3, LZ0 + T / 2 + 0.31, 0);
+  PR.chair(1.45, LZ0 + T / 2 + 1.12, P, { color: 0x2a1410, seatColor: 0x6a1a24 });
   const safe = PR.grp(0.48, -12.45, P / 2);
   box(0.6, 0.7, 0.55, col(0x3a3e3a), 0, 0, 0, { parent: safe }); cyl(0.07, 0.07, 0.03, 12, col(0xc0a050, { emissive: 0x201000 }), 0, 0.45, 0.29, { parent: safe }).rotation.x = P / 2;
   PR.solid(safe, 0.6, 0.55, 0.7); mount(safe, 'floor');
   interact(safe, 'Открыть сейф', () => { S.sfxDoorOpen(true); G.toast(['Внутри — жетоны. Тысячи жетонов. Ни одной монеты.', 'На дверце изнутри нацарапано: «выигрыш = долг, записанный задом наперёд».', 'Сейф пуст. Пахнет нагретым металлом и пустыней.'][Math.floor(Math.random() * 3)]); });
-  PR.chips(...PR.top(cd, -0.05, 0.16).toArray(), 4);
+  PR.chips(...PR.top(cd, -0.15, 0.12).toArray(), 4);
   PR.ceilingLamp(1.5, -12.6, { y: y + PCEIL, kind: 'pendant', intensity: 2.6, distance: 5, color: 0xffd090 });
   zone(0, LZ0, 2.95, LZ0 + T / 2 + 2.05, 'КАССА', { reverb: 0.1, amb: 1.2 });
-  PR.computer(...PR.top(cd, 0.2, 0).toArray(), P, 'касса', [
+  PR.computer(...PR.top(cd, 0.22, -0.06).toArray(), 0, 'касса', [
     { name: 'долги.txt', story: 'pianist', title: TXT.pianistDebt[0], text: TXT.pianistDebt[1] },
     { name: 'выигрыши.txt', text: 'Выигрышей за отчётный период: 1 (джекпот, автомат № 3).\nВыплачено: жетонами.\nЖетоны к выводу не принимаются.' },
   ]);
-  PR.book(...PR.top(cd, -0.35, 0).toArray(), P + 0.2, 'libBaudCons', { color: 0x8a6a1a });
+  PR.book(...PR.top(cd, -0.42, 0.02).toArray(), 0.2, 'libBaudCons', { color: 0x8a6a1a });
   PR.sign('КАССА', 1.6, y + 2.82, LZ0 + T / 2 + 2.2, 0, { w: 1.0, h: 0.25, fg: '#ffd070', qa: false });
   PR.plant(5.3, -13.3); PR.plant(0.7, -7.2);
   PR.sofa(5.35, -8.6, -P / 2, 0x1a4a3a, 1.8);
@@ -1572,7 +1578,8 @@ function buildWing() {
   PR.floorLamp(-7.3, 24.0); PR.floorLamp(-0.8, 24.2);
   pic(['art', 'portrait', '06_vintage_photos'], 'x', WZS, 1, -6.4, y + 2.1, 0.8, { frame: 'gold' });
   pic(['art', 'portrait', '06_vintage_photos'], 'x', WZS, 1, -1.6, y + 2.1, 0.8, { frame: 'gold' });
-  PR.ceilingLamp(-4, 27.5, { y: y + LH, kind: 'pendant', intensity: 3, distance: 8, color: 0xffa060 });
+  // большая двухъярусная люстра; включается выключателем у двери
+  PR.chandelier(-4, 27.3, y + LH, { s: 1.7, drop: 3.2, tiers: 2, intensity: 9, distance: 12, color: 0xffa860 });
   zone(WX, WZS, TX0, WZ1, 'КУРИТЕЛЬНАЯ', { reverb: 0.1, amb: 1.15, muffle: 1800 });
 }
 // Зеркало в раме на стене

@@ -187,16 +187,49 @@ export function ceilingLamp(x, z, { y = Y() + 3.7, color = 0xffb878, intensity =
   mount(g, 'ceiling');
   return a;
 }
-export function chandelier(x, z, y) {
+export function chandelier(x, z, y, { s = 1, drop = 1.2, tiers = 1, intensity = 14, distance = 16, color = 0xffb060 } = {}) {
   const g = grp(x, z, 0, y);
-  C(g, 0.015, 0.015, 1.2, 4, col(0x222222), 0, -1.2, 0);
+  C(g, 0.015 * s, 0.015 * s, drop, 4, col(0x222222), 0, -drop, 0);
   const brass = col(0x8a6a2a, { emissive: 0x1a1000 }); const bulb = emis(0xffc070, 1.2);
-  C(g, 0.5, 0.35, 0.08, 10, brass, 0, -1.4, 0);
-  const bulbs = []; for (let i = 0; i < 8; i++) { const a = i / 8 * P * 2; bulbs.push(C(g, 0.04, 0.04, 0.12, 6, bulb, Math.cos(a) * 0.48, -1.38, Math.sin(a) * 0.48)); }
-  for (let i = 0; i < 12; i++) { const a = i / 12 * P * 2; C(g, 0.01, 0.025, 0.25, 5, col(0xe0d0b0, { emissive: 0x504030 }), Math.cos(a) * 0.38, -1.7, Math.sin(a) * 0.38); }
+  const crystal = col(0xe0d0b0, { emissive: 0x504030 }), crystalOff = col(0x8a8070);
+  const bulbs = [], drops = [];
+  for (let k = 0; k < tiers; k++) {
+    const r = (0.5 - k * 0.18) * s, yy = -drop - 0.2 * s - k * 0.42 * s, n = 8 - k * 2;
+    C(g, r, r * 0.7, 0.08 * s, 12, brass, 0, yy, 0);
+    for (let i = 0; i < n; i++) {
+      const a = i / n * P * 2 + k * 0.3;
+      bulbs.push(C(g, 0.04 * s, 0.04 * s, 0.12 * s, 6, bulb, Math.cos(a) * (r - 0.02), yy + 0.02 * s, Math.sin(a) * (r - 0.02)));
+    }
+    for (let i = 0; i < n + 4; i++) { const a = (i + 0.5) / (n + 4) * P * 2; drops.push(C(g, 0.01 * s, 0.025 * s, 0.25 * s, 5, crystal, Math.cos(a) * r * 0.78, yy - 0.3 * s, Math.sin(a) * r * 0.78)); }
+  }
+  if (tiers > 1) { C(g, 0.06 * s, 0.03 * s, (tiers - 1) * 0.42 * s + 0.2 * s, 8, brass, 0, -drop - 0.2 * s - (tiers - 1) * 0.42 * s, 0); C(g, 0.02 * s, 0.08 * s, 0.3 * s, 8, crystal, 0, -drop - 0.5 * s - (tiers - 1) * 0.42 * s, 0); }
   mount(g, 'ceiling');
-  const an = anchor(x, y - 1.5, z, { color: 0xffb060, intensity: 14, distance: 16 }); an.switchable = true;
-  return lampVis(an, bulbs, bulb, col(0x6a5a40));
+  const an = anchor(x, y - drop - 0.3 * s - (tiers - 1) * 0.3 * s, z, { color, intensity, distance }); an.switchable = true;
+  // погашенная люстра: лампочки и хрусталь тускнеют
+  return lampVis(an, [...bulbs, ...drops], bulb, col(0x6a5a40), lit => { for (const d of drops) d.material = lit ? crystal : crystalOff; });
+}
+// Зеркало на ножках у окна: ловит солнце, которого не видно в окне
+export function sunMirror(x, z, ry) {
+  const g = grp(x, z, ry);
+  const wood = woodM('#4a2a14');
+  B(g, 0.05, 1.7, 0.05, wood, -0.42, 0, 0); B(g, 0.05, 1.7, 0.05, wood, 0.42, 0, 0);
+  B(g, 0.5, 0.04, 0.3, wood, -0.42, 0, 0); B(g, 0.5, 0.04, 0.3, wood, 0.42, 0, 0);
+  const fr = new THREE.Group(); fr.position.set(0, 1.0, 0); fr.rotation.x = -0.12; g.add(fr);
+  B(fr, 0.8, 1.3, 0.04, wood, 0, -0.65, -0.01);
+  // в отражении — жёлтое небо и маленькое оранжевое солнце
+  const c = document.createElement('canvas'); c.width = 64; c.height = 104; const cx = c.getContext('2d');
+  const gr = cx.createLinearGradient(0, 0, 0, 104); gr.addColorStop(0, '#ffe7a0'); gr.addColorStop(0.62, '#ffb860'); gr.addColorStop(0.63, '#8a2a30'); gr.addColorStop(1, '#4a1018');
+  cx.fillStyle = gr; cx.fillRect(0, 0, 64, 104); cx.fillStyle = '#ff6a20'; cx.beginPath(); cx.arc(38, 46, 6, 0, 7); cx.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const glass = plane(0.7, 1.2, new THREE.MeshBasicMaterial({ map: t, color: 0xd8c8b0 }), 0, 0, 0.012, 0, 0, { parent: fr }); glass.userData.noMerge = true;
+  const a = anchor(0, 0, 0, { color: 0xffa050, intensity: 0.8, distance: 2.5, grid: false }); a.pos.copy(wp(g, 0, 1.0, 0.5));
+  solid(g, 0.9, 0.35, 1.7);
+  interact(g, 'Посмотреть в зеркало', () => { S.sfxPaper(); G.toast(pick([
+    'В зеркале — солнце. Обернёшься к окну — солнца нет.',
+    'Отражение теплее, чем комната. Ты протягиваешь руку — стекло тёплое, как песок в полдень.',
+    'В зеркале ты сидишь на стуле и смотришь на солнце. Стул за твоей спиной пуст.',
+  ])); });
+  floor(g); return g;
 }
 // Бра на стене: (x,z) — точка на поверхности стены, ry — нормаль стены
 export function sconce(x, y, z, ry, { glowSize = 1.3 } = {}) {

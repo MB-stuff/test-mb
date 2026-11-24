@@ -29,6 +29,7 @@ body.noui #hud,body.noui #zone,body.noui #cross,body.noui #help{display:none}
 body.touch .ctrl.kbd{display:none}body:not(.touch) .ctrl.tch{display:none}
 .opts{display:flex;flex-wrap:wrap;gap:10px 20px;justify-content:flex-start;font-size:13px;color:var(--dim);margin-bottom:22px;font-family:'Courier New',monospace}
 .opts label{display:flex;align-items:center;gap:8px}
+.opts select{font:inherit;background:#1a0e0c;color:#e8c890;border:1px solid #6a4a3a;padding:2px 4px}
 input[type=range]{accent-color:var(--accent);width:110px}
 #startBtn,.end button{font:inherit;font-size:18px;padding:12px 34px;background:linear-gradient(#5a1228,#2a0812);color:#ffd38a;border:1px solid #c86a4a;border-radius:2px;cursor:pointer;letter-spacing:.1em;box-shadow:0 0 22px rgba(255,90,60,.25)}
 #startBtn:hover{background:linear-gradient(#7a1838,#3a0a1a)}
@@ -53,7 +54,8 @@ body:not(.playing) #journalBtn{display:none}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20}
 #modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(6,3,4,.78);z-index:30;padding:16px}
 #modal.show{display:grid}
-#modalBody{max-width:min(92vw,760px);max-height:92vh;overflow:auto;text-align:center}
+#modalBody{max-width:min(92vw,760px);max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:10px;text-align:center;scrollbar-width:thin;scrollbar-color:#6a4a3a transparent}
+#modalBody::-webkit-scrollbar{width:6px;height:0}#modalBody::-webkit-scrollbar-thumb{background:#6a4a3a}
 #modalBody .dim{color:var(--dim)}
 .journal{background:#1c1210;border:1px solid #6a4a2a;padding:20px 24px;text-align:left;max-width:720px;box-shadow:0 0 40px rgba(0,0,0,.6)}
 .journal h3{margin:0 0 14px;color:#ffd38a;font-weight:normal;font-size:22px}
@@ -135,7 +137,7 @@ body.touch #touchUI{display:block}
   <p>Тёмный вестибюль с фонтаном, пустой бальный зал, библиотека, курительная, ресторан «Мираж», казино «Оазис», три жилых этажа и подвал. Восемь секретов, пять историй тех, кто здесь остался, и книги о симулякрах на полках. Солнце над малиновой пустыней не садится.</p>
   <div class="ctrl kbd"><b>WASD</b><span>идти, Shift — бежать</span><b>Мышь</b><span>осматриваться</span><b>E / ЛКМ</b><span>взаимодействовать</span><b>Пробел</b><span>встать со стула</span><b>F · J</b><span>фонарик · журнал историй</span><b>M · P · H</b><span>музыка · пиксели · интерфейс</span><b>Esc</b><span>пауза</span></div>
   <div class="ctrl tch"><b>Левая часть</b><span>джойстик — идти</span><b>Правая часть</b><span>вести пальцем — смотреть, тап — действие</span><b>E · » · ☀</b><span>действие · бег · фонарик</span></div>
-  <div class="opts"><label>музыка <input id="vol" type="range" min="0" max="1" step="0.05" value="0.55"></label><label>звуки <input id="sfx" type="range" min="0" max="1" step="0.05" value="0.9"></label><label>мышь <input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label><label><input id="pixel" type="checkbox"> пиксели</label><label><input id="ui" type="checkbox"> интерфейс</label><label><input id="shadows" type="checkbox"> тени</label></div>
+  <div class="opts"><label>музыка <input id="vol" type="range" min="0" max="1" step="0.05" value="0.55"></label><label>звуки <input id="sfx" type="range" min="0" max="1" step="0.05" value="0.9"></label><label>мышь <input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label><label><input id="pixel" type="checkbox"> пиксели</label><label><input id="ui" type="checkbox"> интерфейс</label><label><input id="shadows" type="checkbox"> тени</label><label>прорисовка <select id="draw"><option value="0">ближняя</option><option value="1">дальняя</option><option value="2">вся</option></select></label></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="startBtn">Войти</button><button id="journalBtn" class="ghost">Журнал</button></div>
 </div></div>
 <!--IMAGES-->

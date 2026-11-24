@@ -98,14 +98,44 @@ export const EXT = { mats: new Set() }; // материалы наружной �
 
 // ---------- окна ----------
 const glassMat = () => basic('glass', { color: 0xffd9a0, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide });
-let patchBase;
-function windowLightPatch(cx, cz, y, w, inwardX, inwardZ, depth = 2.6, strength = 0.22) {
-  patchBase = patchBase || decalMat({ map: TX.windowPatchTex(), color: 0xffb35a, blending: THREE.AdditiveBlending });
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.05, depth), patchBase.clone());
-  m.material.opacity = strength; m.userData.noRay = true;
-  const ang = Math.atan2(inwardX, inwardZ);
-  m.rotation.order = 'YXZ'; m.rotation.set(-Math.PI / 2, ang + Math.PI, 0);
-  m.position.set(cx + inwardX * depth / 2, y + 0.02, cz + inwardZ * depth / 2);
+// Мягкое пятно солнца под окном (когда настоящие тени выключены).
+// Солнце стоит на западо-юго-западе: лучи идут по горизонтали в сторону SUN_TRAVEL. Пятно есть только у окон,
+// которые смотрят на солнце; оно скошено по ходу лучей, с мягкими краями и тенями переплётов.
+const SUN_TRAVEL = new THREE.Vector2(1, 0.42).normalize();
+const patchTex = {};
+function windowPatchTexture(mull, transom) {
+  const key = mull + '_' + transom; if (patchTex[key]) return patchTex[key];
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
+  const tmp = document.createElement('canvas'); tmp.width = tmp.height = S; const t = tmp.getContext('2d');
+  // светлое пятно с тенями рамы и переплётов (u — вдоль стены, v — вглубь комнаты)
+  t.fillStyle = '#fff'; t.fillRect(10, 6, S - 20, S - 12);
+  t.fillStyle = '#000';
+  for (let i = 1; i < mull; i++) t.fillRect(10 + (S - 20) * i / mull - 2, 0, 4, S);
+  if (transom) t.fillRect(0, 6 + (S - 12) * 0.72 - 2, S, 4);
+  g.filter = 'blur(5px)'; g.drawImage(tmp, 0, 0); g.filter = 'none';
+  // к дальнему краю пятно гаснет: свет рассеивается
+  g.globalCompositeOperation = 'destination-in';
+  const gr = g.createLinearGradient(0, 0, 0, S); gr.addColorStop(0, 'rgba(0,0,0,0.95)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.NoColorSpace;
+  return (patchTex[key] = tx);
+}
+function windowLightPatch(cx, cz, y, w, inX, inZ, sill, wh, mull, strength = 0.22) {
+  const dotN = SUN_TRAVEL.x * inX + SUN_TRAVEL.y * inZ;
+  if (dotN < 0.2) return; // окно смотрит от солнца: прямого света нет
+  const tX = -inZ, tZ = inX, dotT = SUN_TRAVEL.x * tX + SUN_TRAVEL.y * tZ;
+  const shear = Math.max(-0.45, Math.min(0.45, dotT / dotN)); // боковой снос на метр вглубь
+  const d0 = 0.12 + sill * 0.5, d1 = Math.min(d0 + Math.max(1.1, wh * 0.62), 3.4);
+  const pos = [], uv = [];
+  for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+    const sv = (u - 0.5) * w * 1.02, d = d0 + (d1 - d0) * v;
+    pos.push(cx + tX * (sv + shear * d) + inX * d, y + 0.018, cz + tZ * (sv + shear * d) + inZ * d); uv.push(u, v);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(dotN > 0 && (tX * inZ - tZ * inX) > 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3]);
+  const m = new THREE.Mesh(geo, decalMat({ map: windowPatchTexture(Math.max(1, mull), wh > 1.4), color: 0xffb060, blending: THREE.AdditiveBlending, opacity: strength * (0.55 + 0.45 * dotN), side: THREE.DoubleSide }));
+  m.userData.noRay = true; m.userData.noMerge = true;
   W.group.add(m);
   (W.windowPatches = W.windowPatches || []).push({ mesh: m, cx, cz, w, y, level: W.level });
 }
@@ -149,8 +179,9 @@ export function wall(axis, c, a0, a1, y0, h, mats, openings = [], { inside = 0, 
       addWindow(axis, c, s0, s1, y0 + sill, y0 + sill + wh, o.type === 'blocks', o.mull ?? Math.max(1, Math.round((s1 - s0) / 0.9)), neg, pos);
       if (inside && patch && o.type === 'window' && sill < 1.5) {
         const mid = (s0 + s1) / 2;
-        if (axis === 'x') windowLightPatch(mid, c + inside * T / 2, y0, s1 - s0, 0, inside, Math.min(3.2, wh * 1.4), o.light ?? 0.2);
-        else windowLightPatch(c + inside * T / 2, mid, y0, s1 - s0, inside, 0, Math.min(3.2, wh * 1.4), o.light ?? 0.2);
+        const mull = o.mull ?? Math.max(1, Math.round((s1 - s0) / 0.9));
+        if (axis === 'x') windowLightPatch(mid, c + inside * T / 2, y0, s1 - s0, 0, inside, sill, wh, mull, o.light ?? 0.2);
+        else windowLightPatch(c + inside * T / 2, mid, y0, s1 - s0, inside, 0, sill, wh, mull, o.light ?? 0.2);
       }
     }
     cur = s1;
