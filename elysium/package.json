@@ -1,0 +1,18 @@
+{
+  "name": "elysium",
+  "version": "1.0.0",
+  "description": "Элизиум — кодекс и набор механик для бродилок от первого лица на three.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "DEV=1 node build.mjs",
+    "qa": "node tools/qa.cjs"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0"
+  }
+}
