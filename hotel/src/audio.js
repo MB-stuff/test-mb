@@ -2,7 +2,7 @@
 // шаги, двери, стаканы, лифт и прочее. Внешних аудиофайлов нет.
 
 let ctx = null;
-let master, musicBus, sfxBus, reverb, reverbSend, musicLP;
+let master, musicBus, sfxBus, envBus, reverb, reverbSend, musicLP;
 let noiseBuf = null;
 const loops = {};
 
@@ -37,6 +37,8 @@ export function initAudio() {
   musicLP.connect(musicBus); musicBus.connect(master);
   const musicRev = ctx.createGain(); musicRev.gain.value = 0.55; musicLP.connect(musicRev); musicRev.connect(reverb);
   sfxBus = ctx.createGain(); sfxBus.gain.value = audio.sfxVolume; sfxBus.connect(master);
+  // ветер и гул помещений — тоже «звуки», но без эха: отдельная шина с той же громкостью
+  envBus = ctx.createGain(); envBus.gain.value = audio.sfxVolume; envBus.connect(master);
   reverbSend = ctx.createGain(); reverbSend.gain.value = 0.25; sfxBus.connect(reverbSend); reverbSend.connect(reverb);
 
   const len = ctx.sampleRate * 2;
@@ -51,6 +53,11 @@ export function initAudio() {
 export function setMusicVolume(v) {
   audio.musicVolume = v;
   if (musicBus) musicBus.gain.setTargetAtTime(v, ctx.currentTime, 0.2);
+}
+// громкость всех звуков, кроме музыки: шаги, двери, вода, телевизоры, гул ламп, ветер
+export function setSfxVolume(v) {
+  audio.sfxVolume = v; if (!ctx) return;
+  sfxBus.gain.setTargetAtTime(v, ctx.currentTime, 0.1); envBus.gain.setTargetAtTime(v, ctx.currentTime, 0.1);
 }
 export function setRoomReverb(v) {
   if (reverbSend) reverbSend.gain.setTargetAtTime(v, ctx.currentTime, 0.4);
@@ -343,11 +350,11 @@ function startAmbience() {
   const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg = ctx.createGain(); lg.gain.value = 250;
   lfo.connect(lg); lg.connect(f.frequency);
   windGain = ctx.createGain(); windGain.gain.value = 0.03;
-  s.connect(f); f.connect(windGain); windGain.connect(master); s.start(); lfo.start();
+  s.connect(f); f.connect(windGain); windGain.connect(envBus); s.start(); lfo.start();
   const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 100;
   const bf = ctx.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 200; bf.Q.value = 3;
   buzzGain = ctx.createGain(); buzzGain.gain.value = 0;
-  o.connect(bf); bf.connect(buzzGain); buzzGain.connect(master); o.start();
+  o.connect(bf); bf.connect(buzzGain); buzzGain.connect(envBus); o.start();
 }
 // Гул люминесцентных ламп: 100 Гц с обертонами, слегка «дрожит»
 let humGain = null;

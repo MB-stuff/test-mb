@@ -232,7 +232,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space' && player.sitting) standUp();
   if (e.code === 'KeyF') toggleFlash();
   if (e.code === 'KeyJ') openJournal();
-  if (e.code === 'KeyM') { const v = S.audio.musicVolume > 0 ? 0 : 0.55; S.setMusicVolume(v); $('vol').value = v; toast(v ? 'Музыка включена' : 'Музыка выключена'); }
+  if (e.code === 'KeyM') { const v = S.audio.musicVolume > 0 ? 0 : 0.55; S.setMusicVolume(v); $('vol').value = v; store.set('hotel.vol', v); toast(v ? 'Музыка включена' : 'Музыка выключена'); }
   if (e.code === 'KeyP') { setPixel(!pixel); $('pixel').checked = pixel; toast(pixel ? 'Пиксели: включены' : 'Пиксели: выключены'); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -359,12 +359,16 @@ function hideStick() { $('stick').style.display = 'none'; $('knob').style.transf
 // ---------- старт / пауза ----------
 function showPause() { away = false; document.body.classList.remove('freelook'); $('start').classList.remove('hidden'); $('startBtn').textContent = 'Продолжить'; $('startTitle').textContent = 'Пауза'; }
 $('startBtn').addEventListener('click', start);
-$('vol').addEventListener('input', e => S.setMusicVolume(+e.target.value));
+// громкости запоминаются между запусками
+{ const mv = store.get('hotel.vol'), sv = store.get('hotel.sfx'); if (mv !== null && mv !== undefined && mv !== '') $('vol').value = mv; if (sv !== null && sv !== undefined && sv !== '') $('sfx').value = sv; }
+S.setSfxVolume(+$('sfx').value);
+$('vol').addEventListener('input', e => { S.setMusicVolume(+e.target.value); store.set('hotel.vol', e.target.value); });
+$('sfx').addEventListener('input', e => { S.setSfxVolume(+e.target.value); store.set('hotel.sfx', e.target.value); S.sfxClick(); });
 $('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
 $('pixel').checked = pixel; $('pixel').addEventListener('change', e => setPixel(e.target.checked));
 $('journalBtn').addEventListener('click', () => openJournal());
 function start() {
-  S.initAudio(); S.setMusicVolume(+$('vol').value);
+  S.initAudio(); S.setMusicVolume(+$('vol').value); S.setSfxVolume(+$('sfx').value);
   if (!state.started) {
     state.started = true; state.title = false;
     fadeTo(1, 10); setTimeout(() => fadeTo(0, 900), 60);
