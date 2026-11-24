@@ -274,6 +274,8 @@ G.flags = W.flags;
 const keys = {};
 addEventListener('keydown', e => {
   if (e.repeat) return;
+  // F11: в настольной версии — окно/полный экран; в браузере F11 обрабатывает сам браузер
+  if (e.code === 'F11') { if (DESKTOP) { e.preventDefault(); toggleFullscreen(); } return; }
   keys[e.code] = true;
   if (state.modal) {
     if (['Escape', 'KeyE', 'Enter'].includes(e.code) && state.modal !== 'ending') closeModal();
@@ -429,6 +431,25 @@ let showUI = store.get('hotel.ui') !== '0';
 function setUI(v) { showUI = v; store.set('hotel.ui', v ? '1' : '0'); document.body.classList.toggle('noui', !v); $('ui').checked = v; }
 setUI(showUI); $('ui').addEventListener('change', e => setUI(e.target.checked));
 $('journalBtn').addEventListener('click', () => openJournal());
+// ---------- настольная версия (Electron): выход, полноэкранный режим, музыка с первого кадра ----------
+// В оболочке preload кладёт в window.desktop мостик к окну; в браузере его нет и всё работает как раньше.
+const DESKTOP = window.desktop || null;
+if (DESKTOP) document.body.classList.add('desktop');
+const isFull = () => DESKTOP ? !!DESKTOP.isFullscreen() : !!document.fullscreenElement;
+function updateFsBtn() { $('fsBtn').textContent = isFull() ? 'В окне' : 'Во весь экран'; }
+function toggleFullscreen() {
+  if (DESKTOP) DESKTOP.toggleFullscreen();
+  else if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+  else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => { });
+  setTimeout(updateFsBtn, 300);
+}
+$('fsBtn').addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', updateFsBtn);
+if (DESKTOP && DESKTOP.onFullscreen) DESKTOP.onFullscreen(updateFsBtn);
+setTimeout(updateFsBtn, 500);
+$('quitBtn').addEventListener('click', () => { S.sfxClick && S.sfxClick(); fadeTo(1, 400, () => DESKTOP && DESKTOP.quit()); });
+// в оболочке звук разрешён без клика: музыка играет уже на титульном экране
+if (DESKTOP) { try { S.initAudio(); S.setMusicVolume(+$('vol').value); S.setSfxVolume(+$('sfx').value); } catch (e) { } }
 function start() {
   S.initAudio(); S.setMusicVolume(+$('vol').value); S.setSfxVolume(+$('sfx').value);
   if (!state.started) {

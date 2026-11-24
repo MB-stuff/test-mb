@@ -35,6 +35,9 @@ input[type=range]{accent-color:var(--accent);width:110px}
 #startBtn:hover{background:linear-gradient(#7a1838,#3a0a1a)}
 .ghost{font:inherit;font-size:16px;padding:12px 22px;background:transparent;color:#e8c890;border:1px solid #6a4a3a;cursor:pointer}
 body:not(.playing) #journalBtn{display:none}
+/* «Выйти» — только в настольной версии; «во весь экран» — в настольной всегда, в браузере — если он умеет */
+body:not(.desktop) #quitBtn{display:none}
+body.touch #fsBtn{display:none}
 #cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(255,230,190,.55);pointer-events:none;transition:transform .15s,background .15s;z-index:5}
 #cross.active{transform:scale(1.9);background:var(--accent);box-shadow:0 0 8px var(--accent)}
 #hint{position:fixed;left:50%;bottom:16%;transform:translateX(-50%);font-family:'Courier New',monospace;font-size:15px;padding:6px 14px;background:var(--panel);border:1px solid rgba(255,180,110,.25);color:#ffdca0;opacity:0;transition:opacity .15s;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;z-index:5}
@@ -126,7 +129,7 @@ body.touch #touchUI{display:block}
 <div id="zone"></div>
 <div id="hud"><div id="secrets"></div><div id="inv"></div></div>
 <div id="subtitle"></div>
-<div id="help">WASD — идти · Shift — бежать<br>Мышь — смотреть · E / ЛКМ — действие<br>Пробел — встать · F — фонарик · J — журнал<br>M — музыка · P — пиксели · H — интерфейс · Esc — пауза</div>
+<div id="help">WASD — идти · Shift — бежать<br>Мышь — смотреть · E / ЛКМ — действие<br>Пробел — встать · F — фонарик · J — журнал<br>M — музыка · P — пиксели · H — интерфейс · F11 — экран · Esc — пауза</div>
 <div id="touchUI"><div id="stick"><div id="knob"></div></div><div class="tbtn" id="btnUse">E</div><div class="tbtn" id="btnRun">»</div><div class="tbtn" id="btnLight">☀</div><div class="tbtn" id="btnMenu">II</div><div class="tbtn" id="btnJournal">J</div></div>
 <div id="fade"></div>
 <div id="modal"><div id="modalBody"></div></div>
@@ -135,10 +138,10 @@ body.touch #touchUI{display:block}
   <h1 id="startTitle">Grand Simulacre</h1>
   <div class="sub">ПУСТЫЕ КОРИДОРЫ · МИР ИДЕЙ · 1999</div>
   <p>Тёмный вестибюль с фонтаном, пустой бальный зал, библиотека, курительная, ресторан «Мираж», казино «Оазис», три жилых этажа и подвал. Восемь секретов, пять историй тех, кто здесь остался, и книги о симулякрах на полках. Солнце над малиновой пустыней не садится.</p>
-  <div class="ctrl kbd"><b>WASD</b><span>идти, Shift — бежать</span><b>Мышь</b><span>осматриваться</span><b>E / ЛКМ</b><span>взаимодействовать</span><b>Пробел</b><span>встать со стула</span><b>F · J</b><span>фонарик · журнал историй</span><b>M · P · H</b><span>музыка · пиксели · интерфейс</span><b>Esc</b><span>пауза</span></div>
+  <div class="ctrl kbd"><b>WASD</b><span>идти, Shift — бежать</span><b>Мышь</b><span>осматриваться</span><b>E / ЛКМ</b><span>взаимодействовать</span><b>Пробел</b><span>встать со стула</span><b>F · J</b><span>фонарик · журнал историй</span><b>M · P · H</b><span>музыка · пиксели · интерфейс</span><b>F11 · Esc</b><span>весь экран · пауза</span></div>
   <div class="ctrl tch"><b>Левая часть</b><span>джойстик — идти</span><b>Правая часть</b><span>вести пальцем — смотреть, тап — действие</span><b>E · » · ☀</b><span>действие · бег · фонарик</span></div>
   <div class="opts"><label>музыка <input id="vol" type="range" min="0" max="1" step="0.05" value="0.55"></label><label>звуки <input id="sfx" type="range" min="0" max="1" step="0.05" value="0.9"></label><label>мышь <input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label><label><input id="pixel" type="checkbox"> пиксели</label><label><input id="ui" type="checkbox"> интерфейс</label><label><input id="shadows" type="checkbox"> тени</label><label>прорисовка <select id="draw"><option value="0">ближняя</option><option value="1">дальняя</option><option value="2">вся</option></select></label></div>
-  <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="startBtn">Войти</button><button id="journalBtn" class="ghost">Журнал</button></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="startBtn">Войти</button><button id="journalBtn" class="ghost">Журнал</button><button id="fsBtn" class="ghost">Во весь экран</button><button id="quitBtn" class="ghost">Выйти</button></div>
 </div></div>
 <!--IMAGES-->
 <!--SCRIPT-->
