@@ -199,13 +199,13 @@ export function chandelier(x, z, y) {
   return lampVis(an, bulbs, bulb, col(0x6a5a40));
 }
 // Бра на стене: (x,z) — точка на поверхности стены, ry — нормаль стены
-export function sconce(x, y, z, ry) {
+export function sconce(x, y, z, ry, { glowSize = 1.3 } = {}) {
   const g = grp(x, z, ry, y);
   B(g, 0.12, 0.2, 0.04, col(0x8a6a2a), 0, -0.1, 0.02);
   B(g, 0.03, 0.03, 0.1, col(0x8a6a2a), 0, -0.02, 0.07);
   const onM = col(0xd8b080, { emissive: 0xffa050, emissiveIntensity: 0.8 }), offM = col(0x8a7a60);
   const shade = C(g, 0.06, 0.1, 0.16, 8, onM, 0, -0.06, 0.13);
-  const gl = glow(x + Math.sin(ry) * 0.01, y + 0.05, z + Math.cos(ry) * 0.01, 1.3, 0xffa050, 0.25, { rx: 0, ry });
+  const gl = glow(x + Math.sin(ry) * 0.01, y + 0.05, z + Math.cos(ry) * 0.01, glowSize, 0xffa050, 0.25, { rx: 0, ry });
   gl.userData.noMerge = true;
   onWall(g, 0.12, 0.2);
   const an = anchor(x + Math.sin(ry) * 0.3, y, z + Math.cos(ry) * 0.3, { color: 0xffa050, intensity: 1.6, distance: 4 }); an.switchable = true;

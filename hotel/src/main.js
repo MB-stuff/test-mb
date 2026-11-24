@@ -697,8 +697,11 @@ function updateLights(t, dt) {
     }
   }
   const curtainDark = !roof && state.zone && state.zone.dark || 0;
-  hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb * 0.78) * (1 - 0.62 * curtainDark);
-  amb.intensity = 0.32 * (1 - 0.5 * curtainDark);
+  // в комнате с погашенным верхним светом рассеянный свет тоже слабее: картины и стены темнеют вместе
+  const zl = !roof && state.zone && state.zone.lamps;
+  const lampsOff = zl && !zl.some(a => a.on && !(blackout && a.grid)) ? 1 : 0;
+  hemi.intensity = (blackout ? 0.55 : 1) * (roof ? 2.0 : zoneAmb * 0.78) * (1 - 0.62 * curtainDark) * (1 - 0.4 * lampsOff);
+  amb.intensity = 0.32 * (1 - 0.5 * curtainDark) * (1 - 0.35 * lampsOff);
   hemi.color.setHex(roof ? 0xffd090 : 0xc08a5a);
   sun.intensity = roof ? 2.4 : 0;
 }

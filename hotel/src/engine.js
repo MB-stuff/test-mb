@@ -356,7 +356,8 @@ export function picture(groups, x, y, z, ry, size = 0.9, { frame = 'dark', paren
   const bar = (w, h, x, y) => { const b = new THREE.Mesh(boxGeo(w, h, 0.05, 1), fm); b.position.set(x, y, 0.025); g.add(b); };
   bar(pw + fw * 2, fw, 0, ph / 2 + fw / 2); bar(pw + fw * 2, fw, 0, -ph / 2 - fw / 2); bar(fw, ph, -pw / 2 - fw / 2, 0); bar(fw, ph, pw / 2 + fw / 2, 0);
   const back = new THREE.Mesh(boxGeo(pw, ph, 0.016, 1), col(0x0e0806)); back.position.z = 0.008; g.add(back);
-  const mat = new THREE.MeshLambertMaterial({ map: pictureTexture(im.id), emissive: 0xffffff, emissiveMap: pictureTexture(im.id), emissiveIntensity: 0.18 });
+  // картина освещается только светом комнаты: собственного свечения нет, в тёмном номере она тёмная
+  const mat = new THREE.MeshLambertMaterial({ map: pictureTexture(im.id) });
   const p = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), mat); p.position.z = 0.032; p.userData.noMerge = true; g.add(p);
   (parent || W.group).add(g);
   g.userData.img = im; g.userData.size = [pw + fw * 2, ph + fw * 2];

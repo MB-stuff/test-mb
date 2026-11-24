@@ -146,7 +146,7 @@ function addLightSwitches() {
   const wallAt = (...a) => !!wallCol(...a);
   const blockedIn = (x, y, zz) => W.colliders.some(cl => cl.enabled !== false && x > cl.minX && x < cl.maxX && zz > cl.minZ && zz < cl.maxZ && y > cl.minY && y < cl.maxY);
   const place = (zn, axis, c, sd, along) => {
-    const lamps = lampsOf.get(zn); const y = zn.level * FH + 1.2;
+    const lamps = lampsOf.get(zn); const y = zn.level * FH + 1.2; zn.lamps = lamps;
     done.add(zn); setLevel(zn.level);
     // грань берём у настоящего блока стены: границы некоторых зон не совпадают с осью стены
     const wc = wallCol(axis, c, along, y);
@@ -217,7 +217,7 @@ function onWall(axis, c, side, along) {
 }
 function pic(groups, axis, c, side, along, y, size, opts) { const p = onWall(axis, c, side, along); return picture(groups, p.x, y, p.z, p.ry, size, opts); }
 function sgn(text, axis, c, side, along, y, opts) { const p = onWall(axis, c, side, along); return PR.sign(text, p.x, y, p.z, p.ry, opts); }
-function sconceAt(axis, c, side, along, y) { const p = onWall(axis, c, side, along); return PR.sconce(p.x, y, p.z, p.ry); }
+function sconceAt(axis, c, side, along, y, opts) { const p = onWall(axis, c, side, along); return PR.sconce(p.x, y, p.z, p.ry, opts); }
 function hangSign(text, x, yy, z, ry, { w = 1.0, h = 0.22, bg, fg } = {}) {
   const g = PR.grp(x, z, ry, yy);
   box(w + 0.04, h + 0.04, 0.03, col(0x140c08), 0, -h / 2 - 0.02, 0, { parent: g });
@@ -731,7 +731,8 @@ function buildGround() {
   rooms.find(r => r.idx === 2).coreSideMat = M.pinkTile;
   corridorWalls(0, rooms, {
     corrMat: M.corrWall,
-    doorOpts: r => r.plate ? { name: r.name, plate: r.plate } : null,
+    // дверь мужской уборной навешена справа: открытая, она не закрывает лаз в розовую комнату у левой стены
+    doorOpts: r => r.plate ? { name: r.name, plate: r.plate, ...(r.idx === 2 ? { hinge: 1 } : {}) } : null,
     partitionOps: { [-6]: [{ at: -5.7, w: 0.7, type: 'gap', sill: 0.25, h: 1.0 }] },
   });
   wall('x', TZ1, TX0, 6, y, FH, { neg: M.lobbyWall, pos: M.cloakWall }, [], { ceil: CEIL });
@@ -818,7 +819,7 @@ function buildGround() {
   const hole = plane(HW - 0.08, HH - 0.08, holeMat, 6 + T / 2 + 0.002, y + 0.15 + HH / 2, HZ, 0, P / 2); hole.visible = false; hole.userData.noRay = true; hole.userData.noMerge = true;
   const holeIn = plane(HW - 0.08, HH - 0.08, holeMat, 6 - T / 2 - 0.002, y + 0.15 + HH / 2, HZ, 0, -P / 2); holeIn.userData.noRay = true; holeIn.userData.noMerge = true;
   const crawl = PR.grp(6 + T / 2 + 0.05, HZ, P / 2, y + 0.15);
-  PR.hitBox(crawl, HW, HH, 0.12);
+  PR.hitBox(crawl, HW, 1.45, 0.12);
   let moved = false;
   interact(tile, 'Плитка шатается…', () => {
     moved = true; S.sfxSlide();
@@ -829,7 +830,7 @@ function buildGround() {
   });
   interact(crawl, () => moved ? 'Пролезть в лаз' : 'Плитка шатается…', () => {
     if (!moved) return tile.userData.interact && tile.userData.interact.action(tile);
-    G.teleport(5.3, y, -2.05, P / 2, 'Ты пролезаешь в узкий лаз…');
+    G.teleport(5.1, y, -2.05, P / 2, 'Ты пролезаешь в узкий лаз…');
   });
   mount(crawl, 'wall', { w: HW, h: HH, dy: HH / 2, what: 'лаз' });
   zone(6, TZ0, 12, CZ0, 'УБОРНАЯ', { reverb: 0.45 });
@@ -841,7 +842,7 @@ function buildGround() {
   PR.chair(4.3, -3.4, P / 2, { color: 0xd8b0c0, seatColor: 0xff80b0 });
   PR.note((SX0 + SX1) / 2 + 0.3, y, -4.2, 0.5, ...noteArgs('sonyaExit'));
   const back = PR.grp(6 - T / 2 - 0.05, HZ, -P / 2, y + 0.15);
-  PR.hitBox(back, HW, HH, 0.12);
+  PR.hitBox(back, HW, 1.45, 0.12);
   interact(back, 'Вылезти обратно', () => G.teleport(6.9, y, HZ, -P / 2, ''));
   trigger(SX0, TZ0, SX1, SZ1, () => G.secret('pink', 'Розовая комната'));
   zone(SX0, TZ0, SX1, SZ1, 'КОМНАТА 0', { reverb: 0.5, muffle: 1600 });
@@ -1163,28 +1164,28 @@ function buildManagerOffice() {
   PR.hitBox(btn, 0.2, 0.2, 0.1, -0.1);
   interact(btn, 'Нажать кнопку под стойкой', () => { S.sfxClick(); setTimeout(() => { S.sfxSwitch(); d.locked = false; d.toggle(true); G.toast('Где-то щёлкнул замок. Дверь кабинета приоткрылась.'); }, 300); });
   mount(btn, 'wall', { w: 0.06, h: 0.06, dy: -0.03 });
-  // Перестановка: стол развёрнут к двери, вся западная стена — книжные шкафы до потолка,
-  // у восточной стены — кожаный диван для посетителей, у окна — машинка и глобус.
-  const dk = PR.desk(-2.8, -12.15, 0, { color: "#2a160c" }); PR.armchair(-2.8, -13.05, 0, 0x2a1a1a);
-  for (const cx of [-3.3, -2.3]) PR.chair(cx, -11.25, P, { color: 0x2a160c, seatColor: 0x3a1a14 });
-  PR.tableLamp(...PR.top(dk, -0.5, -0.12).toArray(), { shade: 0x2a5a3a });
-  PR.note(...PR.top(dk, -0.12, 0.08).toArray(), 0.2, ...noteArgs('managerDiary'));
-  PR.computer(...PR.top(dk, 0.35, -0.05).toArray(), 0, 'управляющий', [
+  // Кабинет: стол у окна, управляющий сидит спиной к окну лицом к двери; монитор и ящики стола — к креслу.
+  // Западная стена — книжные шкафы, восточная — диван; середина и проход от двери свободны.
+  const dk = PR.desk(-3.0, -12.65, P, { color: "#2a160c" }); PR.armchair(-3.0, -13.38, 0, 0x2a1a1a);
+  PR.chair(-3.0, -11.75, P, { color: 0x2a160c, seatColor: 0x3a1a14 });
+  PR.tableLamp(...PR.top(dk, 0.5, 0.12).toArray(), { shade: 0x2a5a3a });
+  PR.note(...PR.top(dk, 0.1, -0.06).toArray(), P + 0.2, ...noteArgs('managerDiary'));
+  PR.computer(...PR.top(dk, -0.35, 0.05).toArray(), P, 'управляющий', [
     { name: 'почта/владельцу.txt', story: 'manager', title: TXT.managerMail1[0], text: TXT.managerMail1[1] },
     { name: 'почта/без_темы.txt', story: 'manager', title: TXT.managerMail2[0], text: TXT.managerMail2[1] },
   ]);
-  PR.rug(-2.8, -11.9, 3.0, 2.6, TX.carpetOrnament('#2a1a10', '#8a6a3a', 'office'));
+  PR.rug(-3.0, -12.2, 2.8, 2.4, TX.carpetOrnament('#2a1a10', '#8a6a3a', 'office'));
   for (const sz of [-12.8, -10.7]) PR.shelf(x0 + T / 2 + 0.22, sz, P / 2, { fill: 'books', w: 2.0, h: 3.1, color: 0x2a1a0e, d: 0.4, full: true });
-  const sd = PR.table(-4.55, -13.4, { w: 0.8, d: 0.6, color: '#2a160c' });
+  const sd = PR.table(-4.85, -13.45, { w: 0.8, d: 0.6, color: '#2a160c' });
   PR.typewriter(...PR.top(sd).toArray(), 0, ...TXT.managerOrder);
-  const gt = PR.table(-4.7, -10.15, { w: 0.5, d: 0.5, color: '#2a160c' }); PR.globe(...PR.top(gt).toArray());
-  PR.sofa(-0.7, -11.1, -P / 2, 0x3a1a12, 2.0);
-  const ct = PR.table(-1.55, -11.1, { w: 0.45, d: 0.9, h: 0.42, color: '#2a160c' });
-  PR.ashtray(...PR.top(ct, 0, 0.22).toArray()); PR.cigarBox(...PR.top(ct, 0, -0.18).toArray(), P / 2);
-  PR.floorLamp(-0.6, -12.45);
-  pic(['portrait', '06_vintage_photos'], 'z', x1, -1, -11.1, y + 2.0, 0.9, { frame: 'gold' });
-  pic(['plans'], 'z', x1, -1, -12.95, y + 2.05, 0.55, { frame: 'black' }); pic(['plans'], 'z', x1, -1, -10.15, y + 2.0, 0.4, { frame: 'black' });
-  PR.ceilingLamp(-2.8, -11.9, { y: y + OH, kind: 'pendant', intensity: 3, distance: 7, color: 0xffd0a0 });
+  const gt = PR.table(-4.75, -10.05, { w: 0.5, d: 0.5, color: '#2a160c' }); PR.globe(...PR.top(gt).toArray());
+  PR.sofa(-0.62, -11.3, -P / 2, 0x3a1a12, 2.0);
+  const ct = PR.table(-0.5, -12.85, { w: 0.45, d: 0.6, h: 0.55, color: '#2a160c' });
+  PR.ashtray(...PR.top(ct, 0, 0.18).toArray()); PR.cigarBox(...PR.top(ct, 0, -0.12).toArray(), P / 2);
+  PR.floorLamp(-0.5, -9.9);
+  pic(['portrait', '06_vintage_photos'], 'z', x1, -1, -11.3, y + 2.0, 0.9, { frame: 'gold' });
+  pic(['plans'], 'z', x1, -1, -12.95, y + 2.1, 0.5, { frame: 'black' });
+  PR.ceilingLamp(-3.0, -12.2, { y: y + OH, kind: 'pendant', intensity: 3, distance: 7, color: 0xffd0a0 });
   // картотека: в нижнем ящике «Ж» — жалобы гостей
   {
     const fc = PR.grp(-0.5, -13.5, -P / 2);
@@ -1200,7 +1201,7 @@ function buildManagerOffice() {
       else { G.noteKey('managerComplaint'); n = 0; }
     });
   }
-  PR.matchbook(...PR.top(dk, 0.12, 0.22).toArray(), 0.4);
+  PR.matchbook(...PR.top(dk, 0.3, -0.2).toArray(), 0.4);
   pic(['06_vintage_photos', 'portrait'], 'x', z0, 1, -0.9, y + 2.1, 0.5, { frame: 'gold' });
   pic(['06_vintage_photos', 'portrait'], 'x', z1, -1, -4.3, y + 2.0, 0.6, { frame: 'gold' });
   trigger(x0, z0, x1, z1, () => G.secret('office', 'Кабинет управляющего'));
@@ -1368,9 +1369,14 @@ function buildStairs() {
     // пролёты: тёплое бра над площадкой, второе над верхним маршем и холодный светильник у начала нижнего —
     // свет пятнами, а не ровной заливкой
     // высоты считаются от ступени под светильником: ~2 м над маршем, ~2.3 м над площадкой
-    const s1 = sconceAt('z', LB[1] + 0.1, -1, -5.6, yb + 4.3); s1.intensity = 2.6; s1.distance = 5.5;
+    // Высоты считаются и от ступеней, и от пола верхнего этажа. На последнем пролёте (L = 2) над площадкой
+    // уже пол 4-го этажа, а над верхним маршем — его открытая площадка: бра там вешаем так, чтобы
+    // и с лестницы, и с этажа они висели на привычной высоте ~2 м.
+    const top = L === 2;
+    // над последней площадкой потолок на 2 м: бра под самым потолком, ореол маленький, чтобы не вылезал на этаж выше
+    const s1 = top ? sconceAt('z', LB[1] + 0.1, -1, -5.6, yb + 3.6, { glowSize: 0.7 }) : sconceAt('z', LB[1] + 0.1, -1, -5.6, yb + 4.3); s1.intensity = 2.6; s1.distance = 5.5;
     const ls = PR.sconce(LA[0] + 0.003, yb + 2.3, -2.0, P / 2); ls.color.setHex(0xc8d8ff); ls.intensity = 1.5;
-    if (L + 1 <= 3) { setLevel(L + 1); const s2 = sconceAt('z', LB[1] + 0.1, -1, -2.6, yb + 5.3); s2.intensity = 1.8; s2.distance = 4.5; setLevel(L); }
+    setLevel(L + 1); const s2 = sconceAt('z', LB[1] + 0.1, -1, -2.6, top ? (L + 1) * FH + 2.05 : yb + 5.3); s2.intensity = 1.8; s2.distance = 4.5; setLevel(L);
   }
   setLevel(3);
   block(LA[1], 3 * FH, SLAND, LB[0], 3 * FH + 1.0, SZ1, rail);
