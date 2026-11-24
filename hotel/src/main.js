@@ -109,7 +109,7 @@ let SUN_IN = +(params.get('sun') || 13);
 let shadowsOn = store.get('hotel.shadows') !== null ? store.get('hotel.shadows') === '1' : !TOUCH;
 if (params.has('shadows')) shadowsOn = params.get('shadows') !== '0';
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
-sun.shadow.mapSize.set(4096, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+sun.shadow.mapSize.set(4096, 2048); sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.008;
 const POOL = [];
 // Свет ламп не проходит сквозь стены: каждая лампа освещает только коробку своей комнаты (зоны).
 // Границы зон проходят по осям стен, поэтому внутренняя грань стены освещается, а соседняя комната — нет.
@@ -193,7 +193,8 @@ W.shadowDirty = true; let shadowT = 0;
 function setShadows(v) {
   shadowsOn = v; store.set('hotel.shadows', v ? '1' : '0'); sun.castShadow = v; W.realSun = v; W.shadowDirty = true;
   // плоские «пятна света» под окнами нужны только без настоящих теней
-  for (const p of W.windowPatches || []) p.mesh.visible = !v && !p.curtained;
+  // флаг off не даёт отсечению по расстоянию снова «включить» пятно
+  for (const p of W.windowPatches || []) { const off = v || !!p.curtained; p.mesh.userData.off = off; p.mesh.visible = !off; }
   const cb = document.getElementById('shadows'); if (cb) cb.checked = v;
 }
 setShadows(shadowsOn);

@@ -414,14 +414,17 @@ export function curtains(axis, c, s0, s1, y0, inside, color = 0x6a1a24) {
     for (let i = 0; i < 5; i++) {
       const p = new THREE.Mesh(boxGeo(0.1, 2.6, 0.05), m); p.position.set(dir * (i * 0.1 + 0.05), 1.3, (i % 2) * 0.05); g.add(p);
     }
-    if (axis === 'x') { g.position.set(from, y0 + 0.35, c + inside * 0.22); }
-    else { g.position.set(c + inside * 0.22, y0 + 0.35, from); g.rotation.y = P / 2; }
+    if (axis === 'x') { g.position.set(from, y0 + 0.35, c + inside * HANG); }
+    else { g.position.set(c + inside * HANG, y0 + 0.35, from); g.rotation.y = P / 2; }
     panels.push(g); return g;
   };
-  mk(s0 - 0.15, 1); mk(s1 + 0.15, -1);
-  const rod = axis === 'x' ? box(s1 - s0 + 0.5, 0.04, 0.04, col(0x5a4020), (s0 + s1) / 2, y0 + 2.96, c + inside * 0.22) : box(0.04, 0.04, s1 - s0 + 0.5, col(0x5a4020), c + inside * 0.22, y0 + 2.96, (s0 + s1) / 2);
-  for (const e of [s0 - 0.25, s1 + 0.25]) axis === 'x' ? box(0.04, 0.04, 0.22, col(0x5a4020), e, y0 + 2.96, c + inside * 0.11) : box(0.22, 0.04, 0.04, col(0x5a4020), c + inside * 0.11, y0 + 2.96, e);
-  let closed = false; const span = (s1 - s0) / 2 + 0.15;
+  // Шторы висят близко к стене и заходят за край окна на 45 см: косые лучи низкого солнца
+  // не проскальзывают в щель между краем задёрнутой шторы и стеной.
+  const HANG = 0.16, OVER = 0.45;
+  mk(s0 - OVER, 1); mk(s1 + OVER, -1);
+  const rod = axis === 'x' ? box(s1 - s0 + OVER * 2 + 0.2, 0.04, 0.04, col(0x5a4020), (s0 + s1) / 2, y0 + 2.96, c + inside * HANG) : box(0.04, 0.04, s1 - s0 + OVER * 2 + 0.2, col(0x5a4020), c + inside * HANG, y0 + 2.96, (s0 + s1) / 2);
+  for (const e of [s0 - OVER - 0.08, s1 + OVER + 0.08]) axis === 'x' ? box(0.04, 0.04, HANG, col(0x5a4020), e, y0 + 2.96, c + inside * HANG / 2) : box(HANG, 0.04, 0.04, col(0x5a4020), c + inside * HANG / 2, y0 + 2.96, e);
+  let closed = false; const span = (s1 - s0) / 2 + OVER;
   // задёрнутые шторы гасят солнечное пятно на полу и затемняют комнату
   const lvl = W.level, mid = (s0 + s1) / 2;
   const me = { closed: false, zone: null };
@@ -437,7 +440,7 @@ export function curtains(axis, c, s0, s1, y0, inside, color = 0x6a1a24) {
   const set = () => {
     for (const g of panels) g.scale.x = closed ? span / 0.5 : 1;
     resolve(); me.closed = closed;
-    for (const p of me.patches) { p.curtained = closed; p.mesh.visible = !closed && !W.realSun; }
+    for (const p of me.patches) { p.curtained = closed; const off = closed || !!W.realSun; p.mesh.userData.off = off; p.mesh.visible = !off; }
     W.shadowDirty = true;
     if (me.zone) { const all = W.curtainList.filter(o => { if (!o.patches && o.resolve) o.resolve(); return o.zone === me.zone; }); me.zone.dark = all.filter(o => o.closed).length / all.length; }
   };
