@@ -226,6 +226,7 @@ addEventListener('keydown', e => {
   }
   if (!state.started) return;
   if (e.code === 'Escape' && lockFailed) { state.paused = true; showPause(); return; }
+  if (away && e.code !== 'Escape') relockQuiet();
   if (e.code === 'KeyE') doInteract();
   if (e.code === 'Space' && player.sitting) standUp();
   if (e.code === 'KeyF') toggleFlash();
@@ -246,18 +247,25 @@ canvas.addEventListener('mousedown', e => {
 });
 function lockPointer() {
   if (lockFailed) { state.paused = false; $('start').classList.add('hidden'); return; }
+  lockedAt = performance.now();
   try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(onLockFail); } catch (e) { onLockFail(); }
   setTimeout(() => { if (document.pointerLockElement !== canvas && !state.modal && state.started && !$('start').classList.contains('hidden')) onLockFail(); }, 700);
 }
 function onLockFail() {
+  if (quietLock) { quietLock = false; return; }
   if (lockFailed) return; lockFailed = true;
   state.paused = false; $('start').classList.add('hidden');
   toast('Курсор не захватывается: зажми кнопку мыши и веди, чтобы осматриваться.', 6000);
 }
 document.addEventListener('pointerlockerror', onLockFail);
+let lockedAt = 0, wasLocked = false;
 addEventListener('mousemove', e => {
-  if (document.pointerLockElement === canvas) look(e.movementX, e.movementY);
+  // сразу после захвата браузер присылает скачок на всё расстояние до центра окна — его пропускаем
+  const locked = document.pointerLockElement === canvas, fresh = locked && !wasLocked; wasLocked = locked;
+  if (locked) { if (!fresh && performance.now() - lockedAt > 150 && Math.abs(e.movementX) < 400 && Math.abs(e.movementY) < 400) look(e.movementX, e.movementY); }
   else if (lockFailed && e.buttons && !state.modal) look(e.movementX, e.movementY);
+  // вернулся из другой вкладки: камера сразу слушается мыши, захват восстановится от первой клавиши или клика
+  else if (away && !state.modal && !state.paused && Math.abs(e.movementX) < 300) look(e.movementX, e.movementY);
 });
 function look(dx, dy) {
   const k = 0.0022 * state.sens;
@@ -269,10 +277,45 @@ function look(dx, dy) {
     player.yaw = base + Math.max(-lim, Math.min(lim, d));
   }
 }
+// Потеря захвата мыши. Esc — это осознанная пауза: показываем меню.
+// Переключение вкладки, Alt+Tab, всплывшее окно — не пауза: игра просто ждёт и продолжается сама,
+// как только окно снова в фокусе (камера сразу слушается мыши, захват вернётся от первой клавиши или клика).
+let away = false, awayT = 0, quietLock = false;
+const isAway = () => document.hidden || !document.hasFocus();
+function relockQuiet() {
+  if (document.pointerLockElement === canvas || lockFailed || TOUCH) return;
+  quietLock = true; lockedAt = performance.now();
+  try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { }
+  setTimeout(() => { quietLock = false; }, 600);
+}
+function goAway() {
+  for (const k in keys) keys[k] = false; // иначе клавиша, зажатая при уходе, «залипает»
+  if (!state.started || TOUCH || lockFailed) return;
+  if (!$('start').classList.contains('hidden')) return; // меню паузы уже открыто — пусть остаётся
+  away = true; state.paused = true;
+}
+function comeBack() {
+  if (!away || !state.started || TOUCH || isAway()) return;
+  if (!$('start').classList.contains('hidden')) { away = false; return; }
+  state.paused = !!state.modal; document.body.classList.add('freelook');
+}
 document.addEventListener('pointerlockchange', () => {
-  if (document.pointerLockElement === canvas) { state.paused = false; $('start').classList.add('hidden'); }
-  else if (state.started && !state.modal && !TOUCH) { state.paused = true; showPause(); }
+  if (document.pointerLockElement === canvas) {
+    away = false; state.paused = false; $('start').classList.add('hidden'); document.body.classList.remove('freelook');
+    lockedAt = performance.now(); return;
+  }
+  if (!state.started || state.modal || TOUCH) return;
+  // порядок событий у браузеров разный: решаем чуть позже, когда фокус уже известен
+  clearTimeout(awayT);
+  awayT = setTimeout(() => {
+    if (document.pointerLockElement === canvas || state.modal) return;
+    if (away || isAway()) { goAway(); comeBack(); return; }
+    state.paused = true; showPause();
+  }, 150);
 });
+addEventListener('blur', goAway);
+document.addEventListener('visibilitychange', () => { if (document.hidden) goAway(); else setTimeout(comeBack, 50); });
+addEventListener('focus', () => setTimeout(comeBack, 50));
 
 // ---------- тач ----------
 const touch = { move: null, look: null, mx: 0, my: 0 };
@@ -313,7 +356,7 @@ function moveStick(x, y) { $('knob').style.transform = `translate(${x * 30}px, $
 function hideStick() { $('stick').style.display = 'none'; $('knob').style.transform = ''; }
 
 // ---------- старт / пауза ----------
-function showPause() { $('start').classList.remove('hidden'); $('startBtn').textContent = 'Продолжить'; $('startTitle').textContent = 'Пауза'; }
+function showPause() { away = false; document.body.classList.remove('freelook'); $('start').classList.remove('hidden'); $('startBtn').textContent = 'Продолжить'; $('startTitle').textContent = 'Пауза'; }
 $('startBtn').addEventListener('click', start);
 $('vol').addEventListener('input', e => S.setMusicVolume(+e.target.value));
 $('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
