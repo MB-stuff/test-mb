@@ -816,7 +816,7 @@ function buildGround() {
   tile.position.set(6 + T / 2 + 0.026, y + 0.15 + HH / 2, HZ); W.group.add(tile); tile.userData.noMerge = true;
   // за плиткой — дыра с розовым светом (рисуется на стене и видна, когда плитка снята)
   const holeMat = new THREE.MeshBasicMaterial({ color: 0xff70b8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-  const hole = plane(HW - 0.08, HH - 0.08, holeMat, 6 + T / 2 + 0.002, y + 0.15 + HH / 2, HZ, 0, P / 2); hole.visible = false; hole.userData.noRay = true; hole.userData.noMerge = true;
+  const hole = plane(HW - 0.08, HH - 0.08, holeMat, 6 + T / 2 + 0.002, y + 0.15 + HH / 2, HZ, 0, P / 2); hole.visible = false; hole.userData.off = true; hole.userData.noRay = true; hole.userData.noMerge = true;
   const holeIn = plane(HW - 0.08, HH - 0.08, holeMat, 6 - T / 2 - 0.002, y + 0.15 + HH / 2, HZ, 0, -P / 2); holeIn.userData.noRay = true; holeIn.userData.noMerge = true;
   const crawl = PR.grp(6 + T / 2 + 0.05, HZ, P / 2, y + 0.15);
   PR.hitBox(crawl, HW, 1.45, 0.12);
@@ -825,7 +825,7 @@ function buildGround() {
     moved = true; S.sfxSlide();
     // плитка ложится на пол рядом с лазом, лицом вверх
     tile.rotation.set(0, 0, P / 2); tile.position.set(6 + T / 2 + 0.1 + HH / 2, y + 0.026, HZ);
-    tile.userData.interact = null; hole.visible = true;
+    tile.userData.interact = null; hole.visible = true; hole.userData.off = false;
     G.toast('Плитка отвалилась. За ней — розовый свет.');
   });
   interact(crawl, () => moved ? 'Пролезть в лаз' : 'Плитка шатается…', () => {

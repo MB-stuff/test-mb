@@ -177,7 +177,8 @@ function updateCull(dt) {
   for (const o of cullables) {
     const d = camera.position.distanceTo(o.userData.cullC) - o.userData.cullR;
     const hidden = o.userData.cullZ && o.userData.cullZ !== state.zone && roomClosed(o.userData.cullZ);
-    o.visible = !o.userData.gone && (all || (!hidden && (o.userData.cullL === L ? d < 25 : open && d < 12)));
+    // userData.off — предмет выключен игрой (погасшее бра, ещё не открытый лаз): отсечение не должно его «включать»
+    o.visible = !o.userData.gone && !o.userData.off && (all || (!hidden && (o.userData.cullL === L ? d < 25 : open && d < 12)));
   }
 }
 sky.onGlitch = () => { if (state.started) { S.sfxGlitch(); glitch(0.5); } };

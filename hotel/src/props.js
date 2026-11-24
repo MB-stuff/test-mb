@@ -209,7 +209,7 @@ export function sconce(x, y, z, ry, { glowSize = 1.3 } = {}) {
   gl.userData.noMerge = true;
   onWall(g, 0.12, 0.2);
   const an = anchor(x + Math.sin(ry) * 0.3, y, z + Math.cos(ry) * 0.3, { color: 0xffa050, intensity: 1.6, distance: 4 }); an.switchable = true;
-  return lampVis(an, [shade], onM, offM, lit => { if (gl) gl.visible = lit; });
+  return lampVis(an, [shade], onM, offM, lit => { if (gl) { gl.visible = lit; gl.userData.off = !lit; } });
 }
 
 // ---------- мелочи на столах ----------
