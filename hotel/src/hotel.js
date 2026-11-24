@@ -303,17 +303,17 @@ function corridorWalls(L, rooms, { corrMat, doorOpts, partitionOps = {} }) {
     const rs = rooms.filter(r => r.side === side).sort((a, b) => a.x0 - b.x0);
     for (const r of rs) {
       const o = doorOpts(r);
-      const ops = [];
-      if (o) ops.push({ at: r.x0 + 1.1, w: 1.0, type: 'door' });
+      const ops = [], dAt = r.doorAt ?? r.x0 + 1.1;
+      if (o) ops.push({ at: dAt, w: 1.0, type: 'door' });
       if (r.secretDoorAt) ops.push({ at: r.secretDoorAt, w: 1.0, type: 'hole' });
       wall('x', c, r.x0, r.x1, y, FH, side > 0 ? { neg: corrMat, pos: r.mat } : { neg: r.mat, pos: corrMat }, ops);
       if (o) {
-        r.door = new Door('x', c, r.x0 + 1.1, { swing: side, hinge: -1, ...o });
-        if (o.plate !== false) { const pw = Math.max(PR.tri(o.plate || '') ? 0.95 : 0.3, (o.plate || '').length * 0.07); sgn(o.plate || String(r.num), 'x', c, -side, r.x0 + 1.82 + pw / 2, y + 1.6, { w: pw, h: 0.15, bg: '#1e140a', fg: '#e0c070' }); }
+        r.door = new Door('x', c, dAt, { swing: side, hinge: -1, ...o });
+        if (o.plate !== false) { const pw = Math.max(PR.tri(o.plate || '') ? 0.95 : 0.3, (o.plate || '').length * 0.07); sgn(o.plate || String(r.num), 'x', c, -side, dAt + 0.72 + pw / 2, y + 1.6, { w: pw, h: 0.15, bg: '#1e140a', fg: '#e0c070' }); }
       }
     }
     const z0 = side > 0 ? CZ1 : TZ0, z1 = side > 0 ? TZ1 : CZ0;
-    wall('z', 6, z0, z1, y, FH, { neg: rs[0].coreSideMat || corrMat, pos: rs[0].mat }, partitionOps[6 * side] || []);
+    wall('z', 6, z0, z1, y, FH, { neg: rs[0].coreSideMat || corrMat, pos: rs[0].mat, edge: corrMat }, partitionOps[6 * side] || []);
     for (let i = 1; i < rs.length; i++) {
       if (rs[i].merged) continue;
       wall('z', rs[i].x0, z0, z1, y, FH, { neg: rs[i - 1].mat, pos: rs[i].mat }, partitionOps[rs[i].x0 * side] || []);
@@ -729,6 +729,8 @@ function buildGround() {
   rooms.forEach(r => { [r.name, r.mat, r.plate] = spec[r.idx]; });
   rooms.find(r => r.idx === 7).merged = true;
   rooms.find(r => r.idx === 2).coreSideMat = M.pinkTile;
+  // вход в мужскую уборную — посередине: слева кабинки и лаз, справа раковины, впереди свободно
+  rooms.find(r => r.idx === 2).doorAt = 9.0;
   corridorWalls(0, rooms, {
     corrMat: M.corrWall,
     // дверь мужской уборной навешена справа: открытая, она не закрывает лаз в розовую комнату у левой стены
