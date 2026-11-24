@@ -306,13 +306,16 @@ function corridorWalls(L, rooms, { corrMat, doorOpts, partitionOps = {} }) {
       const ops = [], dAt = r.doorAt ?? r.x0 + 1.1;
       if (o) ops.push({ at: dAt, w: 1.0, type: 'door' });
       if (r.secretDoorAt) ops.push({ at: r.secretDoorAt, w: 1.0, type: 'hole' });
-      wall('x', c, r.x0, r.x1, y, FH, side > 0 ? { neg: corrMat, pos: r.mat } : { neg: r.mat, pos: corrMat }, ops);
+      // южная стена коридора начинается от западной грани перегородки x = 6 и закрывает её торец:
+      // со стороны лифтового холла — один чистый угол в отделке коридора, без полосок чужой плитки
+      const first = side < 0 && r === rs[0];
+      wall('x', c, first ? r.x0 - T / 2 : r.x0, r.x1, y, FH, side > 0 ? { neg: corrMat, pos: r.mat } : { neg: r.mat, pos: corrMat, edge: corrMat }, ops);
       if (o) {
         r.door = new Door('x', c, dAt, { swing: side, hinge: -1, ...o });
         if (o.plate !== false) { const pw = Math.max(PR.tri(o.plate || '') ? 0.95 : 0.3, (o.plate || '').length * 0.07); sgn(o.plate || String(r.num), 'x', c, -side, dAt + 0.72 + pw / 2, y + 1.6, { w: pw, h: 0.15, bg: '#1e140a', fg: '#e0c070' }); }
       }
     }
-    const z0 = side > 0 ? CZ1 : TZ0, z1 = side > 0 ? TZ1 : CZ0;
+    const z0 = side > 0 ? CZ1 : TZ0, z1 = side > 0 ? TZ1 : CZ0 - T / 2;
     wall('z', 6, z0, z1, y, FH, { neg: rs[0].coreSideMat || corrMat, pos: rs[0].mat, edge: corrMat }, partitionOps[6 * side] || []);
     for (let i = 1; i < rs.length; i++) {
       if (rs[i].merged) continue;
@@ -735,7 +738,7 @@ function buildGround() {
     corrMat: M.corrWall,
     // дверь мужской уборной навешена справа: открытая, она не закрывает лаз в розовую комнату у левой стены
     doorOpts: r => r.plate ? { name: r.name, plate: r.plate, ...(r.idx === 2 ? { hinge: 1 } : {}) } : null,
-    partitionOps: { [-6]: [{ at: -5.7, w: 0.7, type: 'gap', sill: 0.25, h: 1.0 }] },
+    partitionOps: { [-6]: [{ at: -1.97, w: 0.62, type: 'gap', sill: 0.15, h: 0.8 }] },
   });
   wall('x', TZ1, TX0, 6, y, FH, { neg: M.lobbyWall, pos: M.cloakWall }, [], { ceil: CEIL });
   wall('x', TZ1, 6, 12, y, FH, { neg: M.concWall, pos: M.restWall }, [], { ceil: CEIL });
@@ -814,27 +817,26 @@ function buildGround() {
   PR.ceilingLamp(9, -4, { y: y + CEIL, kind: 'tube', color: 0xf0fff0, intensity: 2.6, distance: 6, flicker: 0.3 });
   // Лаз в розовую комнату: шатающаяся плитка в свободном углу за последней кабинкой (не за унитазом).
   const HZ = -1.97, HW = 0.62, HH = 0.8;
-  const tile = new THREE.Mesh(new THREE.BoxGeometry(0.05, HH, HW), M.pinkTile);
+  // лицом к уборной — такая же плитка, как стена; изнанка розовая (её видно, когда плитка лежит на полу)
+  const tile = new THREE.Mesh(new THREE.BoxGeometry(0.05, HH, HW), [M.tileW, M.pinkTile, M.tileW, M.tileW, M.tileW, M.tileW]);
+  tile.geometry.attributes.uv.array.forEach((v, i, a) => { a[i] = v * 0.5; });
   tile.position.set(6 + T / 2 + 0.026, y + 0.15 + HH / 2, HZ); W.group.add(tile); tile.userData.noMerge = true;
-  // за плиткой — дыра с розовым светом (рисуется на стене и видна, когда плитка снята)
-  const holeMat = new THREE.MeshBasicMaterial({ color: 0xff70b8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
-  const hole = plane(HW - 0.08, HH - 0.08, holeMat, 6 + T / 2 + 0.002, y + 0.15 + HH / 2, HZ, 0, P / 2); hole.visible = false; hole.userData.off = true; hole.userData.noRay = true; hole.userData.noMerge = true;
-  const holeIn = plane(HW - 0.08, HH - 0.08, holeMat, 6 - T / 2 - 0.002, y + 0.15 + HH / 2, HZ, 0, -P / 2); holeIn.userData.noRay = true; holeIn.userData.noMerge = true;
+  // за плиткой — настоящий проём в стене (partitionOps выше): сквозь него видна розовая комната
+  addCollider(6 - T / 2, y, HZ - HW / 2, 6 + T / 2, y + 1.0, HZ + HW / 2);
   const crawl = PR.grp(6 + T / 2 + 0.05, HZ, P / 2, y + 0.15);
   PR.hitBox(crawl, HW, 1.45, 0.12);
   let moved = false;
   interact(tile, 'Плитка шатается…', () => {
     moved = true; S.sfxSlide();
     // плитка ложится на пол рядом с лазом, лицом вверх
-    tile.rotation.set(0, 0, P / 2); tile.position.set(6 + T / 2 + 0.1 + HH / 2, y + 0.026, HZ);
-    tile.userData.interact = null; hole.visible = true; hole.userData.off = false;
+    tile.rotation.set(0, 0, -P / 2); tile.position.set(6 + T / 2 + 0.1 + HH / 2, y + 0.026, HZ);
+    tile.userData.interact = null;
     G.toast('Плитка отвалилась. За ней — розовый свет.');
   });
   interact(crawl, () => moved ? 'Пролезть в лаз' : 'Плитка шатается…', () => {
     if (!moved) return tile.userData.interact && tile.userData.interact.action(tile);
     G.teleport(5.1, y, -2.05, P / 2, 'Ты пролезаешь в узкий лаз…');
   });
-  mount(crawl, 'wall', { w: HW, h: HH, dy: HH / 2, what: 'лаз' });
   zone(6, TZ0, 12, CZ0, 'УБОРНАЯ', { reverb: 0.45 });
   // Розовая комната
   anchor((SX0 + SX1) / 2, y + 2.8, -4, { color: 0xff70b0, intensity: 5, distance: 6 });

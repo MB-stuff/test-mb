@@ -1070,7 +1070,7 @@ export function trophies(x, y, z, ry, { note = null } = {}) {
   for (let i = 0; i < 5; i++) B(sh, 0.11, 0.012, 0.02, col(0xc8b080), 0.17, 0.34 + i * 0.035, 0.045);
   const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.08, 6), brass); hook.rotation.x = P / 2; hook.position.set(0.05, 1.72, 0.04); g.add(hook);
   // табличка
-  const pl = plane(0.34, 0.08, texMat('plq302', TX.signTex('№ 302', { aspect: 4.25, bg: '#8a6a2a', fg: '#1a1008', border: false }), 0xffffff, { emissive: 0x1a1006 }, 0), 0.05, 0.24, 0.012, 0, 0, { parent: g });
+  const pl = plane(0.34, 0.08, texMat('plq302', TX.signTex('№ 302', { aspect: 4.25, bg: '#8a6a2a', fg: '#1a1008', border: false }), 0xffffff, { emissive: 0x1a1006 }, 0), 0.05, 0.24, 0.018, 0, 0, { parent: g });
   pl.userData.noMerge = true; B(g, 0.37, 0.1, 0.01, brass, 0.05, 0.19, 0.005);
   hitBox(g, 1.3, 1.9, 0.25, 0.1);
   interact(g, 'Осмотреть трофеи', () => { S.sfxClink(0.6); if (note) G.noteKey(note); });
