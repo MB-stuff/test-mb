@@ -1050,3 +1050,30 @@ export function statue(x, z, ry, y = Y()) {
   ])); });
   floor(g); return g;
 }
+
+// трофеи на стене: копьё наискосок и высокий плетёный щит. (x, y, z) — точка на стене, ry — нормаль стены.
+export function trophies(x, y, z, ry, { note = null } = {}) {
+  const g = grp(x, z, ry, y);
+  const wood = col(0x3a2414), iron = col(0x2a2a2c, { emissive: 0x050505 }), brass = col(0xb08a3a, { emissive: 0x1a0c02 });
+  // копьё: древко наискосок, листовидный наконечник, подток
+  const sp = new THREE.Group(); sp.position.set(0, 0.95, 0.07); sp.rotation.z = 0.62; g.add(sp);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.025, 2.1, 6), wood); sp.add(shaft);
+  const blade = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), iron); blade.scale.set(0.075, 0.27, 0.016); blade.position.y = 1.3; sp.add(blade);
+  const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.028, 0.12, 6), iron); socket.position.y = 1.02; sp.add(socket);
+  const butt = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.12, 6), iron); butt.position.y = -1.1; butt.rotation.x = P; sp.add(butt);
+  for (const yy of [-0.55, 0.55]) { const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 6), brass); peg.rotation.x = P / 2; peg.position.set(-Math.sin(0.62) * -yy * 0 + Math.cos(0.62) * 0 - Math.sin(0.62) * yy, 0.95 + Math.cos(0.62) * yy, 0.035); g.add(peg); }
+  // щит: вытянутый выпуклый овал, ребро по центру, обмотка у края
+  const sh = new THREE.Group(); sh.position.set(0.05, 1.0, 0.1); sh.rotation.z = -0.1; g.add(sh);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 12), col(0xffffff, { map: TX.shieldTex() })); body.scale.set(0.27, 0.68, 0.06); sh.add(body);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.025, 4, 22), col(0x3a2a16)); rim.scale.set(0.27, 0.68, 1); sh.add(rim);
+  B(sh, 0.035, 1.2, 0.03, col(0x4a3420), 0, -0.6, 0.05);
+  for (let i = 0; i < 5; i++) B(sh, 0.11, 0.012, 0.02, col(0xc8b080), 0.17, 0.34 + i * 0.035, 0.045);
+  const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.08, 6), brass); hook.rotation.x = P / 2; hook.position.set(0.05, 1.72, 0.04); g.add(hook);
+  // табличка
+  const pl = plane(0.34, 0.08, texMat('plq302', TX.signTex('№ 302', { aspect: 4.25, bg: '#8a6a2a', fg: '#1a1008', border: false }), 0xffffff, { emissive: 0x1a1006 }, 0), 0.05, 0.24, 0.012, 0, 0, { parent: g });
+  pl.userData.noMerge = true; B(g, 0.37, 0.1, 0.01, brass, 0.05, 0.19, 0.005);
+  hitBox(g, 1.3, 1.9, 0.25, 0.1);
+  interact(g, 'Осмотреть трофеи', () => { S.sfxClink(0.6); if (note) G.noteKey(note); });
+  mount(g, 'wall', { w: 1.1, h: 1.6, dy: 0.95, what: 'трофеи' });
+  return g;
+}

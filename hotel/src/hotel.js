@@ -1183,6 +1183,8 @@ function buildManagerOffice() {
   const ct = PR.table(-0.5, -12.85, { w: 0.45, d: 0.6, h: 0.55, color: '#2a160c' });
   PR.ashtray(...PR.top(ct, 0, 0.18).toArray()); PR.cigarBox(...PR.top(ct, 0, -0.12).toArray(), P / 2);
   PR.floorLamp(-0.5, -9.9);
+  // трофеи гостя из 302 (тот самый «охотник за сувенирами» с фотографии в ресторане) — над столиком с машинкой
+  PR.trophies(-4.7, y + 0.72, LZ0 + T / 2 + 0.004, 0, { note: 'trophies' });
   pic(['portrait', '06_vintage_photos'], 'z', x1, -1, -11.3, y + 2.0, 0.9, { frame: 'gold' });
   pic(['plans'], 'z', x1, -1, -12.95, y + 2.1, 0.5, { frame: 'black' });
   PR.ceilingLamp(-3.0, -12.2, { y: y + OH, kind: 'pendant', intensity: 3, distance: 7, color: 0xffd0a0 });

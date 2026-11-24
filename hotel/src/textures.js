@@ -725,3 +725,15 @@ export const curtainTex = () => cached('redCurtain', () => {
   g.putImageData(img, 0, 0);
   return toTex(c);
 });
+
+// плетёный щит: косое плетение из травы с потемневшими полосами
+export const shieldTex = () => cached('shield', () => {
+  const W0 = 64, H0 = 256, [c, g] = canvas(W0, H0); const r = rnd(302);
+  g.fillStyle = '#6e5634'; g.fillRect(0, 0, W0, H0);
+  for (let y = -W0; y < H0 + W0; y += 6) {
+    g.strokeStyle = 'rgba(40,26,12,0.55)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, y); g.lineTo(W0, y + W0 * 0.6); g.stroke();
+    g.strokeStyle = 'rgba(190,160,110,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, y + 3); g.lineTo(W0, y + 3 - W0 * 0.6); g.stroke();
+  }
+  for (let i = 0; i < 7; i++) { g.fillStyle = `rgba(30,18,8,${0.15 + r() * 0.2})`; g.fillRect(0, 20 + i * 32 + r() * 6, W0, 5 + r() * 4); }
+  return toTex(c, { repeat: false });
+});
