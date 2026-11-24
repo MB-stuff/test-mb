@@ -360,10 +360,10 @@ export function palm(x, z, { y = Y(), s = 1 } = {}) {
   interact(g, 'Потрогать пальму', () => { S.sfxPaper(); G.toast('Шелестит, хотя ветра нет.'); });
   solid(g, 0.6 * s, 0.6 * s, 2 * s); floor(g); return g;
 }
-export function rug(x, z, w, d, tex, { y = Y() } = {}) {
+export function rug(x, z, w, d, tex, { y = Y(), whole = false } = {}) {
   const mat = texMat('rug' + tex.uuid, tex, 0xffffff, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }, 0);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
-  m.geometry.attributes.uv.array.forEach((v, i, a) => { a[i] = v * (i % 2 ? d : w) / 1.6; });
+  if (!whole) m.geometry.attributes.uv.array.forEach((v, i, a) => { a[i] = v * (i % 2 ? d : w) / 1.6; });
   m.rotation.x = -P / 2; m.position.set(x, y + 0.01, z); m.userData.noMerge = true; W.group.add(m);
   // кайма
   const bm = col(0x1a0c06, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
@@ -746,13 +746,43 @@ export function fireplace(x, z, ry) {
   // стоит у стены: (x,z) — поверхность стены, ry — нормаль
   const g = grp(x, z, ry);
   const st = texMat('fpStone', TX.marble('#3a2a24', '#2a1c18'), 0xffffff, {}, 0);
-  B(g, 2.2, 1.5, 0.6, st, 0, 0, 0.3); B(g, 2.5, 0.12, 0.75, col(0x5a3a28), 0, 1.5, 0.35);
-  B(g, 1.3, 0.9, 0.62, col(0x0a0505), 0, 0.15, 0.3);
-  const fm = new THREE.MeshBasicMaterial({ map: TX.fireTex(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xffa060 });
-  const fire = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.6), fm); fire.position.set(0, 0.48, 0.45); g.add(fire); fire.userData.noRay = true;
-  for (let i = 0; i < 3; i++) { const l = C(g, 0.06, 0.06, 0.8, 6, col(0x3a2010), -0.2 + i * 0.2, 0.16, 0.45); l.rotation.z = P / 2; l.position.y = 0.2; }
-  const a = anchor(0, 0, 0, { color: 0xff8030, intensity: 4, distance: 7, flicker: 0.35, grid: false }); a.pos.copy(wp(g, 0, 0.6, 1.2));
-  W.animated.push((dt, t) => { fm.map.offset.y = -t * 0.35; fm.opacity = 0.8 + Math.sin(t * 9) * 0.15; });
+  // корпус с настоящим зевом: огонь горит внутри ниши, а не за глухой стенкой
+  B(g, 0.45, 1.5, 0.6, st, -0.875, 0, 0.3); B(g, 0.45, 1.5, 0.6, st, 0.875, 0, 0.3);
+  B(g, 1.3, 0.45, 0.6, st, 0, 1.05, 0.3); B(g, 1.3, 0.15, 0.6, st, 0, 0, 0.3);
+  B(g, 2.5, 0.12, 0.75, col(0x5a3a28), 0, 1.5, 0.35);
+  const soot = col(0x0c0606);
+  B(g, 1.3, 0.9, 0.08, soot, 0, 0.15, 0.04); B(g, 0.02, 0.9, 0.52, soot, -0.64, 0.15, 0.34); B(g, 0.02, 0.9, 0.52, soot, 0.64, 0.15, 0.34);
+  B(g, 1.26, 0.02, 0.52, soot, 0, 1.03, 0.34);
+  // живой огонь: клеточная симуляция пламени на маленьком холсте (тепло поднимается снизу, остывает и сносится вбок)
+  const fire = new THREE.Group(); g.add(fire);
+  const flames = [makeFlame(48, 64, 11), makeFlame(40, 56, 29)];
+  const fb = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.8), flames[0].mat); fb.position.set(0, 0.57, 0.26); fire.add(fb);
+  const ff = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.6), flames[1].mat); ff.position.set(0.04, 0.47, 0.46); fire.add(ff);
+  for (const m of [fb, ff]) { m.userData.noRay = true; m.userData.noMerge = true; }
+  for (let i = 0; i < 3; i++) { const l = C(g, 0.06, 0.06, 0.8, 6, col(0x3a2010), 0, 0.16, 0.3 + i * 0.09); l.rotation.z = P / 2; l.rotation.y = (i - 1) * 0.25; l.position.y = 0.21 + (i === 1 ? 0.06 : 0); }
+  // угли под поленьями тлеют и «дышат»
+  const coalM = col(0x1a0604, { emissive: 0xff4010, emissiveIntensity: 0.8 });
+  for (let i = 0; i < 9; i++) { const c = B(g, 0.07 + (i % 3) * 0.02, 0.035, 0.07, coalM, -0.42 + i * 0.105, 0.15, 0.24 + (i % 3) * 0.12); c.rotation.y = i; c.userData.noMerge = true; }
+  // искры
+  const sparkM = new THREE.MeshBasicMaterial({ color: 0xffb050, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const sparks = []; for (let i = 0; i < 7; i++) { const sp = new THREE.Mesh(new THREE.PlaneGeometry(0.02, 0.02), sparkM); sp.userData = { noRay: true, noMerge: true, t: Math.random() * 2, x: 0 }; fire.add(sp); sparks.push(sp); }
+  const a = anchor(0, 0, 0, { color: 0xff8030, intensity: 4, distance: 7, flicker: 0, grid: false }); a.pos.copy(wp(g, 0, 0.6, 1.2));
+  let ft = 0;
+  W.animated.push((dt, t) => {
+    if (!fire.visible) return;
+    ft += dt; if (ft > 0.05) { ft = 0; for (const f of flames) f.step(); }
+    // свет дрожит плавно, как от настоящего пламени, а не мигает
+    const n = Math.sin(t * 7.3) * 0.5 + Math.sin(t * 13.1 + 1.7) * 0.3 + Math.sin(t * 2.1) * 0.2;
+    a.intensity = 4 * (0.85 + n * 0.18);
+    coalM.emissiveIntensity = 0.65 + Math.sin(t * 1.3) * 0.15 + Math.sin(t * 4.7) * 0.08;
+    for (const sp of sparks) {
+      sp.userData.t += dt * (0.45 + (sp.id % 5) * 0.08);
+      if (sp.userData.t > 1) { sp.userData.t = 0; sp.userData.x = (Math.random() - 0.5) * 0.7; }
+      const k = sp.userData.t; sp.position.set(sp.userData.x + Math.sin(k * 9 + sp.id) * 0.05, 0.3 + k * 0.7, 0.42);
+      sp.scale.setScalar(1 - k * 0.7);
+    }
+    sparkM.opacity = 0.9;
+  });
   let lit = true;
   interact(g, () => lit ? 'Погреть руки у камина' : 'Разжечь камин', () => {
     if (!lit) { lit = true; fire.visible = true; a.on = true; S.sfxSwitch(); return; }
@@ -1076,4 +1106,29 @@ export function trophies(x, y, z, ry, { note = null } = {}) {
   interact(g, 'Осмотреть трофеи', () => { S.sfxClink(0.6); if (note) G.noteKey(note); });
   mount(g, 'wall', { w: 1.1, h: 1.6, dy: 0.95, what: 'трофеи' });
   return g;
+}
+
+// Пламя «как в старых играх»: сетка жара, нижний ряд — угли; каждый шаг жар поднимается на клетку вверх,
+// случайно остывает и сносится в сторону. Палитра — от прозрачной черноты до белого.
+const FIRE_PAL = (() => { const p = []; const st = [[0, 0, 0], [40, 6, 2], [110, 18, 4], [180, 40, 6], [220, 80, 10], [240, 120, 20], [250, 165, 40], [255, 205, 80], [255, 235, 160], [255, 250, 220]];
+  for (let i = 0; i < 37; i++) { const f = i / 36 * (st.length - 1), k = Math.floor(f), u = f - k, a = st[k], b = st[Math.min(st.length - 1, k + 1)]; p.push(a.map((v, j) => Math.round(v + (b[j] - v) * u))); } return p; })();
+function makeFlame(Wd, Hd, seed) {
+  const c = document.createElement('canvas'); c.width = Wd; c.height = Hd; const cx = c.getContext('2d');
+  const img = cx.createImageData(Wd, Hd); const heat = new Uint8Array(Wd * Hd);
+  let sd = seed; const rnd = () => ((sd = (sd * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.LinearFilter;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const step = () => {
+    // источник: угли посередине очага, края гаснут, жар неровный
+    for (let x = 0; x < Wd; x++) { const e = Math.abs(x / (Wd - 1) - 0.5) * 2; heat[(Hd - 1) * Wd + x] = e > 0.8 ? 0 : Math.max(0, Math.min(36, Math.round(36 - e * e * 22 - rnd() * 12))); }
+    for (let y = 0; y < Hd - 1; y++) for (let x = 0; x < Wd; x++) {
+      const src = heat[(y + 1) * Wd + x]; const r = Math.floor(rnd() * 3);
+      const dx = Math.min(Wd - 1, Math.max(0, x - r + 1));
+      heat[y * Wd + dx] = Math.max(0, src - (r & 1) - (rnd() < 0.14 ? 1 : 0));
+    }
+    for (let i = 0; i < Wd * Hd; i++) { const p = FIRE_PAL[heat[i]]; img.data[i * 4] = p[0]; img.data[i * 4 + 1] = p[1]; img.data[i * 4 + 2] = p[2]; img.data[i * 4 + 3] = 255; }
+    cx.putImageData(img, 0, 0); tex.needsUpdate = true;
+  };
+  for (let i = 0; i < Hd; i++) step();
+  return { mat, step };
 }

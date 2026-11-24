@@ -737,3 +737,15 @@ export const shieldTex = () => cached('shield', () => {
   for (let i = 0; i < 7; i++) { g.fillStyle = `rgba(30,18,8,${0.15 + r() * 0.2})`; g.fillRect(0, 20 + i * 32 + r() * 6, W0, 5 + r() * 4); }
   return toTex(c, { repeat: false });
 });
+
+// ковёр с каймой: ровное поле, мелкая сетка ромбов и двойная золотая рамка по краю тайла (тайл = весь ковёр)
+export const carpetBorder = (base = '#4a0f18', alt = '#5a1520', line = '#a07a3a') => cached('cb' + base + alt + line, () => {
+  const W0 = 192, H0 = 256, [c, g] = canvas(W0, H0); const r = rnd(41);
+  g.fillStyle = base; g.fillRect(0, 0, W0, H0);
+  g.fillStyle = alt; for (let y = 28; y < H0 - 28; y += 16) for (let x = 28 + ((y / 16) % 2) * 8; x < W0 - 28; x += 16) { g.beginPath(); g.moveTo(x, y - 4); g.lineTo(x + 4, y); g.lineTo(x, y + 4); g.lineTo(x - 4, y); g.closePath(); g.fill(); }
+  g.strokeStyle = line; g.lineWidth = 3; g.strokeRect(10, 10, W0 - 20, H0 - 20); g.lineWidth = 1.5; g.strokeRect(18, 18, W0 - 36, H0 - 36);
+  g.fillStyle = line; g.beginPath(); g.ellipse(W0 / 2, H0 / 2, 22, 30, 0, 0, 7); g.globalAlpha = 0.25; g.fill(); g.globalAlpha = 1;
+  g.strokeStyle = line; g.lineWidth = 1.5; g.beginPath(); g.ellipse(W0 / 2, H0 / 2, 30, 40, 0, 0, 7); g.stroke();
+  for (let i = 0; i < 1800; i++) { g.fillStyle = `rgba(0,0,0,${r() * 0.12})`; g.fillRect(r() * W0, r() * H0, 1, 1); }
+  return toTex(c, { repeat: false });
+});

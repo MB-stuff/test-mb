@@ -1047,7 +1047,8 @@ function buildLobby() {
   W.animated.push(dt => { if (spin > 0) { rd.rotation.y += dt * 3; spin -= dt; } });
   mount(rd, 'floor');
   sgn('ВХОД · ENTRANCE', 'z', LX0, 1, 0, y + 3.6, { w: 1.6, h: 0.3 });
-  PR.rug(LX0 + 4.2, 0, 3, 4, TX.chevronTex());
+  // ковёр у входа: спокойный бордовый с тонкой каймой — в тон обоям вестибюля
+  PR.rug(LX0 + 4.2, 0, 3, 4, TX.carpetBorder('#4a0f18', '#5a1520', '#a07a3a'), { whole: true });
   // стойка регистрации
   PR.counter(-6.5, -9, -5.5, -2.5, 1.15, { top: 0x140a08, front: '#3a160e' });
   PR.counter(-6.5, -9.2, -3, -8.6, 1.15, { top: 0x140a08, front: '#3a160e' });
