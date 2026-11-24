@@ -233,6 +233,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyF') toggleFlash();
   if (e.code === 'KeyJ') openJournal();
   if (e.code === 'KeyM') { const v = S.audio.musicVolume > 0 ? 0 : 0.55; S.setMusicVolume(v); $('vol').value = v; store.set('hotel.vol', v); toast(v ? 'Музыка включена' : 'Музыка выключена'); }
+  if (e.code === 'KeyH') { setUI(!showUI); toast(showUI ? 'Интерфейс: включён' : 'Интерфейс: скрыт'); }
   if (e.code === 'KeyP') { setPixel(!pixel); $('pixel').checked = pixel; toast(pixel ? 'Пиксели: включены' : 'Пиксели: выключены'); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -366,6 +367,10 @@ $('vol').addEventListener('input', e => { S.setMusicVolume(+e.target.value); sto
 $('sfx').addEventListener('input', e => { S.setSfxVolume(+e.target.value); store.set('hotel.sfx', e.target.value); S.sfxClick(); });
 $('sens').value = state.sens; $('sens').addEventListener('input', e => { state.sens = +e.target.value; store.set('hotel.sens', state.sens); });
 $('pixel').checked = pixel; $('pixel').addEventListener('change', e => setPixel(e.target.checked));
+// интерфейс: счётчики, название комнаты, прицел. Подсказки действий, сообщения и субтитры остаются всегда.
+let showUI = store.get('hotel.ui') !== '0';
+function setUI(v) { showUI = v; store.set('hotel.ui', v ? '1' : '0'); document.body.classList.toggle('noui', !v); $('ui').checked = v; }
+setUI(showUI); $('ui').addEventListener('change', e => setUI(e.target.checked));
 $('journalBtn').addEventListener('click', () => openJournal());
 function start() {
   S.initAudio(); S.setMusicVolume(+$('vol').value); S.setSfxVolume(+$('sfx').value);

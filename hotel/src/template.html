@@ -11,6 +11,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 #game canvas{display:block;width:100vw!important;height:100vh!important}
 body.freelook canvas{cursor:none}
 body:not(.playing) #hud,body:not(.playing) #zone{display:none}
+/* интерфейс выключен: остаются только подсказки действий, всплывающие сообщения и субтитры */
+body.noui #hud,body.noui #zone,body.noui #cross,body.noui #help{display:none}
 .hidden{display:none!important}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);font-size:14px;letter-spacing:.3em;color:var(--dim);z-index:50}
 #start{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(90deg,rgba(14,6,8,.92) 0%,rgba(14,6,8,.78) 42%,rgba(14,6,8,.1) 75%);z-index:40;padding:16px;overflow:auto;justify-items:start}
@@ -122,7 +124,7 @@ body.touch #touchUI{display:block}
 <div id="zone"></div>
 <div id="hud"><div id="secrets"></div><div id="inv"></div></div>
 <div id="subtitle"></div>
-<div id="help">WASD — идти · Shift — бежать<br>Мышь — смотреть · E / ЛКМ — действие<br>Пробел — встать · F — фонарик · J — журнал<br>M — музыка · P — пиксели · Esc — пауза</div>
+<div id="help">WASD — идти · Shift — бежать<br>Мышь — смотреть · E / ЛКМ — действие<br>Пробел — встать · F — фонарик · J — журнал<br>M — музыка · P — пиксели · H — интерфейс · Esc — пауза</div>
 <div id="touchUI"><div id="stick"><div id="knob"></div></div><div class="tbtn" id="btnUse">E</div><div class="tbtn" id="btnRun">»</div><div class="tbtn" id="btnLight">☀</div><div class="tbtn" id="btnMenu">II</div><div class="tbtn" id="btnJournal">J</div></div>
 <div id="fade"></div>
 <div id="modal"><div id="modalBody"></div></div>
@@ -131,9 +133,9 @@ body.touch #touchUI{display:block}
   <h1 id="startTitle">Grand Simulacre</h1>
   <div class="sub">ПУСТЫЕ КОРИДОРЫ · МИР ИДЕЙ · 1999</div>
   <p>Тёмный вестибюль с фонтаном, пустой бальный зал, библиотека, курительная, ресторан «Мираж», казино «Оазис», три жилых этажа и подвал. Восемь секретов, пять историй тех, кто здесь остался, и книги о симулякрах на полках. Солнце над малиновой пустыней не садится.</p>
-  <div class="ctrl kbd"><b>WASD</b><span>идти, Shift — бежать</span><b>Мышь</b><span>осматриваться</span><b>E / ЛКМ</b><span>взаимодействовать</span><b>Пробел</b><span>встать со стула</span><b>F · J</b><span>фонарик · журнал историй</span><b>M · P · Esc</b><span>музыка · пиксели · пауза</span></div>
+  <div class="ctrl kbd"><b>WASD</b><span>идти, Shift — бежать</span><b>Мышь</b><span>осматриваться</span><b>E / ЛКМ</b><span>взаимодействовать</span><b>Пробел</b><span>встать со стула</span><b>F · J</b><span>фонарик · журнал историй</span><b>M · P · H</b><span>музыка · пиксели · интерфейс</span><b>Esc</b><span>пауза</span></div>
   <div class="ctrl tch"><b>Левая часть</b><span>джойстик — идти</span><b>Правая часть</b><span>вести пальцем — смотреть, тап — действие</span><b>E · » · ☀</b><span>действие · бег · фонарик</span></div>
-  <div class="opts"><label>музыка <input id="vol" type="range" min="0" max="1" step="0.05" value="0.55"></label><label>звуки <input id="sfx" type="range" min="0" max="1" step="0.05" value="0.9"></label><label>мышь <input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label><label><input id="pixel" type="checkbox"> пиксели</label></div>
+  <div class="opts"><label>музыка <input id="vol" type="range" min="0" max="1" step="0.05" value="0.55"></label><label>звуки <input id="sfx" type="range" min="0" max="1" step="0.05" value="0.9"></label><label>мышь <input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label><label><input id="pixel" type="checkbox"> пиксели</label><label><input id="ui" type="checkbox"> интерфейс</label></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="startBtn">Войти</button><button id="journalBtn" class="ghost">Журнал</button></div>
 </div></div>
 <!--IMAGES-->
