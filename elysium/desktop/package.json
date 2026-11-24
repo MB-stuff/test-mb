@@ -1,0 +1,51 @@
+{
+  "name": "elysium-game",
+  "productName": "Pavilion",
+  "version": "1.0.0",
+  "description": "Игра на «Элизиуме»",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "copy-game": "node scripts/copy-game.cjs",
+    "start": "npm run copy-game && electron .",
+    "dist": "npm run copy-game && electron-builder --win portable --x64",
+    "dist:setup": "npm run copy-game && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8",
+    "resedit": "1.7.2"
+  },
+  "build": {
+    "appId": "local.elysium.pavilion",
+    "productName": "Pavilion",
+    "copyright": "",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "app/**",
+      "build/icon.png"
+    ],
+    "asar": true,
+    "afterPack": "scripts/set-icon.cjs",
+    "win": {
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "${productName} ${version}.exe"
+    },
+    "nsis": {
+      "artifactName": "${productName} Setup ${version}.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Pavilion",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
+  }
+}

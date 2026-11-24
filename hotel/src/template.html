@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Grand Simulacre</title>
+<style>
+:root{color-scheme:dark;--ink:#f2d9a6;--dim:#a88a6a;--accent:#ff8a3a;--pink:#ff7ab0;--bg:#0b0607;--panel:rgba(18,9,10,.86)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
+#game canvas{display:block;width:100vw!important;height:100vh!important}
+body.freelook canvas{cursor:none}
+body:not(.playing) #hud,body:not(.playing) #zone{display:none}
+/* интерфейс выключен: остаются только подсказки действий, всплывающие сообщения и субтитры */
+body.noui #hud,body.noui #zone,body.noui #cross,body.noui #help{display:none}
+.hidden{display:none!important}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);font-size:14px;letter-spacing:.3em;color:var(--dim);z-index:50}
+#start{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(90deg,rgba(14,6,8,.92) 0%,rgba(14,6,8,.78) 42%,rgba(14,6,8,.1) 75%);z-index:40;padding:16px;overflow:auto;justify-items:start}
+#start .card{margin-left:clamp(0px,6vw,90px)}
+@media (max-width:760px){#start{background:rgba(14,6,8,.82);justify-items:center}#start .card{margin-left:0}}
+.card{max-width:560px;width:100%;text-align:left}
+.card h1{font-weight:normal;font-size:clamp(30px,7vw,54px);margin:0 0 4px;letter-spacing:.06em;color:#ffd38a;text-shadow:0 0 18px rgba(255,140,60,.55),3px 3px 0 #6a1030}
+.sub{font-family:'Courier New',monospace;font-size:12px;letter-spacing:.35em;color:var(--pink);margin-bottom:22px}
+.sun{width:64px;height:64px;border-radius:50%;margin:0 0 18px;background:linear-gradient(#ffb04a,#ff5a1a 70%);box-shadow:0 0 40px rgba(255,120,40,.6);
+ -webkit-mask:repeating-linear-gradient(180deg,#000 0 6px,transparent 6px 8px);mask:linear-gradient(#000 55%,transparent 55%),repeating-linear-gradient(180deg,#000 0 5px,transparent 5px 8px)}
+.card p{color:var(--dim);line-height:1.5;font-size:15px;margin:0 0 18px}
+.ctrl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;text-align:left;font-size:13px;margin:0 0 18px;max-width:380px;font-family:'Courier New',monospace;color:#d8bf94}
+.ctrl b{color:#ffcf7a;font-weight:normal;background:rgba(255,200,120,.08);border:1px solid rgba(255,200,120,.25);padding:0 6px;border-radius:3px;white-space:nowrap}
+body.touch .ctrl.kbd{display:none}body:not(.touch) .ctrl.tch{display:none}
+.opts{display:flex;flex-wrap:wrap;gap:10px 20px;justify-content:flex-start;font-size:13px;color:var(--dim);margin-bottom:22px;font-family:'Courier New',monospace}
+.opts label{display:flex;align-items:center;gap:8px}
+.opts select{font:inherit;background:#1a0e0c;color:#e8c890;border:1px solid #6a4a3a;padding:2px 4px}
+input[type=range]{accent-color:var(--accent);width:110px}
+#startBtn,.end button{font:inherit;font-size:18px;padding:12px 34px;background:linear-gradient(#5a1228,#2a0812);color:#ffd38a;border:1px solid #c86a4a;border-radius:2px;cursor:pointer;letter-spacing:.1em;box-shadow:0 0 22px rgba(255,90,60,.25)}
+#startBtn:hover{background:linear-gradient(#7a1838,#3a0a1a)}
+.ghost{font:inherit;font-size:16px;padding:12px 22px;background:transparent;color:#e8c890;border:1px solid #6a4a3a;cursor:pointer}
+body:not(.playing) #journalBtn{display:none}
+/* «Выйти» — только в настольной версии; «во весь экран» — в настольной всегда, в браузере — если он умеет */
+body:not(.desktop) #quitBtn{display:none}
+body.touch #fsBtn{display:none}
+#cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(255,230,190,.55);pointer-events:none;transition:transform .15s,background .15s;z-index:5}
+#cross.active{transform:scale(1.9);background:var(--accent);box-shadow:0 0 8px var(--accent)}
+#hint{position:fixed;left:50%;bottom:16%;transform:translateX(-50%);font-family:'Courier New',monospace;font-size:15px;padding:6px 14px;background:var(--panel);border:1px solid rgba(255,180,110,.25);color:#ffdca0;opacity:0;transition:opacity .15s;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;z-index:5}
+#hint.show{opacity:1}
+#toasts{position:fixed;top:16px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;z-index:6;width:min(92vw,620px)}
+.toast{background:var(--panel);border-left:3px solid var(--accent);padding:8px 14px;font-size:15px;line-height:1.35;color:#f6dfb2;animation:tin .3s;transition:opacity .5s,transform .5s;text-align:center}
+.toast.out{opacity:0;transform:translateY(-6px)}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}}
+#zone{position:fixed;left:18px;bottom:18px;font-family:'Courier New',monospace;letter-spacing:.3em;font-size:13px;color:#ffcf8a;opacity:0;pointer-events:none;text-shadow:0 0 8px rgba(255,120,60,.6)}
+#zone.show{animation:zf 4.5s forwards}
+@keyframes zf{0%{opacity:0}10%{opacity:1}75%{opacity:1}100%{opacity:.0}}
+#hud{position:fixed;right:16px;top:14px;text-align:right;font-family:'Courier New',monospace;font-size:13px;color:#ffcf8a;pointer-events:none;z-index:5}
+#secrets{font-size:16px;letter-spacing:.15em;text-shadow:0 0 8px rgba(255,120,60,.6)}
+#inv div{color:var(--dim);margin-top:3px}
+#subtitle{position:fixed;left:50%;bottom:7%;transform:translateX(-50%);max-width:min(90vw,720px);text-align:center;font-style:italic;font-size:17px;color:#ffe6c0;text-shadow:0 2px 6px #000,0 0 2px #000;opacity:0;transition:opacity .4s;pointer-events:none;z-index:6}
+#subtitle.show{opacity:1}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20}
+#modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(6,3,4,.78);z-index:30;padding:16px}
+#modal.show{display:grid}
+#modalBody{max-width:min(92vw,760px);max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:10px;text-align:center;scrollbar-width:thin;scrollbar-color:#6a4a3a transparent}
+#modalBody::-webkit-scrollbar{width:6px;height:0}#modalBody::-webkit-scrollbar-thumb{background:#6a4a3a}
+#modalBody .dim{color:var(--dim)}
+.journal{background:#1c1210;border:1px solid #6a4a2a;padding:20px 24px;text-align:left;max-width:720px;box-shadow:0 0 40px rgba(0,0,0,.6)}
+.journal h3{margin:0 0 14px;color:#ffd38a;font-weight:normal;font-size:22px}
+.jgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 18px}
+.journal h4{margin:0 0 6px;font-size:15px;color:#f2d9a6;display:flex;justify-content:space-between;gap:8px}
+.journal h4 span{font-family:'Courier New',monospace;color:var(--accent)}
+.journal ul{margin:0;padding:0;list-style:none}
+.journal li button{font:13px 'Courier New',monospace;color:#e8cfa0;background:none;border:0;padding:3px 0;cursor:pointer;text-align:left}
+.journal li button:hover{color:#fff;text-decoration:underline}
+.journal p{font-size:13px;margin:0}
+.jread{margin-top:14px}
+.jread .paper{transform:none;max-width:none}
+.pc{width:min(92vw,700px);background:#c8c0b0;border:2px solid #f0e8d8;border-right-color:#5a5248;border-bottom-color:#5a5248;text-align:left;box-shadow:0 10px 50px rgba(0,0,0,.7)}
+.pcbar{background:linear-gradient(90deg,#3a0a2a,#a04a3a);color:#fff;font:bold 13px 'Courier New',monospace;padding:5px 8px;display:flex;justify-content:space-between}
+.pcbar span{cursor:pointer;background:#c8c0b0;color:#000;padding:0 6px}
+.pcbody{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:6px;padding:8px;min-height:260px}
+@media (max-width:560px){.pcbody{grid-template-columns:1fr}}
+.pcfiles{display:flex;flex-direction:column;gap:2px;background:#fff;border:2px inset #8a8278;padding:4px;min-width:0}
+.pcfiles button{font:13px 'Courier New',monospace;text-align:left;background:none;border:0;padding:4px;cursor:pointer;color:#111;word-break:break-all}
+.pcfiles button.on,.pcfiles button:hover{background:#1a2a6a;color:#fff}
+.pctext{margin:0;background:#061a10;color:#8dffbe;font:14px/1.5 'Courier New',monospace;padding:12px;white-space:pre-wrap;border:2px inset #8a8278;min-width:0;text-shadow:0 0 5px rgba(140,255,190,.5)}
+.pc small{color:#333!important;padding:0 8px 6px}
+#hud .jl{color:var(--accent);margin-top:6px}
+#modalBody small{display:block;margin-top:10px;color:var(--dim);font-family:'Courier New',monospace;font-size:11px;letter-spacing:.2em}
+.paper{background:#e6d7b4;color:#2a1a10;padding:26px 30px;text-align:left;box-shadow:0 10px 40px rgba(0,0,0,.6);transform:rotate(-.6deg);max-width:520px;margin:auto}
+.paper h3{margin:0 0 12px;font-size:19px;border-bottom:1px solid rgba(60,30,10,.3);padding-bottom:8px}
+.paper p{margin:0;font-size:16px;line-height:1.6;font-family:'Courier New',monospace}
+.paper small{color:#6a5030!important}
+figure{margin:0}
+figure img{max-width:100%;max-height:72vh;border:14px solid #2a1a0e;outline:2px solid #7a5a22;box-shadow:0 10px 50px rgba(0,0,0,.7);image-rendering:auto}
+figcaption{margin-top:12px;font-size:14px;color:#e8cfa0;line-height:1.5}
+figcaption a{color:var(--accent)}
+.lift{background:linear-gradient(#3a2a18,#1e140a);border:2px solid #8a6a3a;padding:22px 26px;min-width:260px;box-shadow:0 0 40px rgba(0,0,0,.6)}
+.liftTitle{font-family:'Courier New',monospace;color:#ff9a4a;font-size:13px;letter-spacing:.15em;margin-bottom:16px}
+.liftBtns{display:grid;grid-template-columns:repeat(2,64px);gap:12px;justify-content:center}
+.liftBtns button{width:64px;height:64px;border-radius:50%;border:3px solid #b08a4a;background:radial-gradient(#5a4020,#2a1a0a);color:#ffd08a;font:bold 22px Georgia,serif;cursor:pointer}
+.liftBtns button:hover{background:radial-gradient(#8a6030,#3a2410)}
+.liftBtns button.cur{box-shadow:0 0 14px #ff9a3a;color:#fff}
+.liftBtns button.inf{border-color:#c08aff;color:#e0c0ff;box-shadow:0 0 18px rgba(180,120,255,.6)}
+.liftHint{margin-top:14px;font-size:13px;color:var(--dim);font-style:italic}
+.end{max-width:520px;background:linear-gradient(#ffd77a,#f0a040 60%,#7a1a30);color:#3a0a14;padding:34px 30px;box-shadow:0 0 80px rgba(255,150,60,.5)}
+.end h2{margin:0 0 14px;font-size:32px;font-weight:normal}
+.end p{font-size:16px;line-height:1.55}
+.end .big{font-family:'Courier New',monospace;font-size:18px;letter-spacing:.1em}
+#help{position:fixed;left:18px;top:14px;font-family:'Courier New',monospace;font-size:12px;color:var(--dim);line-height:1.7;opacity:0;transition:opacity 1s;pointer-events:none;background:rgba(10,5,6,.5);padding:8px 12px}
+#help.show{opacity:1}
+body.touch #help{display:none}
+body.touch #toasts{top:64px}
+#touchUI{display:none}
+body.touch #touchUI{display:block}
+#stick{position:fixed;width:100px;height:100px;border-radius:50%;border:2px solid rgba(255,200,140,.35);display:none;pointer-events:none;z-index:7}
+#knob{position:absolute;left:30px;top:30px;width:40px;height:40px;border-radius:50%;background:rgba(255,180,110,.4)}
+.tbtn{position:fixed;width:62px;height:62px;border-radius:50%;background:rgba(30,12,14,.6);border:2px solid rgba(255,190,120,.4);color:#ffd08a;font:bold 17px 'Courier New',monospace;display:grid;place-items:center;z-index:7}
+#btnUse{right:22px;bottom:96px;width:76px;height:76px;font-size:22px}
+#btnRun{right:110px;bottom:40px}
+#btnLight{right:22px;bottom:16px;width:52px;height:52px;font-size:15px}
+#btnMenu{right:16px;top:110px;width:44px;height:44px;font-size:14px}
+#btnJournal{right:16px;top:162px;width:44px;height:44px;font-size:14px}
+.tbtn.on{background:rgba(255,120,60,.45)}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="loading">ЗАСЕЛЕНИЕ…</div>
+<div id="cross"></div>
+<div id="hint"></div>
+<div id="toasts"></div>
+<div id="zone"></div>
+<div id="hud"><div id="secrets"></div><div id="inv"></div></div>
+<div id="subtitle"></div>
+<div id="help">WASD — идти · Shift — бежать<br>Мышь — смотреть · E / ЛКМ — действие<br>Пробел — встать · F — фонарик · J — журнал<br>M — музыка · P — пиксели · H — интерфейс · F11 — экран · Esc — пауза</div>
+<div id="touchUI"><div id="stick"><div id="knob"></div></div><div class="tbtn" id="btnUse">E</div><div class="tbtn" id="btnRun">»</div><div class="tbtn" id="btnLight">☀</div><div class="tbtn" id="btnMenu">II</div><div class="tbtn" id="btnJournal">J</div></div>
+<div id="fade"></div>
+<div id="modal"><div id="modalBody"></div></div>
+<div id="start"><div class="card">
+  <div class="sun"></div>
+  <h1 id="startTitle">Grand Simulacre</h1>
+  <div class="sub">ПУСТЫЕ КОРИДОРЫ · МИР ИДЕЙ · 1999</div>
+  <p>Тёмный вестибюль с фонтаном, пустой бальный зал, библиотека, курительная, ресторан «Мираж», казино «Оазис», три жилых этажа и подвал. Восемь секретов, пять историй тех, кто здесь остался, и книги о симулякрах на полках. Солнце над малиновой пустыней не садится.</p>
+  <div class="ctrl kbd"><b>WASD</b><span>идти, Shift — бежать</span><b>Мышь</b><span>осматриваться</span><b>E / ЛКМ</b><span>взаимодействовать</span><b>Пробел</b><span>встать со стула</span><b>F · J</b><span>фонарик · журнал историй</span><b>M · P · H</b><span>музыка · пиксели · интерфейс</span><b>F11 · Esc</b><span>весь экран · пауза</span></div>
+  <div class="ctrl tch"><b>Левая часть</b><span>джойстик — идти</span><b>Правая часть</b><span>вести пальцем — смотреть, тап — действие</span><b>E · » · ☀</b><span>действие · бег · фонарик</span></div>
+  <div class="opts"><label>музыка <input id="vol" type="range" min="0" max="1" step="0.05" value="0.55"></label><label>звуки <input id="sfx" type="range" min="0" max="1" step="0.05" value="0.9"></label><label>мышь <input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label><label><input id="pixel" type="checkbox"> пиксели</label><label><input id="ui" type="checkbox"> интерфейс</label><label><input id="shadows" type="checkbox"> тени</label><label>прорисовка <select id="draw"><option value="0">ближняя</option><option value="1">дальняя</option><option value="2">вся</option></select></label></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><button id="startBtn">Войти</button><button id="journalBtn" class="ghost">Журнал</button><button id="fsBtn" class="ghost">Во весь экран</button><button id="quitBtn" class="ghost">Выйти</button></div>
+</div></div>
+<!--IMAGES-->
+<!--SCRIPT-->
+</body>
+</html>
